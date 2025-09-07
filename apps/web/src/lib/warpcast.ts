@@ -44,7 +44,7 @@ export async function getFarcasterManifest() {
     miniapp: {
       version: "1",
       name: frameName,
-      iconUrl: `${appUrl}/icon.png`,
+      iconUrl: `${appUrl}/1percent.jpg`,
       homeUrl: appUrl,
       imageUrl: `${appUrl}/opengraph-image.png`,
       buttonTitle: `Launch App`,
@@ -52,11 +52,11 @@ export async function getFarcasterManifest() {
       splashBackgroundColor: "#FFFFFF",
       webhookUrl: `${appUrl}/api/webhook`,
       // Metadata https://github.com/farcasterxyz/miniapps/discussions/191
-      subtitle: "a multiplayer prediction elimination game where minority wins in any round", // 30 characters, no emojis or special characters, short description under app name
+      subtitle: "a multiplayer prediction game", // 30 characters, no emojis or special characters, short description under app name
       description: "a multiplayer prediction elimination game where minority wins in any round", // 170 characters, no emojis or special characters, promotional message displayed on Mini App Page
       primaryCategory: "social",
       tags: ["mini-app", "celo"], // up to 5 tags, filtering/search tags
-      tagline: "Built on Celo", // 30 characters, marketing tagline should be punchy and descriptive
+      tagline: "Multiplayer prediction game", // 30 characters, marketing tagline should be punchy and descriptive
       ogTitle: `${frameName}`, // 30 characters, app name + short tag, Title case, no emojis
       ogDescription: "a multiplayer prediction elimination game where minority wins in any round", // 100 characters, summarize core benefits in 1-2 lines
       screenshotUrls: [
