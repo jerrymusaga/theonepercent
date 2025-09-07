@@ -41,7 +41,8 @@ contract CoinToss is Ownable, ReentrancyGuard {
     
     uint256 public currentPoolId;
     uint256 public constant BASE_STAKE = 5 ether; // 5 CELO
-    uint256 public constant POOL_MULTIPLIER = 120; // 1.2x multiplier (120/100)
+    uint256 public constant POOL_MULTIPLIER = 100; // 1x multiplier (100/100) - fair 1:1 ratio
+    uint256 public constant MAX_STAKE_ALLOWED = 50 ether; // Cap at 50 CELO maximum stake
     uint256 public constant PENALTY_PERCENTAGE = 30;
     uint256 public constant CREATOR_REWARD_PERCENTAGE = 5;
     
@@ -55,6 +56,7 @@ contract CoinToss is Ownable, ReentrancyGuard {
     
     function stakeForPoolCreation() external payable {
         require(msg.value >= BASE_STAKE, "Minimum stake is 5 CELO");
+        require(msg.value <= MAX_STAKE_ALLOWED, "Maximum stake is 50 CELO");
         require(!poolCreators[msg.sender].hasActiveStake, "Already has active stake");
         
         uint256 poolsEligible = calculatePoolsEligible(msg.value);
@@ -76,12 +78,12 @@ contract CoinToss is Ownable, ReentrancyGuard {
         require(stakeAmount >= BASE_STAKE, "Stake amount too low");
         
         // Formula: pools = (stakeAmount / BASE_STAKE) * POOL_MULTIPLIER / 100
-        // Examples: 
-        // 5 CELO: (5/5) * 1.2 = 1.2 = 1 pool (rounded down)
-        // 10 CELO: (10/5) * 1.2 = 2.4 = 2 pools
-        // 15 CELO: (15/5) * 1.2 = 3.6 = 3 pools  
-        // 25 CELO: (25/5) * 1.2 = 6 pools
-        // 50 CELO: (50/5) * 1.2 = 12 pools
+        // Examples with 1x multiplier and 50 CELO stake cap:
+        // 5 CELO: (5/5) * 1.0 = 1 pool
+        // 10 CELO: (10/5) * 1.0 = 2 pools
+        // 15 CELO: (15/5) * 1.0 = 3 pools  
+        // 25 CELO: (25/5) * 1.0 = 5 pools
+        // 50 CELO: (50/5) * 1.0 = 10 pools (maximum allowed)
         
         uint256 baseUnits = stakeAmount / BASE_STAKE;
         uint256 totalPools = (baseUnits * POOL_MULTIPLIER) / 100;
