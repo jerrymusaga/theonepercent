@@ -41,6 +41,7 @@ contract CoinToss is Ownable, ReentrancyGuard {
     
     uint256 public currentPoolId;
     uint256 public constant BASE_STAKE = 5 ether; // 5 CELO
+    uint256 public constant POOL_MULTIPLIER = 120; // 1.2x multiplier (120/100)
     uint256 public constant PENALTY_PERCENTAGE = 30;
     uint256 public constant CREATOR_REWARD_PERCENTAGE = 5;
     
@@ -72,12 +73,20 @@ contract CoinToss is Ownable, ReentrancyGuard {
     }
     
     function calculatePoolsEligible(uint256 stakeAmount) public pure returns (uint256) {
-        if (stakeAmount >= 10 ether) {
-            return 6;
-        } else if (stakeAmount >= 5 ether) {
-            return 2;
-        }
-        return 0;
+        require(stakeAmount >= BASE_STAKE, "Stake amount too low");
+        
+        // Formula: pools = (stakeAmount / BASE_STAKE) * POOL_MULTIPLIER / 100
+        // Examples: 
+        // 5 CELO: (5/5) * 1.2 = 1.2 = 1 pool (rounded down)
+        // 10 CELO: (10/5) * 1.2 = 2.4 = 2 pools
+        // 15 CELO: (15/5) * 1.2 = 3.6 = 3 pools  
+        // 25 CELO: (25/5) * 1.2 = 6 pools
+        // 50 CELO: (50/5) * 1.2 = 12 pools
+        
+        uint256 baseUnits = stakeAmount / BASE_STAKE;
+        uint256 totalPools = (baseUnits * POOL_MULTIPLIER) / 100;
+        
+        return totalPools;
     }
     
     function createPool(uint256 _entryFee, uint256 _maxPlayers) external {
