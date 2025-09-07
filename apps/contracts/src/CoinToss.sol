@@ -49,6 +49,9 @@ contract CoinToss is Ownable, ReentrancyGuard {
     event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 entryFee, uint256 maxPlayers);
     event PlayerJoined(uint256 indexed poolId, address indexed player, uint256 currentPlayers, uint256 maxPlayers);
     event PoolActivated(uint256 indexed poolId, uint256 totalPlayers, uint256 prizePool);
+    event PlayerMadeChoice(uint256 indexed poolId, address indexed player, PlayerChoice choice, uint256 round);
+    event RoundResolved(uint256 indexed poolId, uint256 round, PlayerChoice winningChoice, uint256 eliminatedCount, uint256 remainingCount);
+    event GameCompleted(uint256 indexed poolId, address indexed winner, uint256 prizeAmount);
     event StakeDeposited(address indexed creator, uint256 amount, uint256 poolsEligible);
     event StakeWithdrawn(address indexed creator, uint256 amount, uint256 penalty);
     event CreatorRewardClaimed(address indexed creator, uint256 amount);
@@ -183,6 +186,158 @@ contract CoinToss is Ownable, ReentrancyGuard {
         _checkPoolActivation(_poolId);
     }
     
+    function makeSelection(uint256 _poolId, PlayerChoice _choice) external {
+        Pool storage pool = pools[_poolId];
+        require(pool.status == PoolStatus.ACTIVE, "Pool is not active");
+        require(_choice == PlayerChoice.HEADS || _choice == PlayerChoice.TAILS, "Invalid choice");
+        require(!pool.isEliminated[msg.sender], "Player is eliminated");
+        require(pool.hasJoined[msg.sender], "Player not in this pool");
+        require(pool.playerChoices[msg.sender] == PlayerChoice.NONE, "Choice already made this round");
+        
+        pool.playerChoices[msg.sender] = _choice;
+        
+        emit PlayerMadeChoice(_poolId, msg.sender, _choice, pool.currentRound);
+        
+        // Auto-resolve round if all players have chosen
+        if (_allPlayersChosen(_poolId)) {
+            _executeRound(_poolId);
+        }
+    }
+    
+    function _executeRound(uint256 _poolId) internal {
+        Pool storage pool = pools[_poolId];
+        
+        // Count choices
+        (uint256 headsCount, uint256 tailsCount, address[] memory headsPlayers, address[] memory tailsPlayers) = _countChoices(_poolId);
+        
+        PlayerChoice winningChoice;
+        address[] memory winners;
+        address[] memory losers;
+        
+        if (headsCount < tailsCount) {
+            // Heads minority wins
+            winningChoice = PlayerChoice.HEADS;
+            winners = headsPlayers;
+            losers = tailsPlayers;
+        } else if (tailsCount < headsCount) {
+            // Tails minority wins  
+            winningChoice = PlayerChoice.TAILS;
+            winners = tailsPlayers;
+            losers = headsPlayers;
+        } else {
+            // Tie - use blockhash to decide
+            winningChoice = _resolvetie(_poolId);
+            if (winningChoice == PlayerChoice.HEADS) {
+                winners = headsPlayers;
+                losers = tailsPlayers;
+            } else {
+                winners = tailsPlayers;
+                losers = headsPlayers;
+            }
+        }
+        
+        // Eliminate losers
+        for (uint256 i = 0; i < losers.length; i++) {
+            pool.isEliminated[losers[i]] = true;
+        }
+        
+        // Update remaining players
+        pool.remainingPlayers = winners;
+        
+        // Reset choices for next round
+        _resetPlayerChoices(_poolId);
+        
+        emit RoundResolved(_poolId, pool.currentRound, winningChoice, losers.length, winners.length);
+        
+        // Check if game is complete
+        if (winners.length == 1) {
+            pool.status = PoolStatus.COMPLETED;
+            emit GameCompleted(_poolId, winners[0], _calculateWinnerPrize(_poolId));
+        } else {
+            pool.currentRound++;
+        }
+    }
+    
+    function _allPlayersChosen(uint256 _poolId) internal view returns (bool) {
+        Pool storage pool = pools[_poolId];
+        for (uint256 i = 0; i < pool.remainingPlayers.length; i++) {
+            address player = pool.remainingPlayers[i];
+            if (pool.playerChoices[player] == PlayerChoice.NONE) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    function _countChoices(uint256 _poolId) internal view returns (
+        uint256 headsCount, 
+        uint256 tailsCount,
+        address[] memory headsPlayers,
+        address[] memory tailsPlayers
+    ) {
+        Pool storage pool = pools[_poolId];
+        
+        // First pass - count
+        for (uint256 i = 0; i < pool.remainingPlayers.length; i++) {
+            address player = pool.remainingPlayers[i];
+            if (pool.playerChoices[player] == PlayerChoice.HEADS) {
+                headsCount++;
+            } else if (pool.playerChoices[player] == PlayerChoice.TAILS) {
+                tailsCount++;
+            }
+        }
+        
+        // Initialize arrays
+        headsPlayers = new address[](headsCount);
+        tailsPlayers = new address[](tailsCount);
+        
+        // Second pass - populate arrays
+        uint256 headsIndex = 0;
+        uint256 tailsIndex = 0;
+        
+        for (uint256 i = 0; i < pool.remainingPlayers.length; i++) {
+            address player = pool.remainingPlayers[i];
+            if (pool.playerChoices[player] == PlayerChoice.HEADS) {
+                headsPlayers[headsIndex] = player;
+                headsIndex++;
+            } else if (pool.playerChoices[player] == PlayerChoice.TAILS) {
+                tailsPlayers[tailsIndex] = player;
+                tailsIndex++;
+            }
+        }
+    }
+    
+    function _resolvetie(uint256 _poolId) internal view returns (PlayerChoice) {
+        // Use blockhash for randomness in tie situations
+        uint256 randomValue = uint256(keccak256(abi.encodePacked(block.prevrandao, _poolId, block.timestamp)));
+        return (randomValue % 2 == 0) ? PlayerChoice.HEADS : PlayerChoice.TAILS;
+    }
+    
+    function _resetPlayerChoices(uint256 _poolId) internal {
+        Pool storage pool = pools[_poolId];
+        for (uint256 i = 0; i < pool.remainingPlayers.length; i++) {
+            pool.playerChoices[pool.remainingPlayers[i]] = PlayerChoice.NONE;
+        }
+    }
+    
+    function _calculateWinnerPrize(uint256 _poolId) internal view returns (uint256) {
+        Pool storage pool = pools[_poolId];
+        uint256 creatorFee = (pool.prizePool * CREATOR_REWARD_PERCENTAGE) / 100;
+        return pool.prizePool - creatorFee;
+    }
+    
+    function claimPrize(uint256 _poolId) external nonReentrant {
+        Pool storage pool = pools[_poolId];
+        require(pool.status == PoolStatus.COMPLETED, "Pool is not completed");
+        require(pool.remainingPlayers.length == 1, "No clear winner");
+        require(pool.remainingPlayers[0] == msg.sender, "Only winner can claim prize");
+        
+        uint256 prize = _calculateWinnerPrize(_poolId);
+        pool.prizePool = 0; // Prevent double claiming
+        
+        payable(msg.sender).transfer(prize);
+    }
+    
     function unstakeAndClaim() external nonReentrant {
         PoolCreator storage creator = poolCreators[msg.sender];
         require(creator.hasActiveStake, "No active stake");
@@ -281,5 +436,40 @@ contract CoinToss is Ownable, ReentrancyGuard {
     
     function getCreatedPools(address _creator) external view returns (uint256[] memory) {
         return poolCreators[_creator].createdPoolIds;
+    }
+    
+    function getRemainingPlayers(uint256 _poolId) external view returns (address[] memory) {
+        return pools[_poolId].remainingPlayers;
+    }
+    
+    function getCurrentRound(uint256 _poolId) external view returns (uint256) {
+        return pools[_poolId].currentRound;
+    }
+    
+    function getPlayerChoice(uint256 _poolId, address _player) external view returns (PlayerChoice) {
+        return pools[_poolId].playerChoices[_player];
+    }
+    
+    function hasPlayerChosen(uint256 _poolId, address _player) external view returns (bool) {
+        return pools[_poolId].playerChoices[_player] != PlayerChoice.NONE;
+    }
+    
+    function isPlayerEliminated(uint256 _poolId, address _player) external view returns (bool) {
+        return pools[_poolId].isEliminated[_player];
+    }
+    
+    function getGameProgress(uint256 _poolId) external view returns (
+        uint256 currentRound,
+        uint256 remainingPlayersCount,
+        uint256 totalPlayersCount,
+        bool isGameComplete
+    ) {
+        Pool storage pool = pools[_poolId];
+        return (
+            pool.currentRound,
+            pool.remainingPlayers.length,
+            pool.currentPlayers,
+            pool.status == PoolStatus.COMPLETED
+        );
     }
 }
