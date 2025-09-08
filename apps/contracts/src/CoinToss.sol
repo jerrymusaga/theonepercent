@@ -197,15 +197,15 @@ contract CoinToss is Ownable, ReentrancyGuard {
         pool.playerChoices[msg.sender] = _choice;
         
         emit PlayerMadeChoice(_poolId, msg.sender, _choice, pool.currentRound);
+        
+        // Auto-resolve round if all players have chosen
+        if (_allPlayersChosen(_poolId)) {
+            _executeRound(_poolId);
+        }
     }
     
-    function executeRound(uint256 _poolId) external {
+    function _executeRound(uint256 _poolId) internal {
         Pool storage pool = pools[_poolId];
-        require(pool.status == PoolStatus.ACTIVE, "Pool is not active");
-        require(msg.sender == pool.creator || msg.sender == owner(), "Only pool creator or owner can execute round");
-        
-        // Check all remaining players have made choices
-        require(_allPlayersChosen(_poolId), "Not all players have made choices");
         
         // Count choices
         (uint256 headsCount, uint256 tailsCount, address[] memory headsPlayers, address[] memory tailsPlayers) = _countChoices(_poolId);
