@@ -194,7 +194,11 @@ const PoolCard = ({ pool }: { pool: typeof mockPools[0] }) => {
               >
                 {pool.currentPlayers >= pool.maxPlayers ? "Pool Full" : "Join Game"}
               </Button>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.href = `/pools/${pool.id}`}
+              >
                 View Details
               </Button>
             </>
@@ -204,6 +208,7 @@ const PoolCard = ({ pool }: { pool: typeof mockPools[0] }) => {
             <Button 
               variant="outline" 
               className="flex-1 border-green-200 hover:bg-green-50"
+              onClick={() => window.location.href = `/pools/${pool.id}`}
             >
               Watch Game
             </Button>
