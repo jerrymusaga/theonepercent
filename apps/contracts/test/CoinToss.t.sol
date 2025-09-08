@@ -1,0 +1,696 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import {Test, console} from "forge-std/Test.sol";
+import {CoinToss} from "../src/CoinToss.sol";
+
+contract CoinTossTest is Test {
+    CoinToss public coinToss;
+    
+    address public owner;
+    address public creator1;
+    address public creator2;
+    address public player1;
+    address public player2;
+    address public player3;
+    address public player4;
+    address public player5;
+    
+    uint256 public constant BASE_STAKE = 5 ether;
+    uint256 public constant MAX_STAKE = 50 ether;
+    
+    function setUp() public {
+        owner = address(this);
+        creator1 = makeAddr("creator1");
+        creator2 = makeAddr("creator2");
+        player1 = makeAddr("player1");
+        player2 = makeAddr("player2");
+        player3 = makeAddr("player3");
+        player4 = makeAddr("player4");
+        player5 = makeAddr("player5");
+        
+        // Give everyone some CELO
+        vm.deal(creator1, 100 ether);
+        vm.deal(creator2, 100 ether);
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+        vm.deal(player3, 10 ether);
+        vm.deal(player4, 10 ether);
+        vm.deal(player5, 10 ether);
+        
+        coinToss = new CoinToss();
+    }
+    
+    // STAKING MECHANISM TESTS
+    
+    function test_StakeForPoolCreation_Success() public {
+        vm.startPrank(creator1);
+        
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        
+        (uint256 stakedAmount, uint256 poolsCreated, uint256 poolsRemaining, bool hasActiveStake) = 
+            coinToss.getCreatorInfo(creator1);
+        
+        assertEq(stakedAmount, 10 ether);
+        assertEq(poolsCreated, 0);
+        assertEq(poolsRemaining, 2); // 10 CELO = 2 pools
+        assertTrue(hasActiveStake);
+        
+        vm.stopPrank();
+    }
+    
+    function test_StakeForPoolCreation_MinimumStake() public {
+        vm.startPrank(creator1);
+        
+        coinToss.stakeForPoolCreation{value: 5 ether}();
+        
+        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        assertEq(poolsRemaining, 1); // 5 CELO = 1 pool
+        
+        vm.stopPrank();
+    }
+    
+    function test_StakeForPoolCreation_MaximumStake() public {
+        vm.startPrank(creator1);
+        
+        coinToss.stakeForPoolCreation{value: 50 ether}();
+        
+        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        assertEq(poolsRemaining, 10); // 50 CELO = 10 pools (max)
+        
+        vm.stopPrank();
+    }
+    
+    function test_StakeForPoolCreation_RevertBelowMinimum() public {
+        vm.startPrank(creator1);
+        
+        vm.expectRevert("Minimum stake is 5 CELO");
+        coinToss.stakeForPoolCreation{value: 4 ether}();
+        
+        vm.stopPrank();
+    }
+    
+    function test_StakeForPoolCreation_RevertAboveMaximum() public {
+        vm.startPrank(creator1);
+        
+        vm.expectRevert("Maximum stake is 50 CELO");
+        coinToss.stakeForPoolCreation{value: 51 ether}();
+        
+        vm.stopPrank();
+    }
+    
+    function test_StakeForPoolCreation_RevertAlreadyStaked() public {
+        vm.startPrank(creator1);
+        
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        
+        vm.expectRevert("Already has active stake");
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        
+        vm.stopPrank();
+    }
+    
+    function test_CalculatePoolsEligible() public {
+        assertEq(coinToss.calculatePoolsEligible(5 ether), 1);
+        assertEq(coinToss.calculatePoolsEligible(10 ether), 2);
+        assertEq(coinToss.calculatePoolsEligible(15 ether), 3);
+        assertEq(coinToss.calculatePoolsEligible(25 ether), 5);
+        assertEq(coinToss.calculatePoolsEligible(50 ether), 10);
+    }
+    
+    // POOL CREATION TESTS
+    
+    function test_CreatePool_Success() public {
+        // Stake first
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        
+        coinToss.createPool(1 ether, 4);
+        
+        (address creator, uint256 entryFee, uint256 maxPlayers, uint256 currentPlayers, uint256 prizePool, CoinToss.PoolStatus status) = 
+            coinToss.getPoolInfo(1);
+        
+        assertEq(creator, creator1);
+        assertEq(entryFee, 1 ether);
+        assertEq(maxPlayers, 4);
+        assertEq(currentPlayers, 0);
+        assertEq(prizePool, 0);
+        assertTrue(status == CoinToss.PoolStatus.OPENED);
+        
+        // Check creator's remaining pools
+        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        assertEq(poolsRemaining, 1); // Started with 2, created 1
+        
+        vm.stopPrank();
+    }
+    
+    function test_CreatePool_RevertNoStake() public {
+        vm.startPrank(creator1);
+        
+        vm.expectRevert("Must stake CELO to create pools");
+        coinToss.createPool(1 ether, 4);
+        
+        vm.stopPrank();
+    }
+    
+    function test_CreatePool_RevertNoRemainingPools() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 5 ether}(); // Only 1 pool
+        
+        coinToss.createPool(1 ether, 4); // Create first pool
+        
+        vm.expectRevert("No remaining pools available");
+        coinToss.createPool(1 ether, 4); // Try to create second pool
+        
+        vm.stopPrank();
+    }
+    
+    function test_CreatePool_RevertInvalidParameters() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        
+        vm.expectRevert("Entry fee must be greater than 0");
+        coinToss.createPool(0, 4);
+        
+        vm.expectRevert("Pool must have at least 2 players");
+        coinToss.createPool(1 ether, 1);
+        
+        vm.stopPrank();
+    }
+    
+    // POOL JOINING TESTS
+    
+    function test_JoinPool_Success() public {
+        // Create pool
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        // Join pool
+        vm.startPrank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        (, , , uint256 currentPlayers, uint256 prizePool, ) = coinToss.getPoolInfo(1);
+        assertEq(currentPlayers, 1);
+        assertEq(prizePool, 1 ether);
+        
+        vm.stopPrank();
+    }
+    
+    function test_JoinPool_RevertCreatorCannotJoin() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        
+        vm.expectRevert("Pool creator cannot join their own pool");
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.stopPrank();
+    }
+    
+    function test_JoinPool_RevertIncorrectEntryFee() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        vm.startPrank(player1);
+        vm.expectRevert("Incorrect entry fee");
+        coinToss.joinPool{value: 0.5 ether}(1);
+        vm.stopPrank();
+    }
+    
+    function test_JoinPool_RevertAlreadyJoined() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        vm.startPrank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.expectRevert("Already joined this pool");
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.stopPrank();
+    }
+    
+    function test_JoinPool_AutoActivateWhenFull() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2); // 2-player pool
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1); // This should activate the pool
+        
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.ACTIVE);
+        
+        assertEq(coinToss.getCurrentRound(1), 1);
+    }
+    
+    function test_JoinPool_ActivateAt50Percent() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4); // 4-player pool, 50% = 2 players
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Pool should not be active yet with 1 player (25%)
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.OPENED);
+        
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Now with 2 players (50%), pool should be activatable
+        assertTrue(coinToss.canActivatePool(1));
+        
+        // Manual activation by creator
+        vm.prank(creator1);
+        coinToss.activatePool(1);
+        
+        (, , , , , status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.ACTIVE);
+    }
+    
+    // GAME FLOW TESTS
+    
+    function test_GameFlow_MinorityWins_Success() public {
+        // Setup 4-player game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        // All players join
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(1); // Pool auto-activates
+        
+        // Round 1: 1 HEADS, 3 TAILS -> HEADS should win (minority)
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves round
+        
+        // Check round 1 results
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 1);
+        assertEq(remainingPlayers[0], player1); // Only HEADS player should remain
+        assertEq(coinToss.getCurrentRound(1), 2); // Should advance to round 2
+        
+        // Check game completion
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.COMPLETED);
+    }
+    
+    function test_GameFlow_MultipleRounds() public {
+        // Setup 6-player game for multiple rounds
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 6);
+        vm.stopPrank();
+        
+        // All players join (using additional addresses)
+        address player6 = makeAddr("player6");
+        vm.deal(player6, 10 ether);
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player5);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player6);
+        coinToss.joinPool{value: 1 ether}(1); // Pool auto-activates
+        
+        // Round 1: 2 HEADS, 4 TAILS -> HEADS should win (minority)
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player5);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player6);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves
+        
+        // Check round 1 results
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 2); // player1 and player2 should remain
+        assertEq(coinToss.getCurrentRound(1), 2);
+        
+        // Round 2: 1 HEADS, 1 TAILS -> Tie, random resolution
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves with tie-breaker
+        
+        // Check final result
+        remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 1); // One winner should remain
+        
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.COMPLETED);
+    }
+    
+    function test_MakeSelection_RevertInvalidChoice() public {
+        // Setup active pool
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.startPrank(player1);
+        vm.expectRevert("Invalid choice");
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.NONE);
+        vm.stopPrank();
+    }
+    
+    function test_MakeSelection_RevertNotInPool() public {
+        // Setup active pool
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.startPrank(player3); // Player3 didn't join
+        vm.expectRevert("Player not in this pool");
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.stopPrank();
+    }
+    
+    function test_MakeSelection_RevertChoiceAlreadyMade() public {
+        // Setup active pool
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.startPrank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        
+        vm.expectRevert("Choice already made this round");
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.stopPrank();
+    }
+    
+    // PRIZE CLAIMING TESTS
+    
+    function test_ClaimPrize_Success() public {
+        // Setup and complete a game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Complete game - player1 wins
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        
+        // Check winner can claim prize
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        address winner = remainingPlayers[0];
+        
+        uint256 balanceBefore = winner.balance;
+        vm.prank(winner);
+        coinToss.claimPrize(1);
+        
+        uint256 expectedPrize = (2 ether * 95) / 100; // 95% of 2 ether prize pool
+        assertEq(winner.balance, balanceBefore + expectedPrize);
+    }
+    
+    function test_ClaimPrize_RevertNotWinner() public {
+        // Setup and complete a game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        
+        // Loser tries to claim prize
+        vm.startPrank(player2); // Assuming player2 lost
+        vm.expectRevert("Only winner can claim prize");
+        coinToss.claimPrize(1);
+        vm.stopPrank();
+    }
+    
+    function test_ClaimPrize_RevertGameNotComplete() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.startPrank(player1);
+        vm.expectRevert("Pool is not completed");
+        coinToss.claimPrize(1);
+        vm.stopPrank();
+    }
+    
+    // UNSTAKING TESTS
+    
+    function test_UnstakeAndClaim_EarlyUnstake_Penalty() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4); // Create one pool but don't complete it
+        
+        uint256 ownerBalanceBefore = owner.balance;
+        uint256 creatorBalanceBefore = creator1.balance;
+        
+        // Early unstake should incur 30% penalty
+        coinToss.unstakeAndClaim();
+        
+        uint256 expectedPenalty = (10 ether * 30) / 100; // 3 ether penalty
+        uint256 expectedReturn = 10 ether - expectedPenalty; // 7 ether return
+        
+        assertEq(owner.balance, ownerBalanceBefore + expectedPenalty);
+        assertEq(creator1.balance, creatorBalanceBefore + expectedReturn);
+        
+        // Creator should no longer have active stake
+        (, , , bool hasActiveStake) = coinToss.getCreatorInfo(creator1);
+        assertFalse(hasActiveStake);
+        
+        vm.stopPrank();
+    }
+    
+    function test_UnstakeAndClaim_AllPoolsCompleted_NoRenalty() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}(); // 2 pools
+        coinToss.createPool(1 ether, 2);
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        // Complete first pool
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        
+        // Complete second pool
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(2);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(2);
+        vm.prank(player3);
+        coinToss.makeSelection(2, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player4);
+        coinToss.makeSelection(2, CoinToss.PlayerChoice.TAILS);
+        
+        uint256 creatorBalanceBefore = creator1.balance;
+        
+        // Now unstake should work without penalty + creator rewards
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        uint256 expectedCreatorReward = ((2 ether + 2 ether) * 5) / 100; // 5% of 4 ether = 0.2 ether
+        uint256 expectedTotal = 10 ether + expectedCreatorReward;
+        
+        assertEq(creator1.balance, creatorBalanceBefore + expectedTotal);
+        
+        vm.stopPrank();
+    }
+    
+    function test_UnstakeAndClaim_RevertNoActiveStake() public {
+        vm.startPrank(creator1);
+        vm.expectRevert("No active stake");
+        coinToss.unstakeAndClaim();
+        vm.stopPrank();
+    }
+    
+    // VIEW FUNCTION TESTS
+    
+    function test_ViewFunctions() public {
+        // Setup game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 15 ether}(); // 3 pools
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(1); // Pool activates
+        
+        // Test view functions before choices
+        assertEq(coinToss.getCurrentRound(1), 1);
+        assertEq(coinToss.getRemainingPlayers(1).length, 4);
+        assertFalse(coinToss.hasPlayerChosen(1, player1));
+        assertFalse(coinToss.isPlayerEliminated(1, player1));
+        
+        // Make some choices
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        
+        assertTrue(coinToss.hasPlayerChosen(1, player1));
+        assertEq(uint(coinToss.getPlayerChoice(1, player1)), uint(CoinToss.PlayerChoice.HEADS));
+        
+        // Complete round
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        
+        // Test after round completion
+        assertTrue(coinToss.isPlayerEliminated(1, player2));
+        assertTrue(coinToss.isPlayerEliminated(1, player3));
+        assertTrue(coinToss.isPlayerEliminated(1, player4));
+        assertFalse(coinToss.isPlayerEliminated(1, player1));
+        
+        (uint256 currentRound, uint256 remainingCount, uint256 totalCount, bool isComplete) = 
+            coinToss.getGameProgress(1);
+        assertEq(currentRound, 2);
+        assertEq(remainingCount, 1);
+        assertEq(totalCount, 4);
+        assertTrue(isComplete);
+    }
+    
+    // EDGE CASE TESTS
+    
+    function test_EdgeCase_TieBreaker() public {
+        // Setup 2-player game to force tie
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Force tie: 1 HEADS, 1 TAILS
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves with tie-breaker
+        
+        // One player should remain (random winner)
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 1);
+        
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.COMPLETED);
+    }
+    
+    function test_EdgeCase_PoolActivation_ManualActivation() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4); // 4-player pool, need 2 for 50%
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1); // 50% capacity reached
+        
+        assertTrue(coinToss.canActivatePool(1));
+        
+        // Only creator or owner can manually activate
+        vm.expectRevert("Only pool creator or owner can activate");
+        vm.prank(player1);
+        coinToss.activatePool(1);
+        
+        // Creator can activate
+        vm.prank(creator1);
+        coinToss.activatePool(1);
+        
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.ACTIVE);
+    }
+    
+    function test_EdgeCase_NonExistentPool() public {
+        vm.startPrank(player1);
+        
+        vm.expectRevert("Pool does not exist");
+        coinToss.joinPool{value: 1 ether}(999);
+        
+        vm.stopPrank();
+    }
+}
