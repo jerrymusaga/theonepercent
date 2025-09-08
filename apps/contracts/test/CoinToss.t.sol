@@ -19,6 +19,9 @@ contract CoinTossTest is Test {
     uint256 public constant BASE_STAKE = 5 ether;
     uint256 public constant MAX_STAKE = 50 ether;
     
+    // Allow test contract to receive ether
+    receive() external payable {}
+    
     function setUp() public {
         owner = address(this);
         creator1 = makeAddr("creator1");
@@ -269,7 +272,11 @@ contract CoinTossTest is Test {
         vm.prank(player2);
         coinToss.joinPool{value: 1 ether}(1);
         
-        // Now with 2 players (50%), pool should be activatable
+        // Pool should still be OPENED after 50% (no auto-activation)
+        (, , , , , status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.OPENED);
+        
+        // But with 2 players (50%), pool should be manually activatable
         assertTrue(coinToss.canActivatePool(1));
         
         // Manual activation by creator
@@ -313,7 +320,7 @@ contract CoinTossTest is Test {
         address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
         assertEq(remainingPlayers.length, 1);
         assertEq(remainingPlayers[0], player1); // Only HEADS player should remain
-        assertEq(coinToss.getCurrentRound(1), 2); // Should advance to round 2
+        assertEq(coinToss.getCurrentRound(1), 1); // Game completed in round 1
         
         // Check game completion
         (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
@@ -482,8 +489,13 @@ contract CoinTossTest is Test {
         vm.prank(player2);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
         
+        // Determine who lost and let them try to claim prize
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        address winner = remainingPlayers[0];
+        address loser = (winner == player1) ? player2 : player1;
+        
         // Loser tries to claim prize
-        vm.startPrank(player2); // Assuming player2 lost
+        vm.startPrank(loser);
         vm.expectRevert("Only winner can claim prize");
         coinToss.claimPrize(1);
         vm.stopPrank();
@@ -636,7 +648,7 @@ contract CoinTossTest is Test {
         
         (uint256 currentRound, uint256 remainingCount, uint256 totalCount, bool isComplete) = 
             coinToss.getGameProgress(1);
-        assertEq(currentRound, 2);
+        assertEq(currentRound, 1); // Game completed in round 1
         assertEq(remainingCount, 1);
         assertEq(totalCount, 4);
         assertTrue(isComplete);
@@ -911,11 +923,11 @@ contract CoinTossTest is Test {
         vm.prank(player4);
         coinToss.joinPool{value: 1 ether}(1); // Pool becomes ACTIVE
         
-        // Start gameplay
+        // Start gameplay - set up for single winner scenario
         vm.prank(player1);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
         vm.prank(player2);
-        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
         vm.prank(player3);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
         // Don't complete round yet
@@ -928,11 +940,12 @@ contract CoinTossTest is Test {
         (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
         assertTrue(status == CoinToss.PoolStatus.ACTIVE);
         
-        // Game should continue - player4 can still make selection
+        // Game should continue - player4 can still make selection  
         vm.prank(player4);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves round
         
-        // Check game completed properly
+        // After round 1: 1 HEADS (minority), 3 TAILS -> HEADS should win (player1)
+        // Game should complete since only 1 player remains
         (, , , , , status) = coinToss.getPoolInfo(1);
         assertTrue(status == CoinToss.PoolStatus.COMPLETED);
         
