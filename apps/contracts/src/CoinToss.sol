@@ -47,7 +47,8 @@ contract CoinToss is Ownable, ReentrancyGuard {
     uint256 public constant CREATOR_REWARD_PERCENTAGE = 5;
     
     event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 entryFee, uint256 maxPlayers);
-    event PlayerJoined(uint256 indexed poolId, address indexed player);
+    event PlayerJoined(uint256 indexed poolId, address indexed player, uint256 currentPlayers, uint256 maxPlayers);
+    event PoolActivated(uint256 indexed poolId, uint256 totalPlayers, uint256 prizePool);
     event StakeDeposited(address indexed creator, uint256 amount, uint256 poolsEligible);
     event StakeWithdrawn(address indexed creator, uint256 amount, uint256 penalty);
     event CreatorRewardClaimed(address indexed creator, uint256 amount);
@@ -117,24 +118,69 @@ contract CoinToss is Ownable, ReentrancyGuard {
         emit PoolCreated(currentPoolId, msg.sender, _entryFee, _maxPlayers);
     }
     
-    function joinPool(uint256 _poolId) external payable {
+    function joinPool(uint256 _poolId) external payable nonReentrant {
         Pool storage pool = pools[_poolId];
+        
+        // Enhanced validation
+        require(pool.id != 0, "Pool does not exist");
         require(pool.status == PoolStatus.OPENED, "Pool is not open for joining");
         require(msg.value == pool.entryFee, "Incorrect entry fee");
         require(pool.currentPlayers < pool.maxPlayers, "Pool is full");
         require(!pool.hasJoined[msg.sender], "Already joined this pool");
+        require(msg.sender != pool.creator, "Pool creator cannot join their own pool");
         
+        // Update player state
         pool.hasJoined[msg.sender] = true;
         pool.players.push(msg.sender);
         pool.currentPlayers++;
         pool.prizePool += msg.value;
         
-        if (pool.currentPlayers == pool.maxPlayers) {
-            pool.status = PoolStatus.ACTIVE;
-            pool.remainingPlayers = pool.players;
-        }
+        // Initialize player game state
+        pool.playerChoices[msg.sender] = PlayerChoice.NONE;
+        pool.isEliminated[msg.sender] = false;
         
-        emit PlayerJoined(_poolId, msg.sender);
+        emit PlayerJoined(_poolId, msg.sender, pool.currentPlayers, pool.maxPlayers);
+        
+        // Check if pool should be activated
+        _checkPoolActivation(_poolId);
+    }
+    
+    function _checkPoolActivation(uint256 _poolId) internal {
+        Pool storage pool = pools[_poolId];
+        
+        // Require at least 50% capacity OR full capacity
+        uint256 minPlayersRequired = (pool.maxPlayers + 1) / 2; // Rounds up for 50%
+        
+        if (pool.currentPlayers >= minPlayersRequired && 
+            (pool.currentPlayers == pool.maxPlayers || canActivatePool(_poolId))) {
+            
+            // Activate the pool
+            pool.status = PoolStatus.ACTIVE;
+            pool.currentRound = 1;
+            
+            // Initialize remaining players for the game
+            pool.remainingPlayers = pool.players;
+            
+            emit PoolActivated(_poolId, pool.currentPlayers, pool.prizePool);
+        }
+    }
+    
+    function canActivatePool(uint256 _poolId) public view returns (bool) {
+        Pool storage pool = pools[_poolId];
+        uint256 minPlayersRequired = (pool.maxPlayers + 1) / 2;
+        
+        return pool.currentPlayers >= minPlayersRequired && 
+               pool.status == PoolStatus.OPENED;
+    }
+    
+    function activatePool(uint256 _poolId) external {
+        Pool storage pool = pools[_poolId];
+        require(pool.status == PoolStatus.OPENED, "Pool is not open");
+        require(canActivatePool(_poolId), "Pool doesn't meet activation requirements");
+        require(msg.sender == pool.creator || msg.sender == owner(), "Only pool creator or owner can activate");
+        
+        // Manual activation by pool creator or contract owner if 50% threshold met
+        _checkPoolActivation(_poolId);
     }
     
     function unstakeAndClaim() external nonReentrant {
