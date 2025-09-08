@@ -511,10 +511,17 @@ contract CoinTossTest is Test {
         coinToss.stakeForPoolCreation{value: 10 ether}();
         coinToss.createPool(1 ether, 4); // Create one pool but don't complete it
         
+        // Add a player to test abandonment and refund
+        vm.stopPrank();
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
         uint256 ownerBalanceBefore = owner.balance;
         uint256 creatorBalanceBefore = creator1.balance;
+        uint256 player1BalanceBefore = player1.balance;
         
-        // Early unstake should incur 30% penalty
+        // Early unstake should incur 30% penalty and abandon pool
+        vm.prank(creator1);
         coinToss.unstakeAndClaim();
         
         uint256 expectedPenalty = (10 ether * 30) / 100; // 3 ether penalty
@@ -523,11 +530,15 @@ contract CoinTossTest is Test {
         assertEq(owner.balance, ownerBalanceBefore + expectedPenalty);
         assertEq(creator1.balance, creatorBalanceBefore + expectedReturn);
         
+        // Player should be refunded
+        assertEq(player1.balance, player1BalanceBefore + 1 ether);
+        
+        // Pool should be abandoned
+        assertTrue(coinToss.isPoolAbandoned(1));
+        
         // Creator should no longer have active stake
         (, , , bool hasActiveStake) = coinToss.getCreatorInfo(creator1);
         assertFalse(hasActiveStake);
-        
-        vm.stopPrank();
     }
     
     function test_UnstakeAndClaim_AllPoolsCompleted_NoRenalty() public {
@@ -692,5 +703,251 @@ contract CoinTossTest is Test {
         coinToss.joinPool{value: 1 ether}(999);
         
         vm.stopPrank();
+    }
+    
+    // POOL ABANDONMENT TESTS
+    
+    function test_EarlyUnstake_AbandonOpenedPools() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4); // Pool 1 - OPENED
+        coinToss.createPool(1 ether, 4); // Pool 2 - OPENED
+        vm.stopPrank();
+        
+        // Some players join pool 1, none join pool 2
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        uint256 player1BalanceBefore = player1.balance;
+        uint256 player2BalanceBefore = player2.balance;
+        
+        // Creator unstakes early - should abandon OPENED pools and refund players
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        // Check pools are abandoned
+        assertTrue(coinToss.isPoolAbandoned(1));
+        assertTrue(coinToss.isPoolAbandoned(2));
+        
+        // Check players were refunded automatically
+        assertEq(player1.balance, player1BalanceBefore + 1 ether);
+        assertEq(player2.balance, player2BalanceBefore + 1 ether);
+        
+        // Check pool status
+        (, , , , , CoinToss.PoolStatus status1) = coinToss.getPoolInfo(1);
+        (, , , , , CoinToss.PoolStatus status2) = coinToss.getPoolInfo(2);
+        assertTrue(status1 == CoinToss.PoolStatus.ABANDONED);
+        assertTrue(status2 == CoinToss.PoolStatus.ABANDONED);
+    }
+    
+    function test_EarlyUnstake_ProtectActiveGameplay() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 15 ether}(); // 3 pools
+        coinToss.createPool(1 ether, 4); // Pool 1 - will be OPENED
+        coinToss.createPool(1 ether, 4); // Pool 2 - will be ACTIVE
+        vm.stopPrank();
+        
+        // Pool 1: Only partial players joined (OPENED)
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Pool 2: Full players joined (ACTIVE)
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(2);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(2);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(2);
+        vm.prank(player5);
+        coinToss.joinPool{value: 1 ether}(2); // Pool 2 becomes ACTIVE
+        
+        uint256 player1BalanceBefore = player1.balance;
+        
+        // Creator unstakes early
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        // Pool 1 should be abandoned (was OPENED)
+        assertTrue(coinToss.isPoolAbandoned(1));
+        assertEq(player1.balance, player1BalanceBefore + 1 ether); // Refunded
+        
+        // Pool 2 should NOT be abandoned (was ACTIVE) - check it's still ACTIVE
+        (, , , , , CoinToss.PoolStatus status2) = coinToss.getPoolInfo(2);
+        assertTrue(status2 == CoinToss.PoolStatus.ACTIVE);
+        
+        // Pool 2 creator should be transferred to contract
+        (address pool2Creator, , , , , ) = coinToss.getPoolInfo(2);
+        assertEq(pool2Creator, address(coinToss)); // Contract is now the creator
+        
+        // Game should still be playable in pool 2
+        vm.prank(player2);
+        coinToss.makeSelection(2, CoinToss.PlayerChoice.HEADS);
+        // This should not revert - game continues normally
+    }
+    
+    function test_EarlyUnstake_CreatorLosesRewardsFromTransferredPools() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        // Complete the pool before unstaking
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1); // Pool becomes ACTIVE
+        
+        // Creator unstakes (transfers pool ownership to contract)
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        // Complete the game
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        
+        // Pool is completed, but creator should get NO reward (lost ownership)
+        uint256 creatorReward = coinToss.calculateCreatorReward(creator1);
+        assertEq(creatorReward, 0); // No rewards for abandoned pools
+        
+        // Winner should still get their prize (95% of 2 ether)
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        address winner = remainingPlayers[0];
+        
+        uint256 winnerBalanceBefore = winner.balance;
+        vm.prank(winner);
+        coinToss.claimPrize(1);
+        
+        uint256 expectedPrize = (2 ether * 95) / 100;
+        assertEq(winner.balance, winnerBalanceBefore + expectedPrize);
+    }
+    
+    function test_ManualRefundFromAbandonedPool() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        // Players join but pool doesn't reach 50% (only 1/4 players)
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        uint256 player1BalanceBefore = player1.balance;
+        
+        // Creator unstakes - abandons pool and auto-refunds
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        // Player1 should already be refunded automatically
+        assertEq(player1.balance, player1BalanceBefore + 1 ether);
+        
+        // Pool should be abandoned
+        assertTrue(coinToss.isPoolAbandoned(1));
+        
+        // Trying to claim refund again should fail (already refunded)
+        vm.expectRevert("Pool has no funds to refund");
+        vm.prank(player1);
+        coinToss.claimRefundFromAbandonedPool(1);
+    }
+    
+    function test_ManualRefundFromAbandonedPool_NotParticipant() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim(); // Abandon pool
+        
+        // Player2 never joined, can't claim refund
+        vm.expectRevert("Not a participant in this pool");
+        vm.prank(player2);
+        coinToss.claimRefundFromAbandonedPool(1);
+    }
+    
+    function test_BlockGameActionsOnAbandonedPools() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+        
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Creator unstakes - abandons OPENED pool
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        // Should not be able to join abandoned pool
+        vm.expectRevert("Pool is not open for joining");
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        
+        // Should not be able to make selections on abandoned pool
+        vm.expectRevert("Pool is not active");
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+    }
+    
+    function test_ActivePoolContinuesAfterCreatorAbandonment() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+        
+        // Fill pool completely to make it ACTIVE
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(1); // Pool becomes ACTIVE
+        
+        // Start gameplay
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        // Don't complete round yet
+        
+        // Creator abandons mid-game
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+        
+        // Pool should still be ACTIVE, not abandoned
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.ACTIVE);
+        
+        // Game should continue - player4 can still make selection
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves round
+        
+        // Check game completed properly
+        (, , , , , status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.COMPLETED);
+        
+        // Winner can claim prize
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 1);
+        
+        address winner = remainingPlayers[0];
+        uint256 winnerBalanceBefore = winner.balance;
+        
+        vm.prank(winner);
+        coinToss.claimPrize(1);
+        
+        // Winner gets full 95% of prize pool
+        uint256 expectedPrize = (4 ether * 95) / 100;
+        assertEq(winner.balance, winnerBalanceBefore + expectedPrize);
     }
 }
