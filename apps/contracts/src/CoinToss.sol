@@ -152,12 +152,8 @@ contract CoinToss is Ownable, ReentrancyGuard {
     function _checkPoolActivation(uint256 _poolId) internal {
         Pool storage pool = pools[_poolId];
         
-        // Require at least 50% capacity OR full capacity
-        uint256 minPlayersRequired = (pool.maxPlayers + 1) / 2; // Rounds up for 50%
-        
-        if (pool.currentPlayers >= minPlayersRequired && 
-            (pool.currentPlayers == pool.maxPlayers || canActivatePool(_poolId))) {
-            
+        // Auto-activate only when pool is completely full
+        if (pool.currentPlayers == pool.maxPlayers && pool.status == PoolStatus.OPENED) {
             // Activate the pool
             pool.status = PoolStatus.ACTIVE;
             pool.currentRound = 1;
@@ -184,7 +180,13 @@ contract CoinToss is Ownable, ReentrancyGuard {
         require(msg.sender == pool.creator || msg.sender == owner(), "Only pool creator or owner can activate");
         
         // Manual activation by pool creator or contract owner if 50% threshold met
-        _checkPoolActivation(_poolId);
+        pool.status = PoolStatus.ACTIVE;
+        pool.currentRound = 1;
+        
+        // Initialize remaining players for the game
+        pool.remainingPlayers = pool.players;
+        
+        emit PoolActivated(_poolId, pool.currentPlayers, pool.prizePool);
     }
     
     function makeSelection(uint256 _poolId, PlayerChoice _choice) external {

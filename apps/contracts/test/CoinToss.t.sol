@@ -19,6 +19,9 @@ contract CoinTossTest is Test {
     uint256 public constant BASE_STAKE = 5 ether;
     uint256 public constant MAX_STAKE = 50 ether;
     
+    // Allow test contract to receive ether
+    receive() external payable {}
+    
     function setUp() public {
         owner = address(this);
         creator1 = makeAddr("creator1");
@@ -269,7 +272,11 @@ contract CoinTossTest is Test {
         vm.prank(player2);
         coinToss.joinPool{value: 1 ether}(1);
         
-        // Now with 2 players (50%), pool should be activatable
+        // Pool should still be OPENED after 50% (no auto-activation)
+        (, , , , , status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.OPENED);
+        
+        // But with 2 players (50%), pool should be manually activatable
         assertTrue(coinToss.canActivatePool(1));
         
         // Manual activation by creator
