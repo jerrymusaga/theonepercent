@@ -489,8 +489,13 @@ contract CoinTossTest is Test {
         vm.prank(player2);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
         
+        // Determine who lost and let them try to claim prize
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        address winner = remainingPlayers[0];
+        address loser = (winner == player1) ? player2 : player1;
+        
         // Loser tries to claim prize
-        vm.startPrank(player2); // Assuming player2 lost
+        vm.startPrank(loser);
         vm.expectRevert("Only winner can claim prize");
         coinToss.claimPrize(1);
         vm.stopPrank();
