@@ -240,7 +240,10 @@ export default function PoolsPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Game Pools</h1>
             <p className="text-gray-600">Join a game or watch others compete in the minority-wins challenge</p>
           </div>
-          <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+          <Button 
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            onClick={() => window.location.href = '/stake'}
+          >
             Create New Pool
           </Button>
         </div>
@@ -354,7 +357,10 @@ export default function PoolsPage() {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No pools found</h3>
           <p className="text-gray-500 mb-4">Try adjusting your search or filters, or create a new pool to get started.</p>
-          <Button className="bg-gradient-to-r from-purple-600 to-blue-600">
+          <Button 
+            className="bg-gradient-to-r from-purple-600 to-blue-600"
+            onClick={() => window.location.href = '/stake'}
+          >
             Create New Pool
           </Button>
         </div>
