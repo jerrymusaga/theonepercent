@@ -394,6 +394,13 @@ export default function CreatorDashboard() {
               <Zap className="w-4 h-4 mr-2" />
               Create Pool ({data.creator.poolsRemaining} left)
             </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => router.push('/unstake')}
+            >
+              Unstake & Withdraw
+            </Button>
           </div>
         </div>
 
