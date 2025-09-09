@@ -72,7 +72,8 @@ const JoinPoolModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     await new Promise(resolve => setTimeout(resolve, 2000));
     setIsConfirming(false);
     onClose();
-    // In real app, would redirect to game room
+    // Redirect to game room after joining
+    window.location.href = `/game/${mockPoolData.id}`;
   };
 
   return (
@@ -427,6 +428,7 @@ export default function PoolDetailPage() {
                 variant="outline"
                 className="w-full"
                 size="lg"
+                onClick={() => window.location.href = `/game/${poolId}`}
               >
                 <Eye className="w-4 h-4 mr-2" />
                 Watch Game
