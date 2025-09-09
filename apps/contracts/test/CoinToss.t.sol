@@ -320,7 +320,7 @@ contract CoinTossTest is Test {
         address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
         assertEq(remainingPlayers.length, 1);
         assertEq(remainingPlayers[0], player1); // Only HEADS player should remain
-        assertEq(coinToss.getCurrentRound(1), 2); // Should advance to round 2
+        assertEq(coinToss.getCurrentRound(1), 1); // Game completed in round 1
         
         // Check game completion
         (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
@@ -643,7 +643,7 @@ contract CoinTossTest is Test {
         
         (uint256 currentRound, uint256 remainingCount, uint256 totalCount, bool isComplete) = 
             coinToss.getGameProgress(1);
-        assertEq(currentRound, 2);
+        assertEq(currentRound, 1); // Game completed in round 1
         assertEq(remainingCount, 1);
         assertEq(totalCount, 4);
         assertTrue(isComplete);
