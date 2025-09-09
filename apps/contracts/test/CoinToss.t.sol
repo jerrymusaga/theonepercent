@@ -923,11 +923,11 @@ contract CoinTossTest is Test {
         vm.prank(player4);
         coinToss.joinPool{value: 1 ether}(1); // Pool becomes ACTIVE
         
-        // Start gameplay
+        // Start gameplay - set up for single winner scenario
         vm.prank(player1);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
         vm.prank(player2);
-        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
         vm.prank(player3);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
         // Don't complete round yet
@@ -940,11 +940,12 @@ contract CoinTossTest is Test {
         (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
         assertTrue(status == CoinToss.PoolStatus.ACTIVE);
         
-        // Game should continue - player4 can still make selection
+        // Game should continue - player4 can still make selection  
         vm.prank(player4);
         coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves round
         
-        // Check game completed properly
+        // After round 1: 1 HEADS (minority), 3 TAILS -> HEADS should win (player1)
+        // Game should complete since only 1 player remains
         (, , , , , status) = coinToss.getPoolInfo(1);
         assertTrue(status == CoinToss.PoolStatus.COMPLETED);
         
