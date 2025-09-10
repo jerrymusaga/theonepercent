@@ -29,6 +29,7 @@
     "jose": "^5.9.6",
     "viem": "^2.27.2",
     "wagmi": "^2.14.12",
+    "@rainbow-me/rainbowkit": "^2.1.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {
