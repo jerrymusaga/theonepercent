@@ -1,11 +1,15 @@
 "use client";
 
 import { MiniAppProvider } from "@/contexts/miniapp-context";
-import FrameWalletProvider from "@/contexts/frame-wallet-context";
 import dynamic from "next/dynamic";
 
 const ErudaProvider = dynamic(
   () => import("../components/Eruda").then((c) => c.ErudaProvider),
+  { ssr: false }
+);
+
+const FrameWalletProvider = dynamic(
+  () => import("@/contexts/frame-wallet-context"),
   { ssr: false }
 );
 
