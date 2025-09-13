@@ -59,7 +59,8 @@ export function useIsPoolAbandoned(poolId: number) {
  * Hook for creating a new pool
  */
 export function useCreatePool() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
 
@@ -69,9 +70,11 @@ export function useCreatePool() {
 
   const createPool = useMutation({
     mutationFn: async (params: { entryFee: string; maxPlayers: number }) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'createPool',
         args: [parseEther(params.entryFee), BigInt(params.maxPlayers)],
       });

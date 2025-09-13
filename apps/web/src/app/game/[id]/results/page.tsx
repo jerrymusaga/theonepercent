@@ -365,7 +365,7 @@ export default function RoundResultsPage() {
 
         {/* Coin Flip Animation */}
         <div className="text-center mb-8">
-          <CoinFlipAnimation result={results.winningChoice} />
+          <CoinFlipAnimation result={results.winningChoice as "HEADS" | "TAILS"} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
