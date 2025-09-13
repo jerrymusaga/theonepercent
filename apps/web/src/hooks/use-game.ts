@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
-import { useCoinTossRead, useCoinTossWrite } from './use-contract';
-import { PlayerChoice, GameProgress } from '@/lib/contract';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useCoinTossRead, useContractAddress } from './use-contract';
+import { PlayerChoice, GameProgress, CONTRACT_CONFIG } from '@/lib/contract';
 
 /**
  * Hook to get game progress for a pool
