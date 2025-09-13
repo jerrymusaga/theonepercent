@@ -226,7 +226,7 @@ export function useActivePools() {
 
   // Filter for only active/open pools
   const activePools = poolsQuery.pools.filter(pool => 
-    pool.status === PoolStatus.OPENED || pool.status === PoolStatus.ACTIVE
+    pool.data && (pool.data.status === PoolStatus.OPENED || pool.data.status === PoolStatus.ACTIVE)
   );
 
   return {
