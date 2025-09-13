@@ -220,8 +220,8 @@ export function usePoolEvents(poolId: number, fromBlock?: bigint) {
       try {
         const logs = await publicClient.getLogs({
           address: contractAddress,
-          events: CONTRACT_CONFIG.abi.filter(item => item.type === 'event'),
-          args: { poolId: BigInt(poolId) },
+          events: CONTRACT_CONFIG.abi.filter(item => item.type === 'event') as any,
+          args: { poolId: BigInt(poolId) } as any,
           fromBlock: fromBlock || 'earliest',
           toBlock: 'latest',
         });
