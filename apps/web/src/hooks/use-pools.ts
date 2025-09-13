@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-import { useCoinTossRead, useCoinTossWrite } from './use-contract';
-import { PoolInfo, PoolStatus } from '@/lib/contract';
+import { useCoinTossRead, useContractAddress } from './use-contract';
+import { PoolInfo, PoolStatus, CONTRACT_CONFIG } from '@/lib/contract';
 
 /**
  * Hook to get pool information
@@ -104,7 +104,8 @@ export function useCreatePool() {
  * Hook for joining a pool
  */
 export function useJoinPool() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -113,9 +114,11 @@ export function useJoinPool() {
 
   const joinPool = useMutation({
     mutationFn: async (params: { poolId: number; entryFee: string }) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'joinPool',
         args: [BigInt(params.poolId)],
         value: parseEther(params.entryFee),
@@ -142,7 +145,8 @@ export function useJoinPool() {
  * Hook for manually activating a pool
  */
 export function useActivatePool() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -151,9 +155,11 @@ export function useActivatePool() {
 
   const activatePool = useMutation({
     mutationFn: async (poolId: number) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'activatePool',
         args: [BigInt(poolId)],
       });
