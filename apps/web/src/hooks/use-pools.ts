@@ -193,7 +193,7 @@ export function usePoolsList(poolIds: number[]) {
 
   const pools = poolQueries.map((query, index) => ({
     id: poolIds[index],
-    ...query.data,
+    data: query.data,
     isLoading: query.isLoading,
     error: query.error,
   })).filter(pool => pool.data);
