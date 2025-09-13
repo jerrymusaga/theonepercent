@@ -7,9 +7,7 @@ export * from './use-events';
 
 // Re-export commonly used hooks for convenience
 export { 
-  useCoinTossContract,
   useContractAddress,
-  useCoinTossWrite,
   useCoinTossRead 
 } from './use-contract';
 
