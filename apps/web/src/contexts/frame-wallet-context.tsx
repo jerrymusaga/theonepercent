@@ -5,10 +5,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { celo, celoAlfajores } from "wagmi/chains";
+import { RainbowKitProvider, getDefaultWallets } from '@rainbow-me/rainbowkit';
+import { injected, walletConnect, coinbaseWallet, metaMask } from 'wagmi/connectors';
+import '@rainbow-me/rainbowkit/styles.css';
+
+const { wallets } = getDefaultWallets();
 
 const config = createConfig({
   chains: [celo, celoAlfajores],
-  connectors: [farcasterMiniApp()],
+  connectors: [
+    farcasterMiniApp(),
+    injected(),
+    walletConnect({ 
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'fallback-project-id' 
+    }),
+    coinbaseWallet({ appName: 'theonepercent' }),
+    metaMask(),
+  ],
   transports: {
     [celo.id]: http(),
     [celoAlfajores.id]: http(),
@@ -24,7 +37,11 @@ export default function FrameWalletProvider({
 }) {
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }
