@@ -102,7 +102,8 @@ export function useIsPlayerEliminated(poolId: number, playerAddress?: `0x${strin
  * Hook for making a selection (HEADS or TAILS)
  */
 export function useMakeSelection() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -111,12 +112,14 @@ export function useMakeSelection() {
 
   const makeSelection = useMutation({
     mutationFn: async (params: { poolId: number; choice: PlayerChoice }) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       if (params.choice === PlayerChoice.NONE) {
         throw new Error('Invalid choice');
       }
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'makeSelection',
         args: [BigInt(params.poolId), params.choice],
       });
@@ -146,7 +149,8 @@ export function useMakeSelection() {
  * Hook for claiming prize when game is completed
  */
 export function useClaimPrize() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -155,9 +159,11 @@ export function useClaimPrize() {
 
   const claimPrize = useMutation({
     mutationFn: async (poolId: number) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'claimPrize',
         args: [BigInt(poolId)],
       });
@@ -183,7 +189,8 @@ export function useClaimPrize() {
  * Hook for claiming refund from abandoned pool
  */
 export function useClaimRefund() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -192,9 +199,11 @@ export function useClaimRefund() {
 
   const claimRefund = useMutation({
     mutationFn: async (poolId: number) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'claimRefundFromAbandonedPool',
         args: [BigInt(poolId)],
       });

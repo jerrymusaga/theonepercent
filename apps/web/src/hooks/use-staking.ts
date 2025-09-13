@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-import { useCoinTossRead, useCoinTossWrite } from './use-contract';
-import { CreatorInfo } from '@/lib/contract';
+import { useCoinTossRead, useContractAddress } from './use-contract';
+import { CreatorInfo, CONTRACT_CONFIG } from '@/lib/contract';
 
 /**
  * Hook to get creator staking information
@@ -88,7 +88,8 @@ export function useCreatedPools(address?: `0x${string}`) {
  * Hook for staking CELO for pool creation
  */
 export function useStakeForPoolCreation() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
 
@@ -98,9 +99,11 @@ export function useStakeForPoolCreation() {
 
   const stake = useMutation({
     mutationFn: async (stakeAmount: string) => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'stakeForPoolCreation',
         value: parseEther(stakeAmount),
       });
@@ -128,7 +131,8 @@ export function useStakeForPoolCreation() {
  * Hook for unstaking and claiming rewards
  */
 export function useUnstakeAndClaim() {
-  const { writeContract, data: hash, isPending, error } = useCoinTossWrite();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
 
@@ -138,9 +142,11 @@ export function useUnstakeAndClaim() {
 
   const unstake = useMutation({
     mutationFn: async () => {
-      if (!writeContract) throw new Error('Contract not available');
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
       
       return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
         functionName: 'unstakeAndClaim',
       });
     },
