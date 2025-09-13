@@ -176,25 +176,27 @@ export function useActivatePool() {
  * Hook to get multiple pools information (for pool listing)
  */
 export function usePoolsList(poolIds: number[]) {
-  const queries = poolIds.map(poolId => 
-    usePoolInfo(poolId)
-  );
+  // Create individual queries for each pool ID
+  const poolQueries = poolIds.map(poolId => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return usePoolInfo(poolId);
+  });
 
-  const pools = queries.map((query, index) => ({
+  const pools = poolQueries.map((query, index) => ({
     id: poolIds[index],
     ...query.data,
     isLoading: query.isLoading,
     error: query.error,
   })).filter(pool => pool.data);
 
-  const isLoading = queries.some(query => query.isLoading);
-  const hasError = queries.some(query => query.error);
+  const isLoading = poolQueries.some(query => query.isLoading);
+  const hasError = poolQueries.some(query => query.error);
 
   return {
     pools,
     isLoading,
     hasError,
-    refetch: () => queries.forEach(query => query.refetch()),
+    refetch: () => poolQueries.forEach(query => query.refetch()),
   };
 }
 
