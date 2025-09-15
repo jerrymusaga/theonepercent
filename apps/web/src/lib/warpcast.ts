@@ -52,7 +52,7 @@ export async function getFarcasterManifest() {
       splashBackgroundColor: "#FFFFFF",
       webhookUrl: `${appUrl}/api/webhook`,
       // Metadata https://github.com/farcasterxyz/miniapps/discussions/191
-      subtitle: "a multiplayer prediction game", // 30 characters, no emojis or special characters, short description under app name
+      subtitle: "multiplayer prediction game", // 30 characters, no emojis or special characters, short description under app name
       description: "a multiplayer prediction elimination game where minority wins in any round", // 170 characters, no emojis or special characters, promotional message displayed on Mini App Page
       primaryCategory: "social",
       tags: ["mini-app", "celo"], // up to 5 tags, filtering/search tags
