@@ -1,6 +1,5 @@
 # theonepercent
-
-a multiplayer prediction elimination game where minority wins in any round
+A multiplayer prediction elimination game where minority wins in any round
 
 A modern Celo blockchain application built with Next.js, TypeScript, and Turborepo.
 
