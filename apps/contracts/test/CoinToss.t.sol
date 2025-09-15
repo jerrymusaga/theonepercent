@@ -976,11 +976,11 @@ contract CoinTossTest is Test {
         vm.prank(player2);
         coinToss.joinPool{value: 1 ether}(1); // Pool becomes ACTIVE
 
-        uint256 projectPoolBefore = coinToss.getProjectPoolBalance();
-
         // Creator abandons pool (transfers to contract)
         vm.prank(creator1);
         coinToss.unstakeAndClaim();
+
+        uint256 projectPoolBefore = coinToss.getProjectPoolBalance();
 
         // Verify pool is now owned by contract
         (address poolCreator, , , , , ) = coinToss.getPoolInfo(1);
