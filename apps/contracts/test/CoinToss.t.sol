@@ -528,18 +528,18 @@ contract CoinTossTest is Test {
         vm.prank(player1);
         coinToss.joinPool{value: 1 ether}(1);
         
-        uint256 ownerBalanceBefore = owner.balance;
+        uint256 projectPoolBefore = coinToss.getProjectPoolBalance();
         uint256 creatorBalanceBefore = creator1.balance;
         uint256 player1BalanceBefore = player1.balance;
-        
+
         // Early unstake should incur 30% penalty and abandon pool
         vm.prank(creator1);
         coinToss.unstakeAndClaim();
-        
+
         uint256 expectedPenalty = (10 ether * 30) / 100; // 3 ether penalty
         uint256 expectedReturn = 10 ether - expectedPenalty; // 7 ether return
-        
-        assertEq(owner.balance, ownerBalanceBefore + expectedPenalty);
+
+        assertEq(coinToss.getProjectPoolBalance(), projectPoolBefore + expectedPenalty);
         assertEq(creator1.balance, creatorBalanceBefore + expectedReturn);
         
         // Player should be refunded
