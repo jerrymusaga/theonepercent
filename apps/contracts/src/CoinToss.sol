@@ -337,10 +337,18 @@ contract CoinToss is Ownable, ReentrancyGuard {
         require(pool.status == PoolStatus.COMPLETED, "Pool is not completed");
         require(pool.remainingPlayers.length == 1, "No clear winner");
         require(pool.remainingPlayers[0] == msg.sender, "Only winner can claim prize");
-        
-        uint256 prize = _calculateWinnerPrize(_poolId);
+
+        uint256 creatorFee = (pool.prizePool * CREATOR_REWARD_PERCENTAGE) / 100;
+        uint256 prize = pool.prizePool - creatorFee;
+
+        // Check if this is an abandoned pool (owned by contract)
+        if (pool.creator == address(this)) {
+            // Pool was abandoned - creator fee goes to project pool
+            projectPool += creatorFee;
+            emit ProjectPoolUpdated(creatorFee, "Abandoned pool creator fee", projectPool);
+        }
+
         pool.prizePool = 0; // Prevent double claiming
-        
         payable(msg.sender).transfer(prize);
     }
     
@@ -541,16 +549,18 @@ contract CoinToss is Ownable, ReentrancyGuard {
         return pools[_poolId].status == PoolStatus.ABANDONED;
     }
     
-    function withdrawAbandonedPoolFees() external onlyOwner {
-        // Owner can withdraw creator fees from pools that were transferred to contract
-        uint256 totalFees = 0;
-        
-        // This would require tracking transferred pools, but for now we'll keep it simple
-        // In practice, fees from contract-owned completed pools would accumulate
-        
-        if (totalFees > 0) {
-            payable(owner()).transfer(totalFees);
-        }
+    function getProjectPoolBalance() external view returns (uint256) {
+        return projectPool;
+    }
+
+    function withdrawProjectPoolFunds(uint256 amount) external onlyOwner {
+        require(amount <= projectPool, "Insufficient project pool funds");
+        require(amount > 0, "Amount must be greater than 0");
+
+        projectPool -= amount;
+        payable(owner()).transfer(amount);
+
+        emit ProjectPoolUpdated(amount, "Owner withdrawal", projectPool);
     }
     
 }
