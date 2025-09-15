@@ -1003,4 +1003,67 @@ contract CoinTossTest is Test {
         uint256 expectedCreatorFee = (2 ether * 5) / 100;
         assertEq(coinToss.getProjectPoolBalance(), projectPoolBefore + expectedCreatorFee);
     }
+
+    // PROJECT POOL MANAGEMENT TESTS
+
+    function test_ProjectPoolBalance_InitiallyZero() public {
+        assertEq(coinToss.getProjectPoolBalance(), 0);
+    }
+
+    function test_WithdrawProjectPoolFunds_Success() public {
+        // First accumulate some funds in project pool via penalty
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+
+        // Early unstake to create penalty
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+
+        uint256 projectPoolBalance = coinToss.getProjectPoolBalance();
+        assertTrue(projectPoolBalance > 0); // Should have penalty funds
+
+        uint256 ownerBalanceBefore = owner.balance;
+        uint256 withdrawAmount = projectPoolBalance / 2; // Withdraw half
+
+        // Owner withdraws funds
+        coinToss.withdrawProjectPoolFunds(withdrawAmount);
+
+        assertEq(coinToss.getProjectPoolBalance(), projectPoolBalance - withdrawAmount);
+        assertEq(owner.balance, ownerBalanceBefore + withdrawAmount);
+    }
+
+    function test_WithdrawProjectPoolFunds_RevertNotOwner() public {
+        // Accumulate some funds first
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim(); // Create penalty
+
+        // Non-owner tries to withdraw
+        vm.expectRevert();
+        vm.prank(player1);
+        coinToss.withdrawProjectPoolFunds(1 ether);
+    }
+
+    function test_WithdrawProjectPoolFunds_RevertInsufficientFunds() public {
+        // Try to withdraw more than available
+        vm.expectRevert("Insufficient project pool funds");
+        coinToss.withdrawProjectPoolFunds(1 ether);
+    }
+
+    function test_WithdrawProjectPoolFunds_RevertZeroAmount() public {
+        vm.expectRevert("Amount must be greater than 0");
+        coinToss.withdrawProjectPoolFunds(0);
+    }
 }
