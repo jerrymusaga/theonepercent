@@ -550,9 +550,4 @@ contract CoinToss is Ownable, ReentrancyGuard {
         }
     }
     
-    function getPoolOriginalCreator(uint256 _poolId) external view returns (address) {
-        // This would require additional storage to track original creators
-        // For now, we return the current creator
-        return pools[_poolId].creator;
-    }
 }
