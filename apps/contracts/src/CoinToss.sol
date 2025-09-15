@@ -40,6 +40,7 @@ contract CoinToss is Ownable, ReentrancyGuard {
     mapping(address => PoolCreator) public poolCreators;
     
     uint256 public currentPoolId;
+    uint256 public projectPool; // Accumulates penalties and abandoned pool fees
     uint256 public constant BASE_STAKE = 5 ether; // 5 CELO
     uint256 public constant POOL_MULTIPLIER = 100; // 1x multiplier (100/100) - fair 1:1 ratio
     uint256 public constant MAX_STAKE_ALLOWED = 50 ether; // Cap at 50 CELO maximum stake
