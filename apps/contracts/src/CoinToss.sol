@@ -57,6 +57,7 @@ contract CoinToss is Ownable, ReentrancyGuard {
     event StakeDeposited(address indexed creator, uint256 amount, uint256 poolsEligible);
     event StakeWithdrawn(address indexed creator, uint256 amount, uint256 penalty);
     event CreatorRewardClaimed(address indexed creator, uint256 amount);
+    event ProjectPoolUpdated(uint256 amount, string source, uint256 totalPool);
     
     constructor() Ownable(msg.sender) {}
     
@@ -360,10 +361,11 @@ contract CoinToss is Ownable, ReentrancyGuard {
             creator.stakedAmount = 0;
             creator.poolsRemaining = 0;
             
-            payable(owner()).transfer(penalty);
+            projectPool += penalty;
             payable(msg.sender).transfer(returnAmount);
-            
+
             emit StakeWithdrawn(msg.sender, returnAmount, penalty);
+            emit ProjectPoolUpdated(penalty, "Early unstaking penalty", projectPool);
         } else {
             uint256 totalReward = calculateCreatorReward(msg.sender);
             uint256 returnAmount = creator.stakedAmount + totalReward;
