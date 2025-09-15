@@ -963,4 +963,44 @@ contract CoinTossTest is Test {
         uint256 expectedPrize = (4 ether * 95) / 100;
         assertEq(winner.balance, winnerBalanceBefore + expectedPrize);
     }
+
+    function test_AbandonedPoolCreatorFeesGoToProjectPool() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 2);
+        vm.stopPrank();
+
+        // Players join to make pool ACTIVE
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1); // Pool becomes ACTIVE
+
+        uint256 projectPoolBefore = coinToss.getProjectPoolBalance();
+
+        // Creator abandons pool (transfers to contract)
+        vm.prank(creator1);
+        coinToss.unstakeAndClaim();
+
+        // Verify pool is now owned by contract
+        (address poolCreator, , , , , ) = coinToss.getPoolInfo(1);
+        assertEq(poolCreator, address(coinToss));
+
+        // Complete the game
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+
+        // Get winner and claim prize
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        address winner = remainingPlayers[0];
+
+        vm.prank(winner);
+        coinToss.claimPrize(1);
+
+        // Verify creator fee (5% of 2 ether = 0.1 ether) went to project pool
+        uint256 expectedCreatorFee = (2 ether * 5) / 100;
+        assertEq(coinToss.getProjectPoolBalance(), projectPoolBefore + expectedCreatorFee);
+    }
 }
