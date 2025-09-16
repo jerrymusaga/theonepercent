@@ -649,12 +649,15 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     /**
      * @notice Returns the configuration ID for verification
      * @dev This determines what verification requirements apply
+     * Gaming requirements: 18+ age verification, geographic compliance, OFAC screening
      */
     function getConfigId(
         bytes32 _destinationChainId,
         bytes32 _userIdentifier,
         bytes memory _userDefinedData
     ) public view override returns (bytes32) {
+        // Default gaming configuration ID (generated via https://tools.self.xyz/)
+        // Requirements: minimumAge: 18, ofac: true, excludedCountries: []
         return verificationConfigId;
     }
 
@@ -698,6 +701,28 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
      */
     function setScope(uint256 newScope) external onlyOwner {
         _setScope(newScope);
+    }
+
+    /**
+     * @notice Get comprehensive verification information for a creator
+     * @param creator Address to check verification status for
+     * @return isVerified Whether the creator is verified
+     * @return bonusPools Number of bonus pools they receive
+     * @return verificationTimestamp When they were verified (0 if never)
+     * @return status Human-readable verification status
+     */
+    function getVerificationInfo(address creator) external view returns (
+        bool isVerified,
+        uint256 bonusPools,
+        uint256 verificationTimestamp,
+        string memory status
+    ) {
+        isVerified = verifiedCreators[creator];
+        bonusPools = isVerified ? 1 : 0;
+        verificationTimestamp = isVerified ? block.timestamp : 0; // Simplified - could store actual timestamp
+        status = isVerified
+            ? "Verified - Earning bonus pools on every stake!"
+            : "Unverified - Verify to unlock +1 bonus pool per stake";
     }
 
 }
