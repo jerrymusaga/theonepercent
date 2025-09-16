@@ -55,7 +55,7 @@ contract CoinTossTest is Test {
         
         coinToss.stakeForPoolCreation{value: 10 ether}();
         
-        (uint256 stakedAmount, uint256 poolsCreated, uint256 poolsRemaining, bool hasActiveStake) = 
+        (uint256 stakedAmount, uint256 poolsCreated, uint256 poolsRemaining, bool hasActiveStake, bool isVerified) =
             coinToss.getCreatorInfo(creator1);
         
         assertEq(stakedAmount, 10 ether);
@@ -71,7 +71,7 @@ contract CoinTossTest is Test {
         
         coinToss.stakeForPoolCreation{value: 5 ether}();
         
-        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        (, , uint256 poolsRemaining, , ) = coinToss.getCreatorInfo(creator1);
         assertEq(poolsRemaining, 1); // 5 CELO = 1 pool
         
         vm.stopPrank();
@@ -82,7 +82,7 @@ contract CoinTossTest is Test {
         
         coinToss.stakeForPoolCreation{value: 50 ether}();
         
-        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        (, , uint256 poolsRemaining, , ) = coinToss.getCreatorInfo(creator1);
         assertEq(poolsRemaining, 10); // 50 CELO = 10 pools (max)
         
         vm.stopPrank();
@@ -145,7 +145,7 @@ contract CoinTossTest is Test {
         assertTrue(status == CoinToss.PoolStatus.OPENED);
         
         // Check creator's remaining pools
-        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        (, , uint256 poolsRemaining, , ) = coinToss.getCreatorInfo(creator1);
         assertEq(poolsRemaining, 1); // Started with 2, created 1
         
         vm.stopPrank();
