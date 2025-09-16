@@ -47,6 +47,7 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     // Self Protocol verification storage
     mapping(address => bool) public verifiedCreators;
     mapping(uint256 => bool) public usedNullifiers;
+    bytes32 public verificationConfigId;
 
     uint256 public currentPoolId;
     uint256 public projectPool; // Accumulates penalties and abandoned pool fees
@@ -73,13 +74,12 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     constructor(
         address identityVerificationHubV2Address,
         uint256 scopeValue,
-        bytes32 verificationConfigId
+        bytes32 _verificationConfigId
     )
         Ownable(msg.sender)
         SelfVerificationRoot(identityVerificationHubV2Address, scopeValue)
     {
-        // Store the verification configuration ID
-        // This will be used in getConfigId() method
+        verificationConfigId = _verificationConfigId;
     }
     
     function stakeForPoolCreation() external payable {
