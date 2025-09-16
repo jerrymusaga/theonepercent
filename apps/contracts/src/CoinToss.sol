@@ -4,51 +4,9 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-// Self Protocol interfaces (these would need to be installed)
-interface ISelfVerificationRoot {
-    struct GenericDiscloseOutputV2 {
-        bytes32 attestationId;
-        uint256 userIdentifier;
-        uint256 nullifier;
-        uint256[4] forbiddenCountriesListPacked;
-        string issuingState;
-        string[] name;
-        string idNumber;
-        string nationality;
-        string dateOfBirth;
-        string gender;
-        string expiryDate;
-        uint256 olderThan;
-        bool[3] ofac;
-    }
-
-    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) external;
-    function onVerificationSuccess(bytes memory output, bytes memory userData) external;
-}
-
-interface IIdentityVerificationHubV2 {
-    function verify(bytes calldata proofPayload) external returns (bool);
-}
-
-abstract contract SelfVerificationRoot is ISelfVerificationRoot {
-    IIdentityVerificationHubV2 internal immutable _identityVerificationHubV2;
-    uint256 internal _scope;
-
-    constructor(address identityVerificationHubV2Address, uint256 scopeValue) {
-        _identityVerificationHubV2 = IIdentityVerificationHubV2(identityVerificationHubV2Address);
-        _scope = scopeValue;
-    }
-
-    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public virtual {
-        // Forward to hub for verification
-        require(_identityVerificationHubV2.verify(proofPayload), "Verification failed");
-
-        // On success, call the callback
-        onVerificationSuccess(proofPayload, userContextData);
-    }
-
-    function onVerificationSuccess(bytes memory output, bytes memory userData) public virtual;
-}
+// Self Protocol V2 imports
+import {SelfVerificationRoot} from "@selfxyz/contracts/contracts/abstract/SelfVerificationRoot.sol";
+import {ISelfVerificationRoot} from "@selfxyz/contracts/contracts/interfaces/ISelfVerificationRoot.sol";
 
 contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     
@@ -112,9 +70,17 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     event CreatorVerified(address indexed creator, bytes32 attestationId);
     event VerificationBonusApplied(address indexed creator, uint256 bonusPools);
     
-    constructor(address identityVerificationHubV2Address, uint256 scopeValue)
+    constructor(
+        address identityVerificationHubV2Address,
+        uint256 scopeValue,
+        bytes32 verificationConfigId
+    )
         Ownable(msg.sender)
-        SelfVerificationRoot(identityVerificationHubV2Address, scopeValue) {}
+        SelfVerificationRoot(identityVerificationHubV2Address, scopeValue)
+    {
+        // Store the verification configuration ID
+        // This will be used in getConfigId() method
+    }
     
     function stakeForPoolCreation() external payable {
         require(msg.value >= BASE_STAKE, "Minimum stake is 5 CELO");
