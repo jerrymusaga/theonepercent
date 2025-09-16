@@ -551,14 +551,16 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
         uint256 stakedAmount,
         uint256 poolsCreated,
         uint256 poolsRemaining,
-        bool hasActiveStake
+        bool hasActiveStake,
+        bool isVerified
     ) {
         PoolCreator storage creator = poolCreators[_creator];
         return (
             creator.stakedAmount,
             creator.poolsCreated,
             creator.poolsRemaining,
-            creator.hasActiveStake
+            creator.hasActiveStake,
+            creator.isVerified
         );
     }
     
@@ -600,7 +602,49 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
             pool.status == PoolStatus.COMPLETED
         );
     }
-    
+
+    // Verification Helper Functions
+
+    function isCreatorVerified(address creator) external view returns (bool) {
+        return verifiedCreators[creator];
+    }
+
+    function getVerificationBonus(address creator) external view returns (uint256) {
+        return verifiedCreators[creator] ? 1 : 0;
+    }
+
+    function previewPoolsEligible(uint256 stakeAmount, address creator) external view returns (
+        uint256 basePools,
+        uint256 totalPools,
+        uint256 bonusPools
+    ) {
+        require(stakeAmount >= BASE_STAKE, "Stake amount too low");
+
+        // Calculate base pools without verification
+        uint256 baseUnits = stakeAmount / BASE_STAKE;
+        basePools = (baseUnits * POOL_MULTIPLIER) / 100;
+
+        // Calculate verification bonus
+        bonusPools = verifiedCreators[creator] ? 1 : 0;
+
+        // Total pools with bonus
+        totalPools = basePools + bonusPools;
+
+        return (basePools, totalPools, bonusPools);
+    }
+
+    function getVerificationStatus(address creator) external view returns (
+        bool isVerified,
+        uint256 bonusPools,
+        string memory status
+    ) {
+        isVerified = verifiedCreators[creator];
+        bonusPools = isVerified ? 1 : 0;
+        status = isVerified ? "Verified - Get +1 bonus pool on every stake!" : "Not verified - Verify to get +1 bonus pool";
+
+        return (isVerified, bonusPools, status);
+    }
+
     function claimRefundFromAbandonedPool(uint256 _poolId) external nonReentrant {
         Pool storage pool = pools[_poolId];
         require(pool.status == PoolStatus.ABANDONED, "Pool is not abandoned");
