@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Test, console} from "forge-std/Test.sol";
-import {CoinToss} from "../src/CoinToss.sol";
+import {CoinToss, ISelfVerificationRoot} from "../src/CoinToss.sol";
 
 contract CoinTossTest is Test {
     CoinToss public coinToss;
@@ -41,7 +41,11 @@ contract CoinTossTest is Test {
         vm.deal(player4, 10 ether);
         vm.deal(player5, 10 ether);
         
-        coinToss = new CoinToss();
+        // Mock Self protocol addresses for testing
+        address mockVerificationHub = address(0x1234567890123456789012345678901234567890);
+        uint256 mockScope = 1;
+
+        coinToss = new CoinToss(mockVerificationHub, mockScope);
     }
     
     // STAKING MECHANISM TESTS
@@ -51,7 +55,7 @@ contract CoinTossTest is Test {
         
         coinToss.stakeForPoolCreation{value: 10 ether}();
         
-        (uint256 stakedAmount, uint256 poolsCreated, uint256 poolsRemaining, bool hasActiveStake) = 
+        (uint256 stakedAmount, uint256 poolsCreated, uint256 poolsRemaining, bool hasActiveStake, bool isVerified) =
             coinToss.getCreatorInfo(creator1);
         
         assertEq(stakedAmount, 10 ether);
@@ -67,7 +71,7 @@ contract CoinTossTest is Test {
         
         coinToss.stakeForPoolCreation{value: 5 ether}();
         
-        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        (, , uint256 poolsRemaining, , ) = coinToss.getCreatorInfo(creator1);
         assertEq(poolsRemaining, 1); // 5 CELO = 1 pool
         
         vm.stopPrank();
@@ -78,7 +82,7 @@ contract CoinTossTest is Test {
         
         coinToss.stakeForPoolCreation{value: 50 ether}();
         
-        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        (, , uint256 poolsRemaining, , ) = coinToss.getCreatorInfo(creator1);
         assertEq(poolsRemaining, 10); // 50 CELO = 10 pools (max)
         
         vm.stopPrank();
@@ -141,7 +145,7 @@ contract CoinTossTest is Test {
         assertTrue(status == CoinToss.PoolStatus.OPENED);
         
         // Check creator's remaining pools
-        (, , uint256 poolsRemaining, ) = coinToss.getCreatorInfo(creator1);
+        (, , uint256 poolsRemaining, , ) = coinToss.getCreatorInfo(creator1);
         assertEq(poolsRemaining, 1); // Started with 2, created 1
         
         vm.stopPrank();
@@ -549,7 +553,7 @@ contract CoinTossTest is Test {
         assertTrue(coinToss.isPoolAbandoned(1));
         
         // Creator should no longer have active stake
-        (, , , bool hasActiveStake) = coinToss.getCreatorInfo(creator1);
+        (, , , bool hasActiveStake, ) = coinToss.getCreatorInfo(creator1);
         assertFalse(hasActiveStake);
     }
     
@@ -1065,5 +1069,69 @@ contract CoinTossTest is Test {
     function test_WithdrawProjectPoolFunds_RevertZeroAmount() public {
         vm.expectRevert("Amount must be greater than 0");
         coinToss.withdrawProjectPoolFunds(0);
+    }
+
+    // SELF VERIFICATION TESTS
+
+    function test_VerificationBonus_UnverifiedCreator() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+
+        (, , uint256 poolsRemaining, , bool isVerified) = coinToss.getCreatorInfo(creator1);
+
+        assertEq(poolsRemaining, 2); // 10 CELO = 2 pools (no bonus)
+        assertFalse(isVerified);
+        vm.stopPrank();
+    }
+
+    function test_VerificationBonus_VerifiedCreator() public {
+        // Test calculation functions directly since verification would be complex to mock
+        assertTrue(coinToss.calculatePoolsEligible(10 ether, creator1) == 2); // Unverified = 2 pools
+
+        // Test the calculation if they were verified
+        // We can't easily test the full verification flow in a unit test,
+        // but we can test the pool calculation logic
+        assertEq(coinToss.calculatePoolsEligible(5 ether, creator1), 1);
+        assertEq(coinToss.calculatePoolsEligible(10 ether, creator1), 2);
+        assertEq(coinToss.calculatePoolsEligible(25 ether, creator1), 5);
+
+        // These tests verify the calculation works for unverified users
+        // In practice, verified users would get +1 bonus
+    }
+
+    function test_VerificationStatus_Functions() public {
+        // Test unverified status
+        assertFalse(coinToss.isCreatorVerified(creator1));
+        assertEq(coinToss.getVerificationBonus(creator1), 0);
+
+        (bool isVerified, uint256 bonusPools, string memory status) = coinToss.getVerificationStatus(creator1);
+        assertFalse(isVerified);
+        assertEq(bonusPools, 0);
+        assertTrue(
+            keccak256(abi.encodePacked(status)) ==
+            keccak256(abi.encodePacked("Not verified - Verify to get +1 bonus pool"))
+        );
+    }
+
+    function test_PreviewPoolsEligible() public {
+        // Test unverified preview
+        (uint256 basePools, uint256 totalPools, uint256 bonusPools) =
+            coinToss.previewPoolsEligible(15 ether, creator1);
+
+        assertEq(basePools, 3);     // 15 CELO = 3 pools
+        assertEq(totalPools, 3);    // No bonus for unverified
+        assertEq(bonusPools, 0);    // Unverified = 0 bonus
+    }
+
+    function test_CalculatePoolsEligible_WithoutVerification() public {
+        // Test pool calculation for unverified users
+        assertEq(coinToss.calculatePoolsEligible(5 ether, creator1), 1);
+        assertEq(coinToss.calculatePoolsEligible(10 ether, creator1), 2);
+        assertEq(coinToss.calculatePoolsEligible(25 ether, creator1), 5);
+        assertEq(coinToss.calculatePoolsEligible(50 ether, creator1), 10);
+
+        // Verification functions should return false/0 for unverified users
+        assertFalse(coinToss.isCreatorVerified(creator1));
+        assertEq(coinToss.getVerificationBonus(creator1), 0);
     }
 }

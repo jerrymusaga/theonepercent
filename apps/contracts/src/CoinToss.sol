@@ -4,7 +4,53 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract CoinToss is Ownable, ReentrancyGuard {
+// Self Protocol interfaces (these would need to be installed)
+interface ISelfVerificationRoot {
+    struct GenericDiscloseOutputV2 {
+        bytes32 attestationId;
+        uint256 userIdentifier;
+        uint256 nullifier;
+        uint256[4] forbiddenCountriesListPacked;
+        string issuingState;
+        string[] name;
+        string idNumber;
+        string nationality;
+        string dateOfBirth;
+        string gender;
+        string expiryDate;
+        uint256 olderThan;
+        bool[3] ofac;
+    }
+
+    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) external;
+    function onVerificationSuccess(bytes memory output, bytes memory userData) external;
+}
+
+interface IIdentityVerificationHubV2 {
+    function verify(bytes calldata proofPayload) external returns (bool);
+}
+
+abstract contract SelfVerificationRoot is ISelfVerificationRoot {
+    IIdentityVerificationHubV2 internal immutable _identityVerificationHubV2;
+    uint256 internal _scope;
+
+    constructor(address identityVerificationHubV2Address, uint256 scopeValue) {
+        _identityVerificationHubV2 = IIdentityVerificationHubV2(identityVerificationHubV2Address);
+        _scope = scopeValue;
+    }
+
+    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public virtual {
+        // Forward to hub for verification
+        require(_identityVerificationHubV2.verify(proofPayload), "Verification failed");
+
+        // On success, call the callback
+        onVerificationSuccess(proofPayload, userContextData);
+    }
+
+    function onVerificationSuccess(bytes memory output, bytes memory userData) public virtual;
+}
+
+contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     
     enum PlayerChoice { NONE, HEADS, TAILS }
     enum PoolStatus { OPENED, ACTIVE, COMPLETED, ABANDONED }
@@ -34,11 +80,16 @@ contract CoinToss is Ownable, ReentrancyGuard {
         bool hasActiveStake;
         uint256 stakedAt;
         uint256[] createdPoolIds;
+        bool isVerified; // Tracks if creator was verified when they staked
     }
     
     mapping(uint256 => Pool) public pools;
     mapping(address => PoolCreator) public poolCreators;
-    
+
+    // Self Protocol verification storage
+    mapping(address => bool) public verifiedCreators;
+    mapping(uint256 => bool) public usedNullifiers;
+
     uint256 public currentPoolId;
     uint256 public projectPool; // Accumulates penalties and abandoned pool fees
     uint256 public constant BASE_STAKE = 5 ether; // 5 CELO
@@ -58,16 +109,22 @@ contract CoinToss is Ownable, ReentrancyGuard {
     event StakeWithdrawn(address indexed creator, uint256 amount, uint256 penalty);
     event CreatorRewardClaimed(address indexed creator, uint256 amount);
     event ProjectPoolUpdated(uint256 amount, string source, uint256 totalPool);
+    event CreatorVerified(address indexed creator, bytes32 attestationId);
+    event VerificationBonusApplied(address indexed creator, uint256 bonusPools);
     
-    constructor() Ownable(msg.sender) {}
+    constructor(address identityVerificationHubV2Address, uint256 scopeValue)
+        Ownable(msg.sender)
+        SelfVerificationRoot(identityVerificationHubV2Address, scopeValue) {}
     
     function stakeForPoolCreation() external payable {
         require(msg.value >= BASE_STAKE, "Minimum stake is 5 CELO");
         require(msg.value <= MAX_STAKE_ALLOWED, "Maximum stake is 50 CELO");
         require(!poolCreators[msg.sender].hasActiveStake, "Already has active stake");
-        
-        uint256 poolsEligible = calculatePoolsEligible(msg.value);
-        
+
+        // Calculate pools with verification bonus
+        uint256 poolsEligible = calculatePoolsEligible(msg.value, msg.sender);
+        bool isVerified = verifiedCreators[msg.sender];
+
         poolCreators[msg.sender] = PoolCreator({
             stakedAmount: msg.value,
             poolsCreated: 0,
@@ -75,26 +132,40 @@ contract CoinToss is Ownable, ReentrancyGuard {
             totalPools: poolsEligible,
             hasActiveStake: true,
             stakedAt: block.timestamp,
-            createdPoolIds: new uint256[](0)
+            createdPoolIds: new uint256[](0),
+            isVerified: isVerified
         });
-        
+
         emit StakeDeposited(msg.sender, msg.value, poolsEligible);
+
+        // Emit verification bonus event if applicable
+        if (isVerified) {
+            emit VerificationBonusApplied(msg.sender, 1);
+        }
     }
     
+    function calculatePoolsEligible(uint256 stakeAmount, address creator) public view returns (uint256) {
+        require(stakeAmount >= BASE_STAKE, "Stake amount too low");
+
+        // Calculate base pools
+        uint256 baseUnits = stakeAmount / BASE_STAKE;
+        uint256 basePools = (baseUnits * POOL_MULTIPLIER) / 100;
+
+        // Add verification bonus: +1 pool for verified creators
+        if (verifiedCreators[creator]) {
+            return basePools + 1;
+        }
+
+        return basePools;
+    }
+
+    // Keep the old function for backward compatibility (used in tests)
     function calculatePoolsEligible(uint256 stakeAmount) public pure returns (uint256) {
         require(stakeAmount >= BASE_STAKE, "Stake amount too low");
-        
-        // Formula: pools = (stakeAmount / BASE_STAKE) * POOL_MULTIPLIER / 100
-        // Examples with 1x multiplier and 50 CELO stake cap:
-        // 5 CELO: (5/5) * 1.0 = 1 pool
-        // 10 CELO: (10/5) * 1.0 = 2 pools
-        // 15 CELO: (15/5) * 1.0 = 3 pools  
-        // 25 CELO: (25/5) * 1.0 = 5 pools
-        // 50 CELO: (50/5) * 1.0 = 10 pools (maximum allowed)
-        
+
         uint256 baseUnits = stakeAmount / BASE_STAKE;
         uint256 totalPools = (baseUnits * POOL_MULTIPLIER) / 100;
-        
+
         return totalPools;
     }
     
@@ -480,14 +551,16 @@ contract CoinToss is Ownable, ReentrancyGuard {
         uint256 stakedAmount,
         uint256 poolsCreated,
         uint256 poolsRemaining,
-        bool hasActiveStake
+        bool hasActiveStake,
+        bool isVerified
     ) {
         PoolCreator storage creator = poolCreators[_creator];
         return (
             creator.stakedAmount,
             creator.poolsCreated,
             creator.poolsRemaining,
-            creator.hasActiveStake
+            creator.hasActiveStake,
+            creator.isVerified
         );
     }
     
@@ -529,7 +602,49 @@ contract CoinToss is Ownable, ReentrancyGuard {
             pool.status == PoolStatus.COMPLETED
         );
     }
-    
+
+    // Verification Helper Functions
+
+    function isCreatorVerified(address creator) external view returns (bool) {
+        return verifiedCreators[creator];
+    }
+
+    function getVerificationBonus(address creator) external view returns (uint256) {
+        return verifiedCreators[creator] ? 1 : 0;
+    }
+
+    function previewPoolsEligible(uint256 stakeAmount, address creator) external view returns (
+        uint256 basePools,
+        uint256 totalPools,
+        uint256 bonusPools
+    ) {
+        require(stakeAmount >= BASE_STAKE, "Stake amount too low");
+
+        // Calculate base pools without verification
+        uint256 baseUnits = stakeAmount / BASE_STAKE;
+        basePools = (baseUnits * POOL_MULTIPLIER) / 100;
+
+        // Calculate verification bonus
+        bonusPools = verifiedCreators[creator] ? 1 : 0;
+
+        // Total pools with bonus
+        totalPools = basePools + bonusPools;
+
+        return (basePools, totalPools, bonusPools);
+    }
+
+    function getVerificationStatus(address creator) external view returns (
+        bool isVerified,
+        uint256 bonusPools,
+        string memory status
+    ) {
+        isVerified = verifiedCreators[creator];
+        bonusPools = isVerified ? 1 : 0;
+        status = isVerified ? "Verified - Get +1 bonus pool on every stake!" : "Not verified - Verify to get +1 bonus pool";
+
+        return (isVerified, bonusPools, status);
+    }
+
     function claimRefundFromAbandonedPool(uint256 _poolId) external nonReentrant {
         Pool storage pool = pools[_poolId];
         require(pool.status == PoolStatus.ABANDONED, "Pool is not abandoned");
@@ -562,5 +677,36 @@ contract CoinToss is Ownable, ReentrancyGuard {
 
         emit ProjectPoolUpdated(amount, "Owner withdrawal", projectPool);
     }
-    
+
+    // Self Protocol Verification Implementation
+
+    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public override {
+        // Decode the verification data from proof payload
+        GenericDiscloseOutputV2 memory verificationData = abi.decode(proofPayload, (GenericDiscloseOutputV2));
+
+        // Check nullifier to prevent replay attacks
+        require(!usedNullifiers[verificationData.nullifier], "Nullifier already used");
+
+        // Call parent verification (this validates the proof with Self hub)
+        super.verifySelfProof(proofPayload, userContextData);
+
+        // Mark nullifier as used to prevent future replay attacks
+        usedNullifiers[verificationData.nullifier] = true;
+
+        // The caller of this function is the user being verified
+        address userAddress = msg.sender;
+
+        // Mark user as verified
+        verifiedCreators[userAddress] = true;
+
+        // Emit verification events
+        emit CreatorVerified(userAddress, verificationData.attestationId);
+    }
+
+    // Override the abstract function (not used in our implementation)
+    function onVerificationSuccess(bytes memory output, bytes memory userData) public override {
+        // This function is required by the interface but not used in our direct approach
+        // All verification logic is handled in verifySelfProof override
+    }
+
 }
