@@ -2,7 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {Test, console} from "forge-std/Test.sol";
-import {CoinToss, ISelfVerificationRoot} from "../src/CoinToss.sol";
+import {CoinToss} from "../src/CoinToss.sol";
+import {ISelfVerificationRoot} from "@selfxyz/contracts/contracts/interfaces/ISelfVerificationRoot.sol";
 
 contract CoinTossTest is Test {
     CoinToss public coinToss;
@@ -44,8 +45,9 @@ contract CoinTossTest is Test {
         // Mock Self protocol addresses for testing
         address mockVerificationHub = address(0x1234567890123456789012345678901234567890);
         uint256 mockScope = 1;
+        bytes32 mockConfigId = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
 
-        coinToss = new CoinToss(mockVerificationHub, mockScope);
+        coinToss = new CoinToss(mockVerificationHub, mockScope, mockConfigId);
     }
     
     // STAKING MECHANISM TESTS
