@@ -80,6 +80,7 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
         bool hasActiveStake;
         uint256 stakedAt;
         uint256[] createdPoolIds;
+        bool isVerified; // Tracks if creator was verified when they staked
     }
     
     mapping(uint256 => Pool) public pools;
@@ -108,6 +109,8 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     event StakeWithdrawn(address indexed creator, uint256 amount, uint256 penalty);
     event CreatorRewardClaimed(address indexed creator, uint256 amount);
     event ProjectPoolUpdated(uint256 amount, string source, uint256 totalPool);
+    event CreatorVerified(address indexed creator, bytes32 attestationId);
+    event VerificationBonusApplied(address indexed creator, uint256 bonusPools);
     
     constructor(address identityVerificationHubV2Address, uint256 scopeValue)
         Ownable(msg.sender)
