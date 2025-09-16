@@ -644,35 +644,60 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
         emit ProjectPoolUpdated(amount, "Owner withdrawal", projectPool);
     }
 
-    // Self Protocol Verification Implementation
+    // Self Protocol V2 Implementation
 
-    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public override {
-        // Decode the verification data from proof payload
-        GenericDiscloseOutputV2 memory verificationData = abi.decode(proofPayload, (GenericDiscloseOutputV2));
+    /**
+     * @notice Returns the configuration ID for verification
+     * @dev This determines what verification requirements apply
+     */
+    function getConfigId(
+        bytes32 _destinationChainId,
+        bytes32 _userIdentifier,
+        bytes memory _userDefinedData
+    ) public view override returns (bytes32) {
+        return verificationConfigId;
+    }
 
+    /**
+     * @notice Custom verification hook called after successful verification
+     * @dev This is called by the base contract after hub validation
+     * @param _output The verification output containing user data
+     * @param _userData Additional user context data
+     */
+    function customVerificationHook(
+        ISelfVerificationRoot.GenericDiscloseOutputV2 memory _output,
+        bytes memory _userData
+    ) internal override {
         // Check nullifier to prevent replay attacks
-        require(!usedNullifiers[verificationData.nullifier], "Nullifier already used");
+        require(!usedNullifiers[_output.nullifier], "Nullifier already used");
 
-        // Call parent verification (this validates the proof with Self hub)
-        super.verifySelfProof(proofPayload, userContextData);
+        // Mark nullifier as used
+        usedNullifiers[_output.nullifier] = true;
 
-        // Mark nullifier as used to prevent future replay attacks
-        usedNullifiers[verificationData.nullifier] = true;
-
-        // The caller of this function is the user being verified
-        address userAddress = msg.sender;
+        // Extract user address from userIdentifier
+        address userAddress = address(uint160(_output.userIdentifier));
 
         // Mark user as verified
         verifiedCreators[userAddress] = true;
 
         // Emit verification events
-        emit CreatorVerified(userAddress, verificationData.attestationId);
+        emit CreatorVerified(userAddress, _output.attestationId);
     }
 
-    // Override the abstract function (not used in our implementation)
-    function onVerificationSuccess(bytes memory output, bytes memory userData) public override {
-        // This function is required by the interface but not used in our direct approach
-        // All verification logic is handled in verifySelfProof override
+    /**
+     * @notice Update verification configuration ID (admin only)
+     * @param _configId New configuration ID
+     */
+    function setVerificationConfigId(bytes32 _configId) external onlyOwner {
+        verificationConfigId = _configId;
+    }
+
+    /**
+     * @notice Update scope (admin only)
+     * @param newScope New scope value
+     */
+    function setScope(uint256 newScope) external onlyOwner {
+        _setScope(newScope);
     }
 
 }
