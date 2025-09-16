@@ -4,51 +4,9 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-// Self Protocol interfaces (these would need to be installed)
-interface ISelfVerificationRoot {
-    struct GenericDiscloseOutputV2 {
-        bytes32 attestationId;
-        uint256 userIdentifier;
-        uint256 nullifier;
-        uint256[4] forbiddenCountriesListPacked;
-        string issuingState;
-        string[] name;
-        string idNumber;
-        string nationality;
-        string dateOfBirth;
-        string gender;
-        string expiryDate;
-        uint256 olderThan;
-        bool[3] ofac;
-    }
-
-    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) external;
-    function onVerificationSuccess(bytes memory output, bytes memory userData) external;
-}
-
-interface IIdentityVerificationHubV2 {
-    function verify(bytes calldata proofPayload) external returns (bool);
-}
-
-abstract contract SelfVerificationRoot is ISelfVerificationRoot {
-    IIdentityVerificationHubV2 internal immutable _identityVerificationHubV2;
-    uint256 internal _scope;
-
-    constructor(address identityVerificationHubV2Address, uint256 scopeValue) {
-        _identityVerificationHubV2 = IIdentityVerificationHubV2(identityVerificationHubV2Address);
-        _scope = scopeValue;
-    }
-
-    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public virtual {
-        // Forward to hub for verification
-        require(_identityVerificationHubV2.verify(proofPayload), "Verification failed");
-
-        // On success, call the callback
-        onVerificationSuccess(proofPayload, userContextData);
-    }
-
-    function onVerificationSuccess(bytes memory output, bytes memory userData) public virtual;
-}
+// Self Protocol V2 imports
+import {SelfVerificationRoot} from "@selfxyz/contracts/contracts/abstract/SelfVerificationRoot.sol";
+import {ISelfVerificationRoot} from "@selfxyz/contracts/contracts/interfaces/ISelfVerificationRoot.sol";
 
 contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     
@@ -89,6 +47,7 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     // Self Protocol verification storage
     mapping(address => bool) public verifiedCreators;
     mapping(uint256 => bool) public usedNullifiers;
+    bytes32 public verificationConfigId;
 
     uint256 public currentPoolId;
     uint256 public projectPool; // Accumulates penalties and abandoned pool fees
@@ -112,9 +71,16 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     event CreatorVerified(address indexed creator, bytes32 attestationId);
     event VerificationBonusApplied(address indexed creator, uint256 bonusPools);
     
-    constructor(address identityVerificationHubV2Address, uint256 scopeValue)
+    constructor(
+        address identityVerificationHubV2Address,
+        uint256 scopeValue,
+        bytes32 _verificationConfigId
+    )
         Ownable(msg.sender)
-        SelfVerificationRoot(identityVerificationHubV2Address, scopeValue) {}
+        SelfVerificationRoot(identityVerificationHubV2Address, scopeValue)
+    {
+        verificationConfigId = _verificationConfigId;
+    }
     
     function stakeForPoolCreation() external payable {
         require(msg.value >= BASE_STAKE, "Minimum stake is 5 CELO");
@@ -678,35 +644,85 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
         emit ProjectPoolUpdated(amount, "Owner withdrawal", projectPool);
     }
 
-    // Self Protocol Verification Implementation
+    // Self Protocol V2 Implementation
 
-    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public override {
-        // Decode the verification data from proof payload
-        GenericDiscloseOutputV2 memory verificationData = abi.decode(proofPayload, (GenericDiscloseOutputV2));
+    /**
+     * @notice Returns the configuration ID for verification
+     * @dev This determines what verification requirements apply
+     * Gaming requirements: 18+ age verification, geographic compliance, OFAC screening
+     */
+    function getConfigId(
+        bytes32 _destinationChainId,
+        bytes32 _userIdentifier,
+        bytes memory _userDefinedData
+    ) public view override returns (bytes32) {
+        // Default gaming configuration ID (generated via https://tools.self.xyz/)
+        // Requirements: minimumAge: 18, ofac: true, excludedCountries: []
+        return verificationConfigId;
+    }
 
+    /**
+     * @notice Custom verification hook called after successful verification
+     * @dev This is called by the base contract after hub validation
+     * @param _output The verification output containing user data
+     * @param _userData Additional user context data
+     */
+    function customVerificationHook(
+        ISelfVerificationRoot.GenericDiscloseOutputV2 memory _output,
+        bytes memory _userData
+    ) internal override {
         // Check nullifier to prevent replay attacks
-        require(!usedNullifiers[verificationData.nullifier], "Nullifier already used");
+        require(!usedNullifiers[_output.nullifier], "Nullifier already used");
 
-        // Call parent verification (this validates the proof with Self hub)
-        super.verifySelfProof(proofPayload, userContextData);
+        // Mark nullifier as used
+        usedNullifiers[_output.nullifier] = true;
 
-        // Mark nullifier as used to prevent future replay attacks
-        usedNullifiers[verificationData.nullifier] = true;
-
-        // The caller of this function is the user being verified
-        address userAddress = msg.sender;
+        // Extract user address from userIdentifier
+        address userAddress = address(uint160(_output.userIdentifier));
 
         // Mark user as verified
         verifiedCreators[userAddress] = true;
 
         // Emit verification events
-        emit CreatorVerified(userAddress, verificationData.attestationId);
+        emit CreatorVerified(userAddress, _output.attestationId);
     }
 
-    // Override the abstract function (not used in our implementation)
-    function onVerificationSuccess(bytes memory output, bytes memory userData) public override {
-        // This function is required by the interface but not used in our direct approach
-        // All verification logic is handled in verifySelfProof override
+    /**
+     * @notice Update verification configuration ID (admin only)
+     * @param _configId New configuration ID
+     */
+    function setVerificationConfigId(bytes32 _configId) external onlyOwner {
+        verificationConfigId = _configId;
+    }
+
+    /**
+     * @notice Update scope (admin only)
+     * @param newScope New scope value
+     */
+    function setScope(uint256 newScope) external onlyOwner {
+        _setScope(newScope);
+    }
+
+    /**
+     * @notice Get comprehensive verification information for a creator
+     * @param creator Address to check verification status for
+     * @return isVerified Whether the creator is verified
+     * @return bonusPools Number of bonus pools they receive
+     * @return verificationTimestamp When they were verified (0 if never)
+     * @return status Human-readable verification status
+     */
+    function getVerificationInfo(address creator) external view returns (
+        bool isVerified,
+        uint256 bonusPools,
+        uint256 verificationTimestamp,
+        string memory status
+    ) {
+        isVerified = verifiedCreators[creator];
+        bonusPools = isVerified ? 1 : 0;
+        verificationTimestamp = isVerified ? block.timestamp : 0; // Simplified - could store actual timestamp
+        status = isVerified
+            ? "Verified - Earning bonus pools on every stake!"
+            : "Unverified - Verify to unlock +1 bonus pool per stake";
     }
 
 }

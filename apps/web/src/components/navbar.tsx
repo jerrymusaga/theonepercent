@@ -18,6 +18,7 @@ const navLinks = [
   { name: "Pools", href: "/pools" },
   { name: "Create", href: "/stake" },
   { name: "Dashboard", href: "/dashboard" },
+  { name: "Verify", href: "/verify" },
   { name: "Docs", href: "https://docs.celo.org", external: true },
 ]
 
