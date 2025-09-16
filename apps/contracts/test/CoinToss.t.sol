@@ -1070,4 +1070,211 @@ contract CoinTossTest is Test {
         vm.expectRevert("Amount must be greater than 0");
         coinToss.withdrawProjectPoolFunds(0);
     }
+
+    // SELF VERIFICATION TESTS
+
+    function test_VerificationBonus_UnverifiedCreator() public {
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+
+        (, , uint256 poolsRemaining, , bool isVerified) = coinToss.getCreatorInfo(creator1);
+
+        assertEq(poolsRemaining, 2); // 10 CELO = 2 pools (no bonus)
+        assertFalse(isVerified);
+        vm.stopPrank();
+    }
+
+    function test_VerificationBonus_VerifiedCreator() public {
+        // Mock verification process - directly set verification status
+        vm.prank(address(coinToss));
+        coinToss.verifySelfProof(
+            abi.encode(CoinToss.GenericDiscloseOutputV2({
+                attestationId: bytes32("test"),
+                userIdentifier: 12345,
+                nullifier: 67890,
+                forbiddenCountriesListPacked: [uint256(0), 0, 0, 0],
+                issuingState: "US",
+                name: new string[](0),
+                idNumber: "",
+                nationality: "US",
+                dateOfBirth: "",
+                gender: "",
+                expiryDate: "",
+                olderThan: 18,
+                ofac: [false, false, false]
+            })),
+            abi.encode(creator1)
+        );
+
+        // Now stake as verified creator
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+
+        (, , uint256 poolsRemaining, , bool isVerified) = coinToss.getCreatorInfo(creator1);
+
+        assertEq(poolsRemaining, 3); // 10 CELO = 2 pools + 1 bonus = 3 pools
+        assertTrue(isVerified);
+        vm.stopPrank();
+    }
+
+    function test_VerificationStatus_Functions() public {
+        // Test unverified status
+        assertFalse(coinToss.isCreatorVerified(creator1));
+        assertEq(coinToss.getVerificationBonus(creator1), 0);
+
+        (bool isVerified, uint256 bonusPools, string memory status) = coinToss.getVerificationStatus(creator1);
+        assertFalse(isVerified);
+        assertEq(bonusPools, 0);
+        assertTrue(
+            keccak256(abi.encodePacked(status)) ==
+            keccak256(abi.encodePacked("Not verified - Verify to get +1 bonus pool"))
+        );
+
+        // Mock verification
+        vm.prank(address(coinToss));
+        coinToss.verifySelfProof(
+            abi.encode(CoinToss.GenericDiscloseOutputV2({
+                attestationId: bytes32("test"),
+                userIdentifier: 12345,
+                nullifier: 67890,
+                forbiddenCountriesListPacked: [uint256(0), 0, 0, 0],
+                issuingState: "US",
+                name: new string[](0),
+                idNumber: "",
+                nationality: "US",
+                dateOfBirth: "",
+                gender: "",
+                expiryDate: "",
+                olderThan: 18,
+                ofac: [false, false, false]
+            })),
+            abi.encode(creator1)
+        );
+
+        // Test verified status
+        assertTrue(coinToss.isCreatorVerified(creator1));
+        assertEq(coinToss.getVerificationBonus(creator1), 1);
+
+        (isVerified, bonusPools, status) = coinToss.getVerificationStatus(creator1);
+        assertTrue(isVerified);
+        assertEq(bonusPools, 1);
+        assertTrue(
+            keccak256(abi.encodePacked(status)) ==
+            keccak256(abi.encodePacked("Verified - Get +1 bonus pool on every stake!"))
+        );
+    }
+
+    function test_PreviewPoolsEligible() public {
+        // Test unverified preview
+        (uint256 basePools, uint256 totalPools, uint256 bonusPools) =
+            coinToss.previewPoolsEligible(15 ether, creator1);
+
+        assertEq(basePools, 3);     // 15 CELO = 3 pools
+        assertEq(totalPools, 3);    // No bonus
+        assertEq(bonusPools, 0);    // Unverified
+
+        // Mock verification
+        vm.prank(address(coinToss));
+        coinToss.verifySelfProof(
+            abi.encode(CoinToss.GenericDiscloseOutputV2({
+                attestationId: bytes32("test"),
+                userIdentifier: 12345,
+                nullifier: 67890,
+                forbiddenCountriesListPacked: [uint256(0), 0, 0, 0],
+                issuingState: "US",
+                name: new string[](0),
+                idNumber: "",
+                nationality: "US",
+                dateOfBirth: "",
+                gender: "",
+                expiryDate: "",
+                olderThan: 18,
+                ofac: [false, false, false]
+            })),
+            abi.encode(creator1)
+        );
+
+        // Test verified preview
+        (basePools, totalPools, bonusPools) =
+            coinToss.previewPoolsEligible(15 ether, creator1);
+
+        assertEq(basePools, 3);     // 15 CELO = 3 pools
+        assertEq(totalPools, 4);    // 3 + 1 bonus = 4 pools
+        assertEq(bonusPools, 1);    // +1 bonus for verified
+    }
+
+    function test_VerificationBonus_MultipleStakes() public {
+        // Mock verification first
+        vm.prank(address(coinToss));
+        coinToss.verifySelfProof(
+            abi.encode(CoinToss.GenericDiscloseOutputV2({
+                attestationId: bytes32("test"),
+                userIdentifier: 12345,
+                nullifier: 67890,
+                forbiddenCountriesListPacked: [uint256(0), 0, 0, 0],
+                issuingState: "US",
+                name: new string[](0),
+                idNumber: "",
+                nationality: "US",
+                dateOfBirth: "",
+                gender: "",
+                expiryDate: "",
+                olderThan: 18,
+                ofac: [false, false, false]
+            })),
+            abi.encode(creator1)
+        );
+
+        vm.startPrank(creator1);
+
+        // First stake: 5 CELO = 1 + 1 = 2 pools
+        coinToss.stakeForPoolCreation{value: 5 ether}();
+        (, , uint256 poolsRemaining1, , ) = coinToss.getCreatorInfo(creator1);
+        assertEq(poolsRemaining1, 2);
+
+        // Create pools and unstake
+        coinToss.createPool(1 ether, 4);
+        coinToss.createPool(1 ether, 4);
+        coinToss.unstakeAndClaim();
+
+        // Second stake: 25 CELO = 5 + 1 = 6 pools
+        coinToss.stakeForPoolCreation{value: 25 ether}();
+        (, , uint256 poolsRemaining2, , ) = coinToss.getCreatorInfo(creator1);
+        assertEq(poolsRemaining2, 6);
+
+        vm.stopPrank();
+    }
+
+    function test_CalculatePoolsEligible_WithVerification() public {
+        // Test without verification
+        assertEq(coinToss.calculatePoolsEligible(5 ether, creator1), 1);
+        assertEq(coinToss.calculatePoolsEligible(10 ether, creator1), 2);
+        assertEq(coinToss.calculatePoolsEligible(25 ether, creator1), 5);
+
+        // Mock verification
+        vm.prank(address(coinToss));
+        coinToss.verifySelfProof(
+            abi.encode(CoinToss.GenericDiscloseOutputV2({
+                attestationId: bytes32("test"),
+                userIdentifier: 12345,
+                nullifier: 67890,
+                forbiddenCountriesListPacked: [uint256(0), 0, 0, 0],
+                issuingState: "US",
+                name: new string[](0),
+                idNumber: "",
+                nationality: "US",
+                dateOfBirth: "",
+                gender: "",
+                expiryDate: "",
+                olderThan: 18,
+                ofac: [false, false, false]
+            })),
+            abi.encode(creator1)
+        );
+
+        // Test with verification bonus
+        assertEq(coinToss.calculatePoolsEligible(5 ether, creator1), 2);  // 1 + 1
+        assertEq(coinToss.calculatePoolsEligible(10 ether, creator1), 3); // 2 + 1
+        assertEq(coinToss.calculatePoolsEligible(25 ether, creator1), 6); // 5 + 1
+    }
 }
