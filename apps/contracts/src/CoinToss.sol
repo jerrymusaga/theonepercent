@@ -617,5 +617,36 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
 
         emit ProjectPoolUpdated(amount, "Owner withdrawal", projectPool);
     }
-    
+
+    // Self Protocol Verification Implementation
+
+    function verifySelfProof(bytes calldata proofPayload, bytes calldata userContextData) public override {
+        // Decode the verification data from proof payload
+        GenericDiscloseOutputV2 memory verificationData = abi.decode(proofPayload, (GenericDiscloseOutputV2));
+
+        // Check nullifier to prevent replay attacks
+        require(!usedNullifiers[verificationData.nullifier], "Nullifier already used");
+
+        // Call parent verification (this validates the proof with Self hub)
+        super.verifySelfProof(proofPayload, userContextData);
+
+        // Mark nullifier as used to prevent future replay attacks
+        usedNullifiers[verificationData.nullifier] = true;
+
+        // The caller of this function is the user being verified
+        address userAddress = msg.sender;
+
+        // Mark user as verified
+        verifiedCreators[userAddress] = true;
+
+        // Emit verification events
+        emit CreatorVerified(userAddress, verificationData.attestationId);
+    }
+
+    // Override the abstract function (not used in our implementation)
+    function onVerificationSuccess(bytes memory output, bytes memory userData) public override {
+        // This function is required by the interface but not used in our direct approach
+        // All verification logic is handled in verifySelfProof override
+    }
+
 }
