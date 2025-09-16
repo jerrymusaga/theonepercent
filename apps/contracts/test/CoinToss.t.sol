@@ -553,7 +553,7 @@ contract CoinTossTest is Test {
         assertTrue(coinToss.isPoolAbandoned(1));
         
         // Creator should no longer have active stake
-        (, , , bool hasActiveStake) = coinToss.getCreatorInfo(creator1);
+        (, , , bool hasActiveStake, ) = coinToss.getCreatorInfo(creator1);
         assertFalse(hasActiveStake);
     }
     
