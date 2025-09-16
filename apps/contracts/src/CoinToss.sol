@@ -84,7 +84,11 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     
     mapping(uint256 => Pool) public pools;
     mapping(address => PoolCreator) public poolCreators;
-    
+
+    // Self Protocol verification storage
+    mapping(address => bool) public verifiedCreators;
+    mapping(uint256 => bool) public usedNullifiers;
+
     uint256 public currentPoolId;
     uint256 public projectPool; // Accumulates penalties and abandoned pool fees
     uint256 public constant BASE_STAKE = 5 ether; // 5 CELO
