@@ -21,13 +21,15 @@ import {
   Coins,
   GamepadIcon,
   Trophy,
+  Target,
+  Percent,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { SelfAppBuilder, SelfApp } from "@selfxyz/qrcode";
 import SelfQRcodeWrapper from "@selfxyz/qrcode";
-import toast from "react-hot-toast";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMiniApp } from "@/contexts/miniapp-context";
+import { Button } from "@/components/ui/button";
 
 interface VerificationResult {
   isValid: boolean;
@@ -40,67 +42,61 @@ interface VerificationResult {
   error?: string;
 }
 
-// Gaming-specific benefits for verified players
+// TheOnePercent gaming benefits for verified players
 const gamingBenefits = [
   {
-    icon: Coins,
+    icon: Target,
     title: "Bonus Pool Creation",
     description: "Get +1 extra pool for every stake when you're verified",
-    color: "from-yellow-400 to-orange-500",
     highlight: true,
   },
   {
-    icon: Shield,
-    title: "Verified Player Badge",
-    description: "Build trust with other players with your verified status",
-    color: "from-blue-400 to-blue-600",
-  },
-  {
-    icon: GamepadIcon,
-    title: "Premium Gaming Rooms",
-    description: "Access exclusive verified-only gaming pools",
-    color: "from-purple-400 to-purple-600",
-  },
-  {
-    icon: TrendingUp,
-    title: "Higher Success Rates",
-    description: "Verified players have better pool completion rates",
-    color: "from-emerald-400 to-emerald-600",
+    icon: Percent,
+    title: "Verified Player Status",
+    description: "Join the elite 1% with your verified gaming badge",
   },
   {
     icon: Trophy,
-    title: "Leaderboard Priority",
-    description: "Get featured placement on gaming leaderboards",
-    color: "from-amber-400 to-orange-500",
+    title: "Premium Game Access",
+    description: "Access exclusive verified-only prediction pools",
+  },
+  {
+    icon: TrendingUp,
+    title: "Higher Win Rates",
+    description: "Verified players have better success in minority predictions",
+  },
+  {
+    icon: Crown,
+    title: "Leaderboard Featured",
+    description: "Get priority placement on TheOnePercent leaderboards",
   },
   {
     icon: Zap,
-    title: "Instant Pool Approval",
-    description: "Skip manual reviews with automated verified status",
-    color: "from-cyan-400 to-cyan-600",
+    title: "Instant Approval",
+    description: "Skip manual reviews with automated verification",
   },
 ];
 
 const securityFeatures = [
   {
     icon: UserCheck,
-    title: "Age Verification",
-    description: "Automated 18+ verification for legal gaming",
+    title: "18+ Age Verification",
+    description: "Automated legal gaming age verification",
   },
   {
     icon: Globe,
     title: "Geographic Compliance",
-    description: "Ensure gaming compliance in your jurisdiction",
+    description: "Ensure prediction gaming compliance in your region",
   },
   {
     icon: Eye,
-    title: "Privacy Protected",
-    description: "Zero-knowledge proofs protect your personal data",
+    title: "Privacy First",
+    description: "Zero-knowledge proofs protect your identity",
   },
   {
-    icon: Lock,
+    icon: Shield,
     title: "Anti-Fraud Protection",
-    description: "OFAC screening prevents fraudulent accounts",
+    description: "Advanced screening prevents fake accounts",
   },
 ];
 
@@ -122,6 +118,12 @@ export default function VerifyPage() {
   const [verificationStep, setVerificationStep] = useState<"scan" | "processing" | "complete">("scan");
 
   const { address, isConnected } = useAccount();
+  const { context, isMiniAppReady } = useMiniApp();
+
+  // Extract user data from context (similar to your main page)
+  const user = context?.user;
+  const displayName = user?.displayName || user?.username || "Player";
+  const username = user?.username || "@player";
 
   // Initialize Self App configuration
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function VerifyPage() {
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to initialize Self app:", error);
-        toast.error("Failed to initialize verification");
+        console.error("Failed to initialize verification");
         setIsLoading(false);
       }
     } else {
@@ -163,32 +165,26 @@ export default function VerifyPage() {
     setVerificationStep("processing");
 
     try {
-      // In a real implementation, you would call your backend verification endpoint
-      // and then update the contract state
-
       // Simulate verification processing
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       setVerificationStep("complete");
       setIsVerified(true);
 
-      toast.success("🎉 Gaming verification complete!");
+      console.log("🎉 Gaming verification complete!");
 
     } catch (error) {
       console.error("Verification processing failed:", error);
       setVerificationStep("scan");
-      toast.error("Verification processing failed. Please try again.");
     }
   }, []);
 
   const handleVerificationError = useCallback((error: any) => {
     console.error("Verification error:", error);
     setVerificationStep("scan");
-    const errorMessage = error?.reason || "Verification failed. Please try again.";
-    toast.error(errorMessage);
   }, []);
 
-  // Check for verification status from URL parameters (callback from Self app)
+  // Check for verification status from URL parameters
   useEffect(() => {
     const checkVerificationFromURL = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -199,19 +195,14 @@ export default function VerifyPage() {
         setVerificationStep("processing");
 
         try {
-          // Parse the verification data
           const proof = JSON.parse(decodeURIComponent(proofParam));
           const publicSignals = JSON.parse(decodeURIComponent(publicSignalsParam));
 
-          // Validate proof structure
           if (!proof || !publicSignals || publicSignals.length < 21) {
             throw new Error("Invalid verification data");
           }
 
-          // Process verification (this would call your backend in production)
           await handleVerificationSuccess();
-
-          // Clean up URL
           window.history.replaceState({}, "", window.location.pathname);
 
         } catch (error) {
@@ -226,57 +217,39 @@ export default function VerifyPage() {
   }, [isLoading, isVerified, handleVerificationSuccess, handleVerificationError]);
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || !isMiniAppReady) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <motion.div
-            className="relative w-16 h-16 mx-auto mb-6"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20"></div>
-            <div className="absolute inset-0 rounded-full border-t-4 border-emerald-500"></div>
-          </motion.div>
-          <p className="text-slate-400 text-lg font-medium">
-            Initializing verification...
-          </p>
-        </motion.div>
-      </div>
+      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="w-full max-w-md mx-auto p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing verification...</p>
+        </div>
+      </section>
     );
   }
 
   // Not connected state
   if (!isConnected || !address) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-8">
-        <div className="max-w-md mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center">
-              <AlertCircle className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Connect Wallet to Verify
-            </h1>
-            <p className="text-slate-400 mb-6">
-              Connect your wallet to start the gaming verification process
-            </p>
-            <Link href="/">
-              <button className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all">
-                <Home className="w-5 h-5" />
-                Connect Wallet
-              </button>
-            </Link>
-          </motion.div>
+      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="w-full max-w-md mx-auto p-8 text-center">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+            <AlertCircle className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Connect Wallet to Verify
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Connect your wallet to start the identity verification process
+          </p>
+          <Link href="/">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+              <Home className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
         </div>
-      </div>
+      </section>
     );
   }
 
