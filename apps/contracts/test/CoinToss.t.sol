@@ -41,7 +41,11 @@ contract CoinTossTest is Test {
         vm.deal(player4, 10 ether);
         vm.deal(player5, 10 ether);
         
-        coinToss = new CoinToss();
+        // Mock Self protocol addresses for testing
+        address mockVerificationHub = address(0x1234567890123456789012345678901234567890);
+        uint256 mockScope = 1;
+
+        coinToss = new CoinToss(mockVerificationHub, mockScope);
     }
     
     // STAKING MECHANISM TESTS
