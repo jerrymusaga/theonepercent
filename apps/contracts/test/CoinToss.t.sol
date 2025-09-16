@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Test, console} from "forge-std/Test.sol";
-import {CoinToss} from "../src/CoinToss.sol";
+import {CoinToss, ISelfVerificationRoot} from "../src/CoinToss.sol";
 
 contract CoinTossTest is Test {
     CoinToss public coinToss;
@@ -1088,7 +1088,7 @@ contract CoinTossTest is Test {
         // Mock verification process - directly set verification status
         vm.prank(address(coinToss));
         coinToss.verifySelfProof(
-            abi.encode(CoinToss.GenericDiscloseOutputV2({
+            abi.encode(ISelfVerificationRoot.GenericDiscloseOutputV2({
                 attestationId: bytes32("test"),
                 userIdentifier: 12345,
                 nullifier: 67890,
@@ -1133,7 +1133,7 @@ contract CoinTossTest is Test {
         // Mock verification
         vm.prank(address(coinToss));
         coinToss.verifySelfProof(
-            abi.encode(CoinToss.GenericDiscloseOutputV2({
+            abi.encode(ISelfVerificationRoot.GenericDiscloseOutputV2({
                 attestationId: bytes32("test"),
                 userIdentifier: 12345,
                 nullifier: 67890,
@@ -1176,7 +1176,7 @@ contract CoinTossTest is Test {
         // Mock verification
         vm.prank(address(coinToss));
         coinToss.verifySelfProof(
-            abi.encode(CoinToss.GenericDiscloseOutputV2({
+            abi.encode(ISelfVerificationRoot.GenericDiscloseOutputV2({
                 attestationId: bytes32("test"),
                 userIdentifier: 12345,
                 nullifier: 67890,
@@ -1207,7 +1207,7 @@ contract CoinTossTest is Test {
         // Mock verification first
         vm.prank(address(coinToss));
         coinToss.verifySelfProof(
-            abi.encode(CoinToss.GenericDiscloseOutputV2({
+            abi.encode(ISelfVerificationRoot.GenericDiscloseOutputV2({
                 attestationId: bytes32("test"),
                 userIdentifier: 12345,
                 nullifier: 67890,
@@ -1254,7 +1254,7 @@ contract CoinTossTest is Test {
         // Mock verification
         vm.prank(address(coinToss));
         coinToss.verifySelfProof(
-            abi.encode(CoinToss.GenericDiscloseOutputV2({
+            abi.encode(ISelfVerificationRoot.GenericDiscloseOutputV2({
                 attestationId: bytes32("test"),
                 userIdentifier: 12345,
                 nullifier: 67890,
