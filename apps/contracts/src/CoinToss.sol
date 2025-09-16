@@ -120,9 +120,11 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
         require(msg.value >= BASE_STAKE, "Minimum stake is 5 CELO");
         require(msg.value <= MAX_STAKE_ALLOWED, "Maximum stake is 50 CELO");
         require(!poolCreators[msg.sender].hasActiveStake, "Already has active stake");
-        
-        uint256 poolsEligible = calculatePoolsEligible(msg.value);
-        
+
+        // Calculate pools with verification bonus
+        uint256 poolsEligible = calculatePoolsEligible(msg.value, msg.sender);
+        bool isVerified = verifiedCreators[msg.sender];
+
         poolCreators[msg.sender] = PoolCreator({
             stakedAmount: msg.value,
             poolsCreated: 0,
@@ -130,26 +132,40 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
             totalPools: poolsEligible,
             hasActiveStake: true,
             stakedAt: block.timestamp,
-            createdPoolIds: new uint256[](0)
+            createdPoolIds: new uint256[](0),
+            isVerified: isVerified
         });
-        
+
         emit StakeDeposited(msg.sender, msg.value, poolsEligible);
+
+        // Emit verification bonus event if applicable
+        if (isVerified) {
+            emit VerificationBonusApplied(msg.sender, 1);
+        }
     }
     
+    function calculatePoolsEligible(uint256 stakeAmount, address creator) public view returns (uint256) {
+        require(stakeAmount >= BASE_STAKE, "Stake amount too low");
+
+        // Calculate base pools
+        uint256 baseUnits = stakeAmount / BASE_STAKE;
+        uint256 basePools = (baseUnits * POOL_MULTIPLIER) / 100;
+
+        // Add verification bonus: +1 pool for verified creators
+        if (verifiedCreators[creator]) {
+            return basePools + 1;
+        }
+
+        return basePools;
+    }
+
+    // Keep the old function for backward compatibility (used in tests)
     function calculatePoolsEligible(uint256 stakeAmount) public pure returns (uint256) {
         require(stakeAmount >= BASE_STAKE, "Stake amount too low");
-        
-        // Formula: pools = (stakeAmount / BASE_STAKE) * POOL_MULTIPLIER / 100
-        // Examples with 1x multiplier and 50 CELO stake cap:
-        // 5 CELO: (5/5) * 1.0 = 1 pool
-        // 10 CELO: (10/5) * 1.0 = 2 pools
-        // 15 CELO: (15/5) * 1.0 = 3 pools  
-        // 25 CELO: (25/5) * 1.0 = 5 pools
-        // 50 CELO: (50/5) * 1.0 = 10 pools (maximum allowed)
-        
+
         uint256 baseUnits = stakeAmount / BASE_STAKE;
         uint256 totalPools = (baseUnits * POOL_MULTIPLIER) / 100;
-        
+
         return totalPools;
     }
     
