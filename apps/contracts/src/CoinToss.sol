@@ -105,7 +105,9 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     event CreatorRewardClaimed(address indexed creator, uint256 amount);
     event ProjectPoolUpdated(uint256 amount, string source, uint256 totalPool);
     
-    constructor() Ownable(msg.sender) {}
+    constructor(address identityVerificationHubV2Address, uint256 scopeValue)
+        Ownable(msg.sender)
+        SelfVerificationRoot(identityVerificationHubV2Address, scopeValue) {}
     
     function stakeForPoolCreation() external payable {
         require(msg.value >= BASE_STAKE, "Minimum stake is 5 CELO");
