@@ -45,7 +45,7 @@ contract DeployMainnet is Script {
         console.log("Contract will cost real gas fees!");
         console.log("Double-check all parameters before proceeding!");
 
-        // Manual confirmation step (remove this in production if automated)
+        // Manual confirmation step 
         console.log("Proceeding with mainnet deployment in 3 seconds...");
 
         vm.startBroadcast(deployerPrivateKey);
@@ -78,29 +78,6 @@ contract DeployMainnet is Script {
         console.log("Contract size:", address(coinToss).code.length, "bytes");
         console.log("Owner verification:", coinToss.owner() == deployer ? " PASS" : " FAIL");
 
-        // Save deployment info to file
-        string memory deploymentInfo = string(abi.encodePacked(
-            "CoinToss Mainnet Deployment\n",
-            "===========================\n",
-            "  LIVE MAINNET CONTRACT \n",
-            "Network: Celo Mainnet\n",
-            "Contract Address: ", vm.toString(address(coinToss)), "\n",
-            "Deployer: ", vm.toString(deployer), "\n",
-            "Self Hub: ", vm.toString(SELF_HUB_ADDRESS), "\n",
-            "Scope: ", vm.toString(SCOPE_VALUE), "\n",
-            "Config ID: ", vm.toString(VERIFICATION_CONFIG_ID), "\n",
-            "Deployment Block: ", vm.toString(block.number), "\n",
-            "Explorer: https://explorer.celo.org/mainnet/address/", vm.toString(address(coinToss)), "\n"
-        ));
-
-        vm.writeFile("./deployments/mainnet-deployment.txt", deploymentInfo);
-        console.log("Deployment info saved to: ./deployments/mainnet-deployment.txt");
-
-        console.log("=== IMPORTANT MAINNET REMINDERS ===");
-        console.log("1. Verify contract on block explorer");
-        console.log("2. Update frontend with new contract address");
-        console.log("3. Test all functions with small amounts first");
-        console.log("4. Monitor contract for any issues");
-        console.log("5. Keep private keys secure!");
+        
     }
 }

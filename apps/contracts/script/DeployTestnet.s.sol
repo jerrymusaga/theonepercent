@@ -68,11 +68,12 @@ contract DeployTestnet is Script {
             "Contract Address: ", vm.toString(address(coinToss)), "\n",
             "Deployer: ", vm.toString(deployer), "\n",
             "Self Hub: ", vm.toString(SELF_HUB_ADDRESS), "\n",
-            "Scope: ", vm.toString(SCOPE_VALUE), "\n",
+            "Scope: ", vm.toString(scopeValue), "\n",
             "Config ID: ", vm.toString(VERIFICATION_CONFIG_ID), "\n"
         ));
 
-        vm.writeFile("./deployments/testnet-deployment.txt", deploymentInfo);
-        console.log("Deployment info saved to: ./deployments/testnet-deployment.txt");
+        // vm.writeFile("./deployments/testnet-deployment.txt", deploymentInfo);
+        // console.log("Deployment info saved to: ./deployments/testnet-deployment.txt");
+        console.log("=== DEPLOYMENT COMPLETE ===");
     }
 }
