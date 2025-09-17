@@ -637,19 +637,33 @@ export default function CreatePoolPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Pools remaining:</span>
-                  <span className="font-bold text-lg">{creator.poolsRemaining}</span>
+                  <span className="font-bold text-lg">{poolsRemaining}</span>
                 </div>
+
+                {/* Transaction error */}
+                {createError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800">
+                      {createError.message || "Transaction failed. Please try again."}
+                    </p>
+                  </div>
+                )}
 
                 <Button
                   onClick={handleCreatePool}
-                  disabled={!canCreate || isCreating}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-4"
+                  disabled={!canCreate || isCreating || isConfirming}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-4 disabled:opacity-50"
                   size="lg"
                 >
                   {isCreating ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Creating Pool...
+                      <LoadingSpinner className="w-5 h-5 mr-2" />
+                      Sending Transaction...
+                    </>
+                  ) : isConfirming ? (
+                    <>
+                      <LoadingSpinner className="w-5 h-5 mr-2" />
+                      Confirming on Blockchain...
                     </>
                   ) : (
                     <>
@@ -659,16 +673,28 @@ export default function CreatePoolPage() {
                   )}
                 </Button>
 
-                {!canCreate && creator.poolsRemaining > 0 && (
+                {!canCreate && poolsRemaining > 0 && (
                   <p className="text-sm text-red-600 text-center">
                     Please check your entry fee (minimum 0.1 CELO) and max players (minimum 2)
                   </p>
                 )}
 
                 <p className="text-xs text-center text-gray-500">
-                  Your pool will be immediately available for players to join. 
+                  Your pool will be immediately available for players to join.
                   You'll earn {creatorReward.toFixed(2)} CELO when it completes.
+                  {isCreating || isConfirming ? " Please wait for the transaction to complete." : ""}
                 </p>
+
+                {/* Transaction hash display during confirmation */}
+                {hash && isConfirming && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800 mb-1">Transaction submitted:</p>
+                    <p className="text-xs font-mono text-blue-700 break-all">
+                      {hash.slice(0, 10)}...{hash.slice(-8)}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">Waiting for confirmation...</p>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
