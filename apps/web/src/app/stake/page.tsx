@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { 
+import { useAccount, useBalance } from "wagmi";
+import { formatEther } from "viem";
+import {
   Coins,
   Calculator,
   AlertTriangle,
@@ -14,20 +16,59 @@ import {
   Info,
   DollarSign,
   Target,
-  Crown
+  Crown,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  useCreatorInfo,
+  useStakeForPoolCreation,
+  useCalculatePoolsEligible,
+  useCreatorReward
+} from "@/hooks";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock user data - will be replaced with real wallet data
-const mockUserData = {
-  address: "0x1234...5678",
-  celoBalance: "157.5",
-  hasActiveStake: false,
-  currentStake: "0",
-  poolsRemaining: 0,
-  totalEarnings: "0"
-};
+// Loading component
+const LoadingSpinner = ({ className = "" }: { className?: string }) => (
+  <div className={`animate-spin rounded-full border-b-2 border-current ${className}`}></div>
+);
+
+// Error component
+const ErrorBanner = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
+  <Card className="p-4 bg-red-50 border-red-200">
+    <div className="flex items-center gap-3">
+      <AlertTriangle className="w-5 h-5 text-red-600" />
+      <div className="flex-1">
+        <p className="font-medium text-red-800">Error</p>
+        <p className="text-sm text-red-700">{message}</p>
+      </div>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  </Card>
+);
+
+// Wallet connection component
+const WalletConnectionRequired = () => (
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+    <Card className="p-8 text-center max-w-md mx-4">
+      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Wallet className="w-8 h-8 text-blue-600" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Wallet</h2>
+      <p className="text-gray-600 mb-6">
+        You need to connect your wallet to stake CELO and create game pools.
+      </p>
+      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
+        Connect Wallet
+      </Button>
+    </Card>
+  </div>
+);
 
 const StakeCalculator = ({ 
   stakeAmount, 
