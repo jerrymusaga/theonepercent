@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import {Script, console} from "forge-std/Script.sol";
+import {CoinToss} from "../src/CoinToss.sol";
+
+contract DeployScript is Script {
+    // Celo Mainnet addresses
+    address constant CELO_MAINNET_SELF_HUB = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a1; // Replace with actual address
+    uint256 constant CELO_MAINNET_SCOPE = 1;
+    bytes32 constant CELO_MAINNET_CONFIG_ID = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
+
+    // Celo Alfajores Testnet addresses
+    address constant CELO_TESTNET_SELF_HUB = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a1; // Replace with actual address
+    uint256 constant CELO_TESTNET_SCOPE = 1;
+    bytes32 constant CELO_TESTNET_CONFIG_ID = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
+
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
+
+        console.log("Deploying from address:", deployer);
+        console.log("Chain ID:", block.chainid);
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        CoinToss coinToss;
+
+        // Deploy based on chain ID
+        if (block.chainid == 42220) {
+            // Celo Mainnet
+            console.log("Deploying to Celo Mainnet...");
+            coinToss = new CoinToss(
+                CELO_MAINNET_SELF_HUB,
+                CELO_MAINNET_SCOPE,
+                CELO_MAINNET_CONFIG_ID
+            );
+        } else if (block.chainid == 44787) {
+            // Celo Alfajores Testnet
+            console.log("Deploying to Celo Alfajores Testnet...");
+            coinToss = new CoinToss(
+                CELO_TESTNET_SELF_HUB,
+                CELO_TESTNET_SCOPE,
+                CELO_TESTNET_CONFIG_ID
+            );
+        } else {
+            // Local/Other networks - use mock addresses
+            console.log("Deploying to local/other network...");
+            coinToss = new CoinToss(
+                address(0x1234567890123456789012345678901234567890), // Mock hub
+                1,
+                CELO_TESTNET_CONFIG_ID
+            );
+        }
+
+        vm.stopBroadcast();
+
+        console.log("CoinToss deployed at:", address(coinToss));
+        console.log("Deployment completed successfully!");
+
+        // Verify deployment
+        console.log("Verifying deployment...");
+        console.log("Owner:", coinToss.owner());
+        console.log("Base Stake:", coinToss.BASE_STAKE());
+        console.log("Max Stake Allowed:", coinToss.MAX_STAKE_ALLOWED());
+    }
+}
