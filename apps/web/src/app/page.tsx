@@ -3,7 +3,6 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { sdk } from "@farcaster/frame-sdk";
 import { useState, useEffect } from "react";
 import { useAccount, useConnect } from "wagmi";
-import { ContractConnectionTest } from "@/components/contract-connection-test";
 
 export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
@@ -113,10 +112,6 @@ export default function Home() {
             </div>
           </div>
           
-          {/* Contract Connection Test */}
-          <div className="mb-6">
-            <ContractConnectionTest />
-          </div>
 
           {/* Add Miniapp Button */}
           <div className="mb-6">
