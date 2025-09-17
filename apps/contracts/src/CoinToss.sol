@@ -62,6 +62,7 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     event PoolActivated(uint256 indexed poolId, uint256 totalPlayers, uint256 prizePool);
     event PlayerMadeChoice(uint256 indexed poolId, address indexed player, PlayerChoice choice, uint256 round);
     event RoundResolved(uint256 indexed poolId, uint256 round, PlayerChoice winningChoice, uint256 eliminatedCount, uint256 remainingCount);
+    event RoundRepeated(uint256 indexed poolId, uint256 round, PlayerChoice unanimousChoice, uint256 playerCount);
     event GameCompleted(uint256 indexed poolId, address indexed winner, uint256 prizeAmount);
     event PoolAbandoned(uint256 indexed poolId, address indexed creator, uint256 refundAmount);
     event StakeDeposited(address indexed creator, uint256 amount, uint256 poolsEligible);
