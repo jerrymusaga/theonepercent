@@ -70,18 +70,27 @@ const WalletConnectionRequired = () => (
   </div>
 );
 
-const StakeCalculator = ({ 
-  stakeAmount, 
-  onStakeChange 
-}: { 
+const StakeCalculator = ({
+  stakeAmount,
+  onStakeChange,
+  address
+}: {
   stakeAmount: number;
   onStakeChange: (amount: number) => void;
+  address?: `0x${string}`;
 }) => {
   const baseStake = 5; // 5 CELO minimum
   const maxStake = 50; // 50 CELO maximum
-  const poolsEligible = Math.floor(stakeAmount / baseStake);
-  const potentialEarnings = poolsEligible * 2.5 * 0.05; // Assuming avg 2.5 CELO entry fee, 5% creator reward
-  
+
+  // Use real contract data for pool calculation
+  const { data: poolsEligible, isLoading: isCalculating } = useCalculatePoolsEligible(
+    stakeAmount.toString(),
+    address
+  );
+
+  const poolsEligibleNumber = poolsEligible ? Number(poolsEligible) : Math.floor(stakeAmount / baseStake);
+  const potentialEarnings = poolsEligibleNumber * 2.5 * 0.05; // Assuming avg 2.5 CELO entry fee, 5% creator reward
+
   const presetAmounts = [5, 10, 25, 50];
 
   return (
