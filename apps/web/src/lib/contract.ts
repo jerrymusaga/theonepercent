@@ -1,9 +1,9 @@
 // Contract configuration and ABI for CoinToss
 export const CONTRACT_CONFIG = {
-  // Contract addresses - update these when deployed
+  // Contract addresses - loaded from environment variables
   addresses: {
-    [42220]: '0x...', // Celo Mainnet
-    [44787]: '0x...', // Celo Alfajores Testnet
+    [42220]: process.env.NEXT_PUBLIC_COINTOSS_CONTRACT_MAINNET || '0x...', // Celo Mainnet
+    [44787]: process.env.NEXT_PUBLIC_COINTOSS_CONTRACT_TESTNET || '0x...', // Celo Alfajores Testnet
   },
   abi: [
   {
