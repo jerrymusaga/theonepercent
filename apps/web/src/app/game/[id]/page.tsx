@@ -322,10 +322,10 @@ export default function GameArenaPage() {
 
   // Real-time event watching
   useWatchPlayerMadeChoice({
-    poolId: poolId ? BigInt(poolId) : undefined,
+    poolId: poolId,
     onLogs: (logs) => {
       logs.forEach((log) => {
-        if (log.args.poolId.toString() === poolId) {
+        if (log.args && log.args.poolId.toString() === poolId) {
           success("Choice made!", `A player made their choice for round ${log.args.round}`);
           refetchHasChosen();
           refetchPlayers();
@@ -335,10 +335,10 @@ export default function GameArenaPage() {
   });
 
   useWatchRoundResolved({
-    poolId: poolId ? BigInt(poolId) : undefined,
+    poolId: poolId,
     onLogs: (logs) => {
       logs.forEach((log) => {
-        if (log.args.poolId.toString() === poolId) {
+        if (log.args && log.args.poolId.toString() === poolId) {
           const winningChoice = getChoiceLabel(log.args.winningChoice);
           success("Round resolved!", `${winningChoice} won! ${log.args.eliminatedCount} players eliminated.`);
           refetchProgress();
@@ -353,10 +353,10 @@ export default function GameArenaPage() {
   });
 
   useWatchGameCompleted({
-    poolId: poolId ? BigInt(poolId) : undefined,
+    poolId: poolId,
     onLogs: (logs) => {
       logs.forEach((log) => {
-        if (log.args.poolId.toString() === poolId) {
+        if (log.args && log.args.poolId.toString() === poolId) {
           success("Game completed!", `Winner: ${formatAddress(log.args.winner)}`);
           setTimeout(() => {
             router.push(`/game/${poolId}/results`);

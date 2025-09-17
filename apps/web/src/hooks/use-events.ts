@@ -29,24 +29,26 @@ export function useWatchPoolCreated(
 /**
  * Hook to watch for PlayerJoined events
  */
-export function useWatchPlayerJoined(
-  poolId?: number,
-  onEvent?: (poolId: bigint, player: `0x${string}`, currentPlayers: bigint, maxPlayers: bigint) => void
-) {
+export function useWatchPlayerJoined({
+  poolId,
+  onLogs
+}: {
+  poolId?: bigint | string | number;
+  onLogs?: (logs: any[]) => void;
+} = {}) {
   const contractAddress = useContractAddress();
+
+  const poolIdBigInt = poolId ? (typeof poolId === 'bigint' ? poolId : BigInt(poolId)) : undefined;
 
   useWatchContractEvent({
     address: contractAddress,
     abi: CONTRACT_CONFIG.abi,
     eventName: 'PlayerJoined',
-    args: poolId ? { poolId: BigInt(poolId) } : undefined,
+    args: poolIdBigInt ? { poolId: poolIdBigInt } : undefined,
     onLogs(logs) {
-      logs.forEach((log) => {
-        if (log.args && onEvent) {
-          const { poolId, player, currentPlayers, maxPlayers } = log.args;
-          onEvent(poolId!, player!, currentPlayers!, maxPlayers!);
-        }
-      });
+      if (onLogs) {
+        onLogs(logs);
+      }
     },
   });
 }
@@ -54,24 +56,26 @@ export function useWatchPlayerJoined(
 /**
  * Hook to watch for PoolActivated events
  */
-export function useWatchPoolActivated(
-  poolId?: number,
-  onEvent?: (poolId: bigint, totalPlayers: bigint, prizePool: bigint) => void
-) {
+export function useWatchPoolActivated({
+  poolId,
+  onLogs
+}: {
+  poolId?: bigint | string | number;
+  onLogs?: (logs: any[]) => void;
+} = {}) {
   const contractAddress = useContractAddress();
+
+  const poolIdBigInt = poolId ? (typeof poolId === 'bigint' ? poolId : BigInt(poolId)) : undefined;
 
   useWatchContractEvent({
     address: contractAddress,
     abi: CONTRACT_CONFIG.abi,
     eventName: 'PoolActivated',
-    args: poolId ? { poolId: BigInt(poolId) } : undefined,
+    args: poolIdBigInt ? { poolId: poolIdBigInt } : undefined,
     onLogs(logs) {
-      logs.forEach((log) => {
-        if (log.args && onEvent) {
-          const { poolId, totalPlayers, prizePool } = log.args;
-          onEvent(poolId!, totalPlayers!, prizePool!);
-        }
-      });
+      if (onLogs) {
+        onLogs(logs);
+      }
     },
   });
 }
@@ -79,24 +83,26 @@ export function useWatchPoolActivated(
 /**
  * Hook to watch for PlayerMadeChoice events
  */
-export function useWatchPlayerMadeChoice(
-  poolId?: number,
-  onEvent?: (poolId: bigint, player: `0x${string}`, choice: number, round: bigint) => void
-) {
+export function useWatchPlayerMadeChoice({
+  poolId,
+  onLogs
+}: {
+  poolId?: bigint | string | number;
+  onLogs?: (logs: any[]) => void;
+} = {}) {
   const contractAddress = useContractAddress();
+
+  const poolIdBigInt = poolId ? (typeof poolId === 'bigint' ? poolId : BigInt(poolId)) : undefined;
 
   useWatchContractEvent({
     address: contractAddress,
     abi: CONTRACT_CONFIG.abi,
     eventName: 'PlayerMadeChoice',
-    args: poolId ? { poolId: BigInt(poolId) } : undefined,
+    args: poolIdBigInt ? { poolId: poolIdBigInt } : undefined,
     onLogs(logs) {
-      logs.forEach((log) => {
-        if (log.args && onEvent) {
-          const { poolId, player, choice, round } = log.args;
-          onEvent(poolId!, player!, choice!, round!);
-        }
-      });
+      if (onLogs) {
+        onLogs(logs);
+      }
     },
   });
 }
@@ -104,30 +110,26 @@ export function useWatchPlayerMadeChoice(
 /**
  * Hook to watch for RoundResolved events
  */
-export function useWatchRoundResolved(
-  poolId?: number,
-  onEvent?: (
-    poolId: bigint,
-    round: bigint,
-    winningChoice: number,
-    eliminatedCount: bigint,
-    remainingCount: bigint
-  ) => void
-) {
+export function useWatchRoundResolved({
+  poolId,
+  onLogs
+}: {
+  poolId?: bigint | string | number;
+  onLogs?: (logs: any[]) => void;
+} = {}) {
   const contractAddress = useContractAddress();
+
+  const poolIdBigInt = poolId ? (typeof poolId === 'bigint' ? poolId : BigInt(poolId)) : undefined;
 
   useWatchContractEvent({
     address: contractAddress,
     abi: CONTRACT_CONFIG.abi,
     eventName: 'RoundResolved',
-    args: poolId ? { poolId: BigInt(poolId) } : undefined,
+    args: poolIdBigInt ? { poolId: poolIdBigInt } : undefined,
     onLogs(logs) {
-      logs.forEach((log) => {
-        if (log.args && onEvent) {
-          const { poolId, round, winningChoice, eliminatedCount, remainingCount } = log.args;
-          onEvent(poolId!, round!, winningChoice!, eliminatedCount!, remainingCount!);
-        }
-      });
+      if (onLogs) {
+        onLogs(logs);
+      }
     },
   });
 }
@@ -135,24 +137,26 @@ export function useWatchRoundResolved(
 /**
  * Hook to watch for GameCompleted events
  */
-export function useWatchGameCompleted(
-  poolId?: number,
-  onEvent?: (poolId: bigint, winner: `0x${string}`, prizeAmount: bigint) => void
-) {
+export function useWatchGameCompleted({
+  poolId,
+  onLogs
+}: {
+  poolId?: bigint | string | number;
+  onLogs?: (logs: any[]) => void;
+} = {}) {
   const contractAddress = useContractAddress();
+
+  const poolIdBigInt = poolId ? (typeof poolId === 'bigint' ? poolId : BigInt(poolId)) : undefined;
 
   useWatchContractEvent({
     address: contractAddress,
     abi: CONTRACT_CONFIG.abi,
     eventName: 'GameCompleted',
-    args: poolId ? { poolId: BigInt(poolId) } : undefined,
+    args: poolIdBigInt ? { poolId: poolIdBigInt } : undefined,
     onLogs(logs) {
-      logs.forEach((log) => {
-        if (log.args && onEvent) {
-          const { poolId, winner, prizeAmount } = log.args;
-          onEvent(poolId!, winner!, prizeAmount!);
-        }
-      });
+      if (onLogs) {
+        onLogs(logs);
+      }
     },
   });
 }
@@ -264,45 +268,85 @@ export function useGameEventWatchers(poolId: number) {
   });
 
   // Watch for player joined events
-  useWatchPlayerJoined(poolId, (poolId, player, currentPlayers, maxPlayers) => {
-    setGameEvents(prev => ({
-      ...prev,
-      playerJoined: [...prev.playerJoined, { poolId, player, currentPlayers, maxPlayers, timestamp: Date.now() }],
-    }));
+  useWatchPlayerJoined({
+    poolId,
+    onLogs: (logs) => {
+      logs.forEach((log) => {
+        if (log.args) {
+          const { poolId, player, currentPlayers, maxPlayers } = log.args;
+          setGameEvents(prev => ({
+            ...prev,
+            playerJoined: [...prev.playerJoined, { poolId, player, currentPlayers, maxPlayers, timestamp: Date.now() }],
+          }));
+        }
+      });
+    }
   });
 
   // Watch for pool activated events
-  useWatchPoolActivated(poolId, (poolId, totalPlayers, prizePool) => {
-    setGameEvents(prev => ({
-      ...prev,
-      poolActivated: [...prev.poolActivated, { poolId, totalPlayers, prizePool, timestamp: Date.now() }],
-    }));
+  useWatchPoolActivated({
+    poolId,
+    onLogs: (logs) => {
+      logs.forEach((log) => {
+        if (log.args) {
+          const { poolId, totalPlayers, prizePool } = log.args;
+          setGameEvents(prev => ({
+            ...prev,
+            poolActivated: [...prev.poolActivated, { poolId, totalPlayers, prizePool, timestamp: Date.now() }],
+          }));
+        }
+      });
+    }
   });
 
   // Watch for player choice events
-  useWatchPlayerMadeChoice(poolId, (poolId, player, choice, round) => {
-    setGameEvents(prev => ({
-      ...prev,
-      playerMadeChoice: [...prev.playerMadeChoice, { poolId, player, choice, round, timestamp: Date.now() }],
-    }));
+  useWatchPlayerMadeChoice({
+    poolId,
+    onLogs: (logs) => {
+      logs.forEach((log) => {
+        if (log.args) {
+          const { poolId, player, choice, round } = log.args;
+          setGameEvents(prev => ({
+            ...prev,
+            playerMadeChoice: [...prev.playerMadeChoice, { poolId, player, choice, round, timestamp: Date.now() }],
+          }));
+        }
+      });
+    }
   });
 
   // Watch for round resolved events
-  useWatchRoundResolved(poolId, (poolId, round, winningChoice, eliminatedCount, remainingCount) => {
-    setGameEvents(prev => ({
-      ...prev,
-      roundResolved: [...prev.roundResolved, { 
-        poolId, round, winningChoice, eliminatedCount, remainingCount, timestamp: Date.now() 
-      }],
-    }));
+  useWatchRoundResolved({
+    poolId,
+    onLogs: (logs) => {
+      logs.forEach((log) => {
+        if (log.args) {
+          const { poolId, round, winningChoice, eliminatedCount, remainingCount } = log.args;
+          setGameEvents(prev => ({
+            ...prev,
+            roundResolved: [...prev.roundResolved, {
+              poolId, round, winningChoice, eliminatedCount, remainingCount, timestamp: Date.now()
+            }],
+          }));
+        }
+      });
+    }
   });
 
   // Watch for game completed events
-  useWatchGameCompleted(poolId, (poolId, winner, prizeAmount) => {
-    setGameEvents(prev => ({
-      ...prev,
-      gameCompleted: [...prev.gameCompleted, { poolId, winner, prizeAmount, timestamp: Date.now() }],
-    }));
+  useWatchGameCompleted({
+    poolId,
+    onLogs: (logs) => {
+      logs.forEach((log) => {
+        if (log.args) {
+          const { poolId, winner, prizeAmount } = log.args;
+          setGameEvents(prev => ({
+            ...prev,
+            gameCompleted: [...prev.gameCompleted, { poolId, winner, prizeAmount, timestamp: Date.now() }],
+          }));
+        }
+      });
+    }
   });
 
   return gameEvents;
