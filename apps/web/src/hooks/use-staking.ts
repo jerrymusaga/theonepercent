@@ -24,7 +24,7 @@ export function useCreatorInfo(address?: `0x${string}`) {
 /**
  * Hook to calculate pools eligible for a stake amount
  */
-export function useCalculatePoolsEligible(stakeAmount: string) {
+export function useCalculatePoolsEligible(stakeAmount: string, address: string | undefined) {
   return useCoinTossRead(
     'calculatePoolsEligible',
     stakeAmount ? [parseEther(stakeAmount)] : undefined,

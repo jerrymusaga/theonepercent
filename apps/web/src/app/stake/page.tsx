@@ -399,11 +399,11 @@ export default function StakePage() {
 
   const canStake = parseFloat(celoBalance) >= stakeAmount && !hasActiveStake && !!address;
 
-  const handleStake = async () => {
+  const handleStake = () => {
     if (!canStake || !agreedToTerms || !address) return;
 
     try {
-      await stake(stakeAmount.toString());
+      stake(stakeAmount.toString());
     } catch (err) {
       console.error("Staking error:", err);
       // Error is handled by useEffect above
