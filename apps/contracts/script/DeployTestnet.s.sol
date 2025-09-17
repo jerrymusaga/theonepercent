@@ -13,7 +13,7 @@ import {CoinToss} from "../src/CoinToss.sol";
  */
 contract DeployTestnet is Script {
     // Celo Alfajores Testnet configuration
-    address constant SELF_HUB_ADDRESS = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a1; // Update with actual testnet address
+    address constant SELF_HUB_ADDRESS = 0x68c931C9a534D37aa78094877F46fE46a49F1A51;
     uint256 constant SCOPE_VALUE = 1;
     bytes32 constant VERIFICATION_CONFIG_ID = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
 

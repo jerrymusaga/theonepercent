@@ -8,14 +8,14 @@ import {CoinToss} from "../src/CoinToss.sol";
  * @title DeployMainnet
  * @dev Deployment script specifically for Celo Mainnet
  *
- * ⚠️  MAINNET DEPLOYMENT - USE WITH EXTREME CAUTION ⚠️
+ *   MAINNET DEPLOYMENT 
  *
  * Usage:
  * forge script script/DeployMainnet.s.sol --rpc-url $CELO_MAINNET_RPC --broadcast --verify -vvvv
  */
 contract DeployMainnet is Script {
     // Celo Mainnet configuration
-    address constant SELF_HUB_ADDRESS = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a1; // Update with actual mainnet address
+    address constant SELF_HUB_ADDRESS = 0xe57F4773bd9c9d8b6Cd70431117d353298B9f5BF;
     uint256 constant SCOPE_VALUE = 1;
     bytes32 constant VERIFICATION_CONFIG_ID = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
 
@@ -27,7 +27,7 @@ contract DeployMainnet is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
-        console.log("=== ⚠️  CELO MAINNET DEPLOYMENT ⚠️  ===");
+        console.log("===   CELO MAINNET DEPLOYMENT  ===");
         console.log("Deployer address:", deployer);
         console.log("Deployer balance:", deployer.balance / 1e18, "CELO");
         console.log("Chain ID:", block.chainid);
@@ -59,7 +59,7 @@ contract DeployMainnet is Script {
 
         vm.stopBroadcast();
 
-        console.log("=== 🎉 MAINNET DEPLOYMENT SUCCESSFUL 🎉 ===");
+        console.log("===  MAINNET DEPLOYMENT SUCCESSFUL  ===");
         console.log("CoinToss deployed at:", address(coinToss));
         console.log("Contract owner:", coinToss.owner());
         console.log("Base stake amount:", coinToss.BASE_STAKE() / 1e18, "CELO");
@@ -81,7 +81,7 @@ contract DeployMainnet is Script {
         string memory deploymentInfo = string(abi.encodePacked(
             "CoinToss Mainnet Deployment\n",
             "===========================\n",
-            "⚠️  LIVE MAINNET CONTRACT ⚠️\n",
+            "  LIVE MAINNET CONTRACT \n",
             "Network: Celo Mainnet\n",
             "Contract Address: ", vm.toString(address(coinToss)), "\n",
             "Deployer: ", vm.toString(deployer), "\n",
