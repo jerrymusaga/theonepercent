@@ -423,7 +423,7 @@ export default function CreatePoolPage() {
   const creatorReward = prizePool * 0.05;
   const canCreate = poolsRemaining > 0 && config.entryFee > 0 && config.maxPlayers >= 2 && !!address;
 
-  if (showSuccess && newPoolId) {
+  if (showSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
         <Card className="p-8 text-center max-w-md mx-4">
@@ -432,7 +432,7 @@ export default function CreatePoolPage() {
           </div>
           <h2 className="text-2xl font-bold text-green-600 mb-2">Pool Created!</h2>
           <p className="text-gray-600 mb-4">
-            Your pool #{newPoolId} is now live and ready for players to join.
+            Your game pool is now live and ready for players to join.
           </p>
           <div className="p-4 bg-green-50 rounded-lg mb-4">
             <p className="text-sm text-green-800 mb-2">Pool Details:</p>
@@ -451,8 +451,16 @@ export default function CreatePoolPage() {
               </div>
             </div>
           </div>
+          {hash && (
+            <div className="p-3 bg-white/60 rounded-lg mb-4">
+              <p className="text-xs text-gray-600 mb-1">Transaction Hash:</p>
+              <p className="text-xs font-mono text-gray-800 break-all">
+                {hash.slice(0, 10)}...{hash.slice(-8)}
+              </p>
+            </div>
+          )}
           <div className="animate-pulse text-blue-600">
-            Redirecting to your pool...
+            Redirecting to pools page...
           </div>
         </Card>
       </div>
@@ -479,10 +487,14 @@ export default function CreatePoolPage() {
         </div>
 
         {/* Creator status */}
-        <CreatorStats creator={creator} />
+        <CreatorStats
+          creatorInfo={creatorInfo}
+          totalEarnings={totalEarnings}
+          isLoading={isLoadingCreator || isLoadingEarnings}
+        />
 
         {/* No pools remaining warning */}
-        {creator.poolsRemaining <= 0 && (
+        {poolsRemaining <= 0 && (
           <Card className="p-4 mb-6 bg-red-50 border-red-200">
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 text-red-600" />
