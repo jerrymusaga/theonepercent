@@ -1,66 +1,92 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter, Users, Coins, Clock, TrendingUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useAccount, useBalance } from "wagmi";
+import { formatEther } from "viem";
+import { Search, Filter, Users, Coins, Clock, TrendingUp, Wallet, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  useActivePools,
+  useJoinPool,
+  useWatchPlayerJoined,
+  useWatchPoolActivated,
+  useWatchGameCompleted,
+  usePoolInfo
+} from "@/hooks";
+import { useToast } from "@/hooks/use-toast";
+import { PoolStatus } from "@/lib/contract";
 
-// Mock data for demonstration - will be replaced with real contract data
-const mockPools = [
-  {
-    id: 1,
-    creator: "0x1234...5678",
-    creatorName: "@alice",
-    creatorAvatar: "/api/placeholder/32/32",
-    entryFee: "2.5",
-    maxPlayers: 8,
-    currentPlayers: 6,
-    prizePool: "20.0",
-    status: "OPENED",
-    createdAt: "2m ago",
-    timeLeft: "5m 30s"
-  },
-  {
-    id: 2,
-    creator: "0x8765...4321",
-    creatorName: "@bob",
-    creatorAvatar: "/api/placeholder/32/32",
-    entryFee: "1.0",
-    maxPlayers: 4,
-    currentPlayers: 4,
-    prizePool: "4.0",
-    status: "ACTIVE",
-    createdAt: "5m ago",
-    currentRound: 2,
-    remainingPlayers: 2
-  },
-  {
-    id: 3,
-    creator: "0x9876...1234",
-    creatorName: "@charlie",
-    creatorAvatar: "/api/placeholder/32/32",
-    entryFee: "5.0",
-    maxPlayers: 6,
-    currentPlayers: 3,
-    prizePool: "15.0",
-    status: "OPENED",
-    createdAt: "8m ago",
-    timeLeft: "12m 45s"
-  },
-  {
-    id: 4,
-    creator: "0x4567...8901",
-    creatorName: "@diana",
-    creatorAvatar: "/api/placeholder/32/32",
-    entryFee: "0.5",
-    maxPlayers: 12,
-    currentPlayers: 8,
-    prizePool: "6.0",
-    status: "OPENED",
-    createdAt: "15m ago",
-    timeLeft: "3m 12s"
+// Loading component
+const LoadingSpinner = ({ className = "" }: { className?: string }) => (
+  <div className={`animate-spin rounded-full border-b-2 border-current ${className}`}></div>
+);
+
+// Error component
+const ErrorBanner = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
+  <Card className="p-4 bg-red-50 border-red-200">
+    <div className="flex items-center gap-3">
+      <AlertTriangle className="w-5 h-5 text-red-600" />
+      <div className="flex-1">
+        <p className="font-medium text-red-800">Error</p>
+        <p className="text-sm text-red-700">{message}</p>
+      </div>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  </Card>
+);
+
+// Wallet connection component
+const WalletConnectionBanner = () => (
+  <Card className="p-4 bg-blue-50 border-blue-200 mb-6">
+    <div className="flex items-center gap-3">
+      <Wallet className="w-5 h-5 text-blue-600" />
+      <div className="flex-1">
+        <p className="font-medium text-blue-800">Connect your wallet to join games</p>
+        <p className="text-sm text-blue-700">
+          You can view all pools, but you'll need to connect your wallet to join and play.
+        </p>
+      </div>
+      <Button className="bg-blue-600 hover:bg-blue-700">
+        Connect Wallet
+      </Button>
+    </div>
+  </Card>
+);
+
+// Helper function to format pool status
+const getPoolStatusInfo = (status: PoolStatus, currentRound?: number, remainingPlayers?: number) => {
+  switch (status) {
+    case PoolStatus.OPENED:
+      return {
+        text: "Waiting for players",
+        color: "bg-blue-100 text-blue-800",
+        icon: <Users className="w-3 h-3" />
+      };
+    case PoolStatus.ACTIVE:
+      return {
+        text: `Round ${currentRound} • ${remainingPlayers} left`,
+        color: "bg-green-100 text-green-800",
+        icon: <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+      };
+    case PoolStatus.COMPLETED:
+      return {
+        text: "Completed",
+        color: "bg-gray-100 text-gray-600",
+        icon: <Clock className="w-3 h-3" />
+      };
+    default:
+      return {
+        text: "Unknown",
+        color: "bg-gray-100 text-gray-600",
+        icon: <Clock className="w-3 h-3" />
+      };
   }
-];
+};
 
 const StatusBadge = ({ status, currentRound, remainingPlayers }: { 
   status: string; 
