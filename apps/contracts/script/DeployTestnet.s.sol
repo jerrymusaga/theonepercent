@@ -14,18 +14,19 @@ import {CoinToss} from "../src/CoinToss.sol";
 contract DeployTestnet is Script {
     // Celo Alfajores Testnet configuration
     address constant SELF_HUB_ADDRESS = 0x68c931C9a534D37aa78094877F46fE46a49F1A51;
-    uint256 constant SCOPE_VALUE = 1;
     bytes32 constant VERIFICATION_CONFIG_ID = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
+        uint256 scopeValue = vm.envUint("HASHED_SCOPE");
 
         console.log("=== CELO ALFAJORES TESTNET DEPLOYMENT ===");
         console.log("Deployer address:", deployer);
         console.log("Deployer balance:", deployer.balance / 1e18, "CELO");
         console.log("Chain ID:", block.chainid);
         console.log("Block number:", block.number);
+        console.log("Using scope value:", scopeValue);
 
         // Verify we're on the correct network
         require(block.chainid == 44787, "Must deploy on Celo Alfajores Testnet (Chain ID: 44787)");
@@ -39,7 +40,7 @@ contract DeployTestnet is Script {
         console.log("Deploying CoinToss contract...");
         CoinToss coinToss = new CoinToss(
             SELF_HUB_ADDRESS,
-            SCOPE_VALUE,
+            scopeValue,
             VERIFICATION_CONFIG_ID
         );
 

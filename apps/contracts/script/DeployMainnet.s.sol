@@ -16,7 +16,6 @@ import {CoinToss} from "../src/CoinToss.sol";
 contract DeployMainnet is Script {
     // Celo Mainnet configuration
     address constant SELF_HUB_ADDRESS = 0xe57F4773bd9c9d8b6Cd70431117d353298B9f5BF;
-    uint256 constant SCOPE_VALUE = 1;
     bytes32 constant VERIFICATION_CONFIG_ID = 0x7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61;
 
     // Safety checks
@@ -26,6 +25,7 @@ contract DeployMainnet is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
+        uint256 scopeValue = vm.envUint("HASHED_SCOPE");
 
         console.log("===   CELO MAINNET DEPLOYMENT  ===");
         console.log("Deployer address:", deployer);
@@ -33,6 +33,7 @@ contract DeployMainnet is Script {
         console.log("Chain ID:", block.chainid);
         console.log("Block number:", block.number);
         console.log("Gas price:", tx.gasprice);
+        console.log("Using scope value:", scopeValue);
 
         // CRITICAL SAFETY CHECKS
         require(block.chainid == EXPECTED_CHAIN_ID, "MUST deploy on Celo Mainnet (Chain ID: 42220)");
@@ -53,7 +54,7 @@ contract DeployMainnet is Script {
         console.log("Deploying CoinToss contract to MAINNET...");
         CoinToss coinToss = new CoinToss(
             SELF_HUB_ADDRESS,
-            SCOPE_VALUE,
+            scopeValue,
             VERIFICATION_CONFIG_ID
         );
 
