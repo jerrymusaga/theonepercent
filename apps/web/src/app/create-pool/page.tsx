@@ -200,9 +200,9 @@ const CreatorStats = ({ creatorInfo, totalEarnings, isLoading }: CreatorStatsPro
     );
   }
 
-  const stakedAmount = creatorInfo ? formatEther(creatorInfo.stakedAmount) : "0";
-  const poolsRemaining = creatorInfo ? Number(creatorInfo.poolsRemaining) : 0;
-  const poolsCreated = creatorInfo ? Number(creatorInfo.poolsCreated) : 0;
+  const stakedAmount = creatorInfo?.stakedAmount ? formatEther(creatorInfo.stakedAmount) : "0";
+  const poolsRemaining = creatorInfo?.poolsRemaining ? Number(creatorInfo.poolsRemaining) : 0;
+  const poolsCreated = creatorInfo?.poolsCreated ? Number(creatorInfo.poolsCreated) : 0;
   const earnings = totalEarnings ? formatEther(totalEarnings) : "0";
 
   return (

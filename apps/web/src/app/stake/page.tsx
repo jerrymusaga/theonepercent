@@ -393,8 +393,8 @@ export default function StakePage() {
 
   const celoBalance = balance ? formatEther(balance.value) : "0";
   const hasActiveStake = creatorInfo?.hasActiveStake || false;
-  const stakedAmount = creatorInfo ? formatEther(creatorInfo.stakedAmount) : "0";
-  const poolsRemaining = creatorInfo ? Number(creatorInfo.poolsRemaining) : 0;
+  const stakedAmount = creatorInfo?.stakedAmount ? formatEther(creatorInfo.stakedAmount) : "0";
+  const poolsRemaining = creatorInfo?.poolsRemaining ? Number(creatorInfo.poolsRemaining) : 0;
   const totalEarnings = creatorReward ? formatEther(creatorReward) : "0";
 
   const canStake = parseFloat(celoBalance) >= stakeAmount && !hasActiveStake && !!address;
