@@ -1136,4 +1136,144 @@ contract CoinTossTest is Test {
         assertFalse(coinToss.isCreatorVerified(creator1));
         assertEq(coinToss.getVerificationBonus(creator1), 0);
     }
+
+    // UNANIMOUS SELECTION TESTS
+
+    function test_UnanimousSelection_AllHeads_RoundRepeats() public {
+        // Setup 3-player game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 3);
+        vm.stopPrank();
+
+        // All players join
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1); // Pool auto-activates
+
+        // All players choose HEADS
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS); // Auto-resolves round
+
+        // Check that no players were eliminated
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 3); // All 3 players should remain
+
+        // Check that no players are marked as eliminated
+        assertFalse(coinToss.isPlayerEliminated(1, player1));
+        assertFalse(coinToss.isPlayerEliminated(1, player2));
+        assertFalse(coinToss.isPlayerEliminated(1, player3));
+
+        // Check that round number hasn't advanced
+        assertEq(coinToss.getCurrentRound(1), 1);
+
+        // Check that game is still active (not completed)
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.ACTIVE);
+
+        // Check that player choices have been reset
+        assertFalse(coinToss.hasPlayerChosen(1, player1));
+        assertFalse(coinToss.hasPlayerChosen(1, player2));
+        assertFalse(coinToss.hasPlayerChosen(1, player3));
+    }
+
+    function test_UnanimousSelection_AllTails_RoundRepeats() public {
+        // Setup 4-player game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+
+        // All players join
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(1); // Pool auto-activates
+
+        // All players choose TAILS
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS); // Auto-resolves round
+
+        // Check that all players remain
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 4);
+
+        // Check that game is still active
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.ACTIVE);
+
+        // Verify choices are reset for next round
+        assertFalse(coinToss.hasPlayerChosen(1, player1));
+        assertFalse(coinToss.hasPlayerChosen(1, player2));
+        assertFalse(coinToss.hasPlayerChosen(1, player3));
+        assertFalse(coinToss.hasPlayerChosen(1, player4));
+    }
+
+    function test_UnanimousSelection_ThenNormalElimination() public {
+        // Setup 4-player game
+        vm.startPrank(creator1);
+        coinToss.stakeForPoolCreation{value: 10 ether}();
+        coinToss.createPool(1 ether, 4);
+        vm.stopPrank();
+
+        // All players join
+        vm.prank(player1);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player2);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player3);
+        coinToss.joinPool{value: 1 ether}(1);
+        vm.prank(player4);
+        coinToss.joinPool{value: 1 ether}(1);
+
+        // Round 1: All choose HEADS (unanimous - should repeat)
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+
+        // Verify all players remain
+        assertEq(coinToss.getRemainingPlayers(1).length, 4);
+        assertEq(coinToss.getCurrentRound(1), 1); // Round should not advance
+
+        // Round 1 retry: Mixed choices (1 HEADS, 3 TAILS -> HEADS should win)
+        vm.prank(player1);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.HEADS);
+        vm.prank(player2);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player3);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+        vm.prank(player4);
+        coinToss.makeSelection(1, CoinToss.PlayerChoice.TAILS);
+
+        // Now elimination should occur
+        address[] memory remainingPlayers = coinToss.getRemainingPlayers(1);
+        assertEq(remainingPlayers.length, 1); // Only player1 (HEADS minority) should remain
+        assertEq(remainingPlayers[0], player1);
+
+        // Game should be completed
+        (, , , , , CoinToss.PoolStatus status) = coinToss.getPoolInfo(1);
+        assertTrue(status == CoinToss.PoolStatus.COMPLETED);
+    }
 }

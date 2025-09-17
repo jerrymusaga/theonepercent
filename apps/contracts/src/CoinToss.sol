@@ -62,6 +62,7 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     event PoolActivated(uint256 indexed poolId, uint256 totalPlayers, uint256 prizePool);
     event PlayerMadeChoice(uint256 indexed poolId, address indexed player, PlayerChoice choice, uint256 round);
     event RoundResolved(uint256 indexed poolId, uint256 round, PlayerChoice winningChoice, uint256 eliminatedCount, uint256 remainingCount);
+    event RoundRepeated(uint256 indexed poolId, uint256 round, PlayerChoice unanimousChoice, uint256 playerCount);
     event GameCompleted(uint256 indexed poolId, address indexed winner, uint256 prizeAmount);
     event PoolAbandoned(uint256 indexed poolId, address indexed creator, uint256 refundAmount);
     event StakeDeposited(address indexed creator, uint256 amount, uint256 poolsEligible);
@@ -249,26 +250,39 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
     
     function _executeRound(uint256 _poolId) internal {
         Pool storage pool = pools[_poolId];
-        
+
         // Count choices
         (uint256 headsCount, uint256 tailsCount, address[] memory headsPlayers, address[] memory tailsPlayers) = _countChoices(_poolId);
-        
+
+        // Check for unanimous choice (all players chose the same option)
+        if (headsCount == 0 && tailsCount > 0) {
+            // All players chose TAILS - no elimination, repeat round
+            _resetPlayerChoices(_poolId);
+            emit RoundRepeated(_poolId, pool.currentRound, PlayerChoice.TAILS, tailsCount);
+            return;
+        } else if (tailsCount == 0 && headsCount > 0) {
+            // All players chose HEADS - no elimination, repeat round
+            _resetPlayerChoices(_poolId);
+            emit RoundRepeated(_poolId, pool.currentRound, PlayerChoice.HEADS, headsCount);
+            return;
+        }
+
         PlayerChoice winningChoice;
         address[] memory winners;
         address[] memory losers;
-        
+
         if (headsCount < tailsCount) {
             // Heads minority wins
             winningChoice = PlayerChoice.HEADS;
             winners = headsPlayers;
             losers = tailsPlayers;
         } else if (tailsCount < headsCount) {
-            // Tails minority wins  
+            // Tails minority wins
             winningChoice = PlayerChoice.TAILS;
             winners = tailsPlayers;
             losers = headsPlayers;
         } else {
-            // Tie - use blockhash to decide
+            // Tie (equal numbers) - use blockhash to decide
             winningChoice = _resolvetie(_poolId);
             if (winningChoice == PlayerChoice.HEADS) {
                 winners = headsPlayers;
@@ -278,20 +292,20 @@ contract CoinToss is Ownable, ReentrancyGuard, SelfVerificationRoot {
                 losers = headsPlayers;
             }
         }
-        
+
         // Eliminate losers
         for (uint256 i = 0; i < losers.length; i++) {
             pool.isEliminated[losers[i]] = true;
         }
-        
+
         // Update remaining players
         pool.remainingPlayers = winners;
-        
+
         // Reset choices for next round
         _resetPlayerChoices(_poolId);
-        
+
         emit RoundResolved(_poolId, pool.currentRound, winningChoice, losers.length, winners.length);
-        
+
         // Check if game is complete
         if (winners.length == 1) {
             pool.status = PoolStatus.COMPLETED;
