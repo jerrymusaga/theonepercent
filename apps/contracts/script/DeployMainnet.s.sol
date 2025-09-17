@@ -75,7 +75,7 @@ contract DeployMainnet is Script {
         // Verify contract is working
         console.log("=== POST-DEPLOYMENT VERIFICATION ===");
         console.log("Contract size:", address(coinToss).code.length, "bytes");
-        console.log("Owner verification:", coinToss.owner() == deployer ? "✓ PASS" : "✗ FAIL");
+        console.log("Owner verification:", coinToss.owner() == deployer ? " PASS" : " FAIL");
 
         // Save deployment info to file
         string memory deploymentInfo = string(abi.encodePacked(
