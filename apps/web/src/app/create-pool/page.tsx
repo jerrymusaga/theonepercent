@@ -411,8 +411,17 @@ export default function CreatePoolPage() {
   const handleCreatePool = () => {
     if (poolsRemaining <= 0 || !address) return;
 
+    // Validate inputs before calling
+    if (!config.entryFee || config.entryFee <= 0 || !config.maxPlayers || config.maxPlayers < 2) {
+      error("Invalid pool configuration", "Please check your entry fee and max players settings.");
+      return;
+    }
+
     try {
-      createPool(config.entryFee.toString(), config.maxPlayers.toString());
+      createPool({
+        entryFee: config.entryFee.toString(),
+        maxPlayers: config.maxPlayers
+      });
     } catch (err) {
       console.error("Pool creation error:", err);
       // Error is handled by useEffect above
@@ -533,8 +542,11 @@ export default function CreatePoolPage() {
                       min="0.1"
                       max="100"
                       step="0.1"
-                      value={config.entryFee}
-                      onChange={(e) => handleConfigChange('entryFee', parseFloat(e.target.value) || 0)}
+                      value={config.entryFee || ''}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        handleConfigChange('entryFee', isNaN(value) ? 0 : value);
+                      }}
                       className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="2.5"
                     />
@@ -556,8 +568,11 @@ export default function CreatePoolPage() {
                       min="2"
                       max="20"
                       step="1"
-                      value={config.maxPlayers}
-                      onChange={(e) => handleConfigChange('maxPlayers', parseInt(e.target.value) || 2)}
+                      value={config.maxPlayers || ''}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        handleConfigChange('maxPlayers', isNaN(value) ? 2 : value);
+                      }}
                       className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="8"
                     />
