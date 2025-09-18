@@ -79,7 +79,7 @@ const WalletConnectionRequired = () => (
   </div>
 );
 
-const StakingRequired = () => (
+const StakingRequired = ({ error }: { error?: any }) => (
   <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
     <Card className="p-8 text-center max-w-md mx-4">
       <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -89,6 +89,13 @@ const StakingRequired = () => (
       <p className="text-gray-600 mb-6">
         You need to stake CELO first to access your creator dashboard and start creating game pools.
       </p>
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800">
+            Debug: {error.message || 'Contract read error'}
+          </p>
+        </div>
+      )}
       <Button
         className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
         onClick={() => window.location.href = '/stake'}
@@ -488,13 +495,13 @@ export default function CreatorDashboard() {
   }
 
   if (!creatorLoading && !creatorInfo?.hasActiveStake) {
-    return <StakingRequired />;
+    return <StakingRequired error={creatorError} />;
   }
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      Promise.all([
+      await Promise.all([
         refetchCreator(),
         refetchPools()
       ]);

@@ -18,7 +18,7 @@ export function useCoinTossRead(
   options?: { enabled?: boolean }
 ) {
   const contractAddress = useContractAddress();
-  
+
   return useReadContract({
     address: contractAddress,
     abi: CONTRACT_CONFIG.abi,

@@ -11,9 +11,23 @@ export function useCreatorInfo(address?: `0x${string}`) {
   const { address: connectedAddress } = useAccount();
   const targetAddress = address || connectedAddress;
 
-  return useCoinTossRead('getCreatorInfo', targetAddress ? [targetAddress] : undefined, {
+  const result = useCoinTossRead('getCreatorInfo', targetAddress ? [targetAddress] : undefined, {
     enabled: !!targetAddress,
-  }) as {
+  });
+
+  // Transform the raw array response into proper object structure
+  const transformedResult = {
+    ...result,
+    data: result.data ? {
+      stakedAmount: (result.data as any)[0] as bigint,
+      poolsCreated: (result.data as any)[1] as bigint,
+      poolsRemaining: (result.data as any)[2] as bigint,
+      hasActiveStake: (result.data as any)[3] as boolean,
+      isVerified: (result.data as any)[4] as boolean,
+    } as CreatorInfo : undefined
+  };
+
+  return transformedResult as {
     data: CreatorInfo | undefined;
     isLoading: boolean;
     error: Error | null;
