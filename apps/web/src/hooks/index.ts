@@ -29,9 +29,16 @@ export {
 
 export {
   useGameProgress,
+  useCurrentRound,
+  useRemainingPlayers,
+  usePlayerChoice,
+  useHasPlayerChosen,
+  useIsPlayerEliminated,
   useMakeSelection,
   useClaimPrize,
-  usePlayerGameState
+  useClaimRefund,
+  usePlayerGameState,
+  useFormattedPlayerChoice
 } from './use-game';
 
 export {
