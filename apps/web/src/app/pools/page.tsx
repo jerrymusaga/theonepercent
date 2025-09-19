@@ -130,11 +130,11 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
   const hasEnoughBalance = balance ? balance >= entryFee : false;
   const canJoin = address && hasEnoughBalance && status === PoolStatus.OPENED && currentPlayers < maxPlayers;
 
-  const handleJoinPool = async () => {
+  const handleJoinPool = () => {
     if (!canJoin) return;
 
     try {
-      await joinPool(poolId.toString(), entryFeeFormatted);
+      joinPool({ poolId: Number(poolId), entryFee: entryFeeFormatted });
       success("Joining pool...", "Your transaction is being processed.");
     } catch (err) {
       console.error("Join pool error:", err);

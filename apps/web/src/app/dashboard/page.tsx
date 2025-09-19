@@ -232,7 +232,15 @@ const CreatorStatsOverview = ({ creatorInfo, totalEarnings, activePools, stats, 
   );
 };
 
-const PoolCard = ({ pool, onActivate }: { pool: any; onActivate?: () => void }) => {
+const PoolCard = ({
+  pool,
+  onActivate,
+  onViewPool
+}: {
+  pool: any;
+  onActivate?: () => void;
+  onViewPool?: (poolId: number, status: number) => void;
+}) => {
   const getStatusColor = (status: number) => {
     switch (status) {
       case PoolStatus.OPENED: return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -381,7 +389,7 @@ const PoolCard = ({ pool, onActivate }: { pool: any; onActivate?: () => void }) 
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => handleViewPool(Number(pool.id), Number(pool.status))}
+            onClick={() => onViewPool?.(Number(pool.id), Number(pool.status))}
           >
             <Play className="w-4 h-4 mr-2" />
             Watch Game
@@ -393,7 +401,7 @@ const PoolCard = ({ pool, onActivate }: { pool: any; onActivate?: () => void }) 
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => handleViewPool(Number(pool.id), Number(pool.status))}
+            onClick={() => onViewPool?.(Number(pool.id), Number(pool.status))}
           >
             <Trophy className="w-4 h-4 mr-2" />
             View Results
@@ -677,7 +685,12 @@ export default function CreatorDashboard() {
                 </div>
               ) : activePools.length > 0 ? (
                 activePools.map((pool) => (
-                  <PoolCard key={pool.id} pool={pool} onActivate={() => handleActivatePool(Number(pool.id))} />
+                  <PoolCard
+                    key={pool.id}
+                    pool={pool}
+                    onActivate={() => handleActivatePool(Number(pool.id))}
+                    onViewPool={handleViewPool}
+                  />
                 ))
               ) : (
                 <Card className="p-8 text-center">

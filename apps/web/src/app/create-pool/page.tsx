@@ -331,15 +331,14 @@ export default function CreatePoolPage() {
     isConfirming,
     isConfirmed,
     error: createError,
-    hash,
-    data: txData
+    hash
   } = useCreatePool();
 
   const { success, error } = useToast();
 
   // Handle successful pool creation
   useEffect(() => {
-    if (isConfirmed && hash && txData) {
+    if (isConfirmed && hash) {
       // Extract pool ID from transaction logs if available
       // For now, we'll use a placeholder and let the user navigate manually
       setShowSuccess(true);
@@ -353,7 +352,7 @@ export default function CreatePoolPage() {
         router.push('/pools'); // Redirect to pools page to find the new pool
       }, 3000);
     }
-  }, [isConfirmed, hash, txData, success, refetchCreator, router]);
+  }, [isConfirmed, hash, success, refetchCreator, router]);
 
   // Handle creation errors
   useEffect(() => {
