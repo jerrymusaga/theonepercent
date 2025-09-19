@@ -200,12 +200,32 @@ export function useActivatePool() {
  * Hook to get multiple pools information (for pool listing)
  */
 export function usePoolsList(poolIds: number[]) {
-  // Use a fixed number of hooks (maximum 20 pools)
-  const maxPools = 20;
-  const queries = Array.from({ length: maxPools }, (_, i) => {
-    const poolId = poolIds[i] || 0;
-    return usePoolInfo(poolId);
-  });
+  // Call hooks at the top level (maximum 20 pools supported)
+  const pool0 = usePoolInfo(poolIds[0] || 0);
+  const pool1 = usePoolInfo(poolIds[1] || 0);
+  const pool2 = usePoolInfo(poolIds[2] || 0);
+  const pool3 = usePoolInfo(poolIds[3] || 0);
+  const pool4 = usePoolInfo(poolIds[4] || 0);
+  const pool5 = usePoolInfo(poolIds[5] || 0);
+  const pool6 = usePoolInfo(poolIds[6] || 0);
+  const pool7 = usePoolInfo(poolIds[7] || 0);
+  const pool8 = usePoolInfo(poolIds[8] || 0);
+  const pool9 = usePoolInfo(poolIds[9] || 0);
+  const pool10 = usePoolInfo(poolIds[10] || 0);
+  const pool11 = usePoolInfo(poolIds[11] || 0);
+  const pool12 = usePoolInfo(poolIds[12] || 0);
+  const pool13 = usePoolInfo(poolIds[13] || 0);
+  const pool14 = usePoolInfo(poolIds[14] || 0);
+  const pool15 = usePoolInfo(poolIds[15] || 0);
+  const pool16 = usePoolInfo(poolIds[16] || 0);
+  const pool17 = usePoolInfo(poolIds[17] || 0);
+  const pool18 = usePoolInfo(poolIds[18] || 0);
+  const pool19 = usePoolInfo(poolIds[19] || 0);
+
+  const queries = [
+    pool0, pool1, pool2, pool3, pool4, pool5, pool6, pool7, pool8, pool9,
+    pool10, pool11, pool12, pool13, pool14, pool15, pool16, pool17, pool18, pool19
+  ];
 
   const pools = poolIds.map((poolId, index) => {
     const query = queries[index];
