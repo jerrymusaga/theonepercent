@@ -426,6 +426,7 @@ export default function CreatorDashboard() {
   const { data: totalEarnings, isLoading: earningsLoading, error: earningsError } = useCreatorReward();
   const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools, hasError: poolsError } = useActivePools();
   const activePools = activePoolsData
+    .filter(pool => pool.data) // Filter out pools with no data first
     .map(pool => ({ id: pool.id, ...pool.data }))
     .filter(pool => pool.status !== undefined);
   const { activatePool } = useActivatePool();
