@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { useCoinTossRead, useContractAddress } from './use-contract';
@@ -8,9 +8,24 @@ import { PoolInfo, PoolStatus, CONTRACT_CONFIG } from '@/lib/contract';
  * Hook to get pool information
  */
 export function usePoolInfo(poolId: number) {
-  return useCoinTossRead('getPoolInfo', [BigInt(poolId)], {
+  const result = useCoinTossRead('getPoolInfo', [BigInt(poolId)], {
     enabled: poolId > 0,
-  }) as {
+  });
+
+  // Transform array response to PoolInfo object
+  const transformedResult = {
+    ...result,
+    data: result.data ? {
+      creator: (result.data as any)[0] as `0x${string}`,
+      entryFee: (result.data as any)[1] as bigint,
+      maxPlayers: (result.data as any)[2] as bigint,
+      currentPlayers: (result.data as any)[3] as bigint,
+      prizePool: (result.data as any)[4] as bigint,
+      status: (result.data as any)[5] as PoolStatus,
+    } as PoolInfo : undefined
+  };
+
+  return transformedResult as {
     data: PoolInfo | undefined;
     isLoading: boolean;
     error: Error | null;
@@ -229,7 +244,7 @@ export function useActivePools() {
   const poolsQuery = usePoolsList(poolIds);
 
   // Filter for only active/open pools
-  const activePools = poolsQuery.pools.filter(pool => 
+  const activePools = poolsQuery.pools.filter(pool =>
     pool.data && (pool.data.status === PoolStatus.OPENED || pool.data.status === PoolStatus.ACTIVE)
   );
 
