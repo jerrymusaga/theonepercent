@@ -280,13 +280,13 @@ export default function GameArenaPage() {
     isLoading: isLoadingPool,
     error: poolError,
     refetch: refetchPool
-  } = usePoolInfo(poolId ? BigInt(poolId) : undefined);
+  } = usePoolInfo(poolId ? parseInt(poolId) : 0);
 
   const {
     data: gameProgress,
     isLoading: isLoadingProgress,
     refetch: refetchProgress
-  } = useGameProgress(poolId ? BigInt(poolId) : undefined);
+  } = useGameProgress(poolId ? parseInt(poolId) : 0);
 
   const {
     data: remainingPlayers,
@@ -330,7 +330,7 @@ export default function GameArenaPage() {
       logs.forEach((log) => {
         if (log.args && log.args.poolId.toString() === poolId) {
           success("Choice made!", `A player made their choice for round ${log.args.round}`);
-          refetchHasChosen();
+          refetchProgress();
           refetchPlayers();
         }
       });
@@ -346,9 +346,6 @@ export default function GameArenaPage() {
           success("Round resolved!", `${winningChoice} won! ${log.args.eliminatedCount} players eliminated.`);
           refetchProgress();
           refetchPlayers();
-          refetchEliminated();
-          refetchHasChosen();
-          refetchPlayerChoice();
           setSelectedChoice(null); // Reset choice for next round
         }
       });
@@ -373,10 +370,9 @@ export default function GameArenaPage() {
   useEffect(() => {
     if (isConfirmed && hash) {
       success("Choice submitted!", "Your selection has been recorded on the blockchain.");
-      refetchHasChosen();
-      refetchPlayerChoice();
+      refetchProgress();
     }
-  }, [isConfirmed, hash, success, refetchHasChosen, refetchPlayerChoice]);
+  }, [isConfirmed, hash, success, refetchProgress]);
 
   // Handle selection errors
   useEffect(() => {
@@ -430,7 +426,7 @@ export default function GameArenaPage() {
     if (!selectedChoice || !address || !poolId) return;
 
     try {
-      makeSelection(poolId, selectedChoice);
+      makeSelection({ poolId: parseInt(poolId), choice: selectedChoice });
     } catch (err) {
       console.error("Selection error:", err);
     }
