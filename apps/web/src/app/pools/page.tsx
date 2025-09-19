@@ -310,9 +310,9 @@ export default function PoolsPage() {
 
   // Contract hooks
   const {
-    data: pools,
+    pools,
     isLoading: isLoadingPools,
-    error: poolsError,
+    hasError: poolsError,
     refetch: refetchPools
   } = useActivePools();
 
@@ -338,17 +338,19 @@ export default function PoolsPage() {
   });
 
   // Filter pools based on search and status
-  const filteredPools = pools?.filter(pool => {
+  const filteredPools = pools?.filter((pool: any) => {
+    if (!pool.data) return false; // Skip pools without data
+
     const poolId = pool.id.toString();
-    const creatorAddr = pool.creator.toLowerCase();
+    const creatorAddr = pool.data.creator.toLowerCase();
 
     const matchesSearch = poolId.includes(searchTerm) ||
                          creatorAddr.includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "ALL" ||
-                         (statusFilter === "OPENED" && pool.status === PoolStatus.OPENED) ||
-                         (statusFilter === "ACTIVE" && pool.status === PoolStatus.ACTIVE) ||
-                         (statusFilter === "COMPLETED" && pool.status === PoolStatus.COMPLETED);
+                         (statusFilter === "OPENED" && pool.data.status === PoolStatus.OPENED) ||
+                         (statusFilter === "ACTIVE" && pool.data.status === PoolStatus.ACTIVE) ||
+                         (statusFilter === "COMPLETED" && pool.data.status === PoolStatus.COMPLETED);
 
     return matchesSearch && matchesStatus;
   }) || [];
@@ -391,7 +393,7 @@ export default function PoolsPage() {
           <p className="text-gray-600">Failed to load pools</p>
         </div>
         <ErrorBanner
-          message={poolsError.message || "Failed to load pools from the blockchain"}
+          message="Failed to load pools from the blockchain"
           onRetry={refetchPools}
         />
       </div>
@@ -399,9 +401,9 @@ export default function PoolsPage() {
   }
 
   // Calculate real stats from loaded pools
-  const activePools = filteredPools.filter(pool => pool.status === PoolStatus.OPENED || pool.status === PoolStatus.ACTIVE);
-  const totalPrizePool = filteredPools.reduce((sum, pool) => sum + Number(formatEther(pool.prizePool)), 0);
-  const totalPlayers = filteredPools.reduce((sum, pool) => sum + Number(pool.currentPlayers), 0);
+  const activePools = filteredPools.filter((pool: any) => pool.data && (pool.data.status === PoolStatus.OPENED || pool.data.status === PoolStatus.ACTIVE));
+  const totalPrizePool = filteredPools.reduce((sum: any, pool: any) => pool.data ? sum + Number(formatEther(pool.data.prizePool)) : sum, 0);
+  const totalPlayers = filteredPools.reduce((sum: any, pool: any) => pool.data ? sum + Number(pool.data.currentPlayers) : sum, 0);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -519,19 +521,21 @@ export default function PoolsPage() {
 
       {/* Pool Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredPools.map((pool) => (
-          <PoolCard
-            key={pool.id.toString()}
-            poolId={pool.id}
-            creator={pool.creator}
-            entryFee={pool.entryFee}
-            maxPlayers={pool.maxPlayers}
-            currentPlayers={pool.currentPlayers}
-            prizePool={pool.prizePool}
-            status={pool.status}
-            address={address}
-            balance={balance?.value}
-          />
+        {filteredPools.map((pool: any) => (
+          pool.data && (
+            <PoolCard
+              key={pool.id.toString()}
+              poolId={BigInt(pool.id)}
+              creator={pool.data.creator}
+              entryFee={pool.data.entryFee}
+              maxPlayers={pool.data.maxPlayers}
+              currentPlayers={pool.data.currentPlayers}
+              prizePool={pool.data.prizePool}
+              status={pool.data.status}
+              address={address}
+              balance={balance?.value}
+            />
+          )
         ))}
       </div>
 

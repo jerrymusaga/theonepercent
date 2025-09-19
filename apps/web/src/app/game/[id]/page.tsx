@@ -245,7 +245,7 @@ const PlayerCard = ({ address, isEliminated, hasChosen, choice, isCurrentUser, p
       </div>
 
       {/* Choice indicator (only shown for eliminated players or after round resolves) */}
-      {choice && choice !== PlayerChoice.NONE && isEliminated && (
+      {choice && isEliminated && (
         <div className="text-xs text-center mt-2 opacity-75">
           Chose: {getChoiceLabel(choice)}
         </div>
