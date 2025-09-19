@@ -292,22 +292,25 @@ export default function GameArenaPage() {
     data: remainingPlayers,
     isLoading: isLoadingPlayers,
     refetch: refetchPlayers
-  } = useGetRemainingPlayers(poolId ? BigInt(poolId) : undefined);
+  } = useRemainingPlayers(poolId ? parseInt(poolId) : 0);
 
   const {
     data: hasPlayerChosen,
-    refetch: refetchHasChosen
-  } = useHasPlayerChosen(poolId ? BigInt(poolId) : undefined, address);
+    isLoading: isLoadingHasChosen,
+    error: hasChosenError
+  } = useHasPlayerChosen(poolId ? parseInt(poolId) : 0, address);
 
   const {
     data: playerChoice,
-    refetch: refetchPlayerChoice
-  } = useGetPlayerChoice(poolId ? BigInt(poolId) : undefined, address);
+    isLoading: isLoadingPlayerChoice,
+    error: playerChoiceError
+  } = usePlayerChoice(poolId ? parseInt(poolId) : 0, address);
 
   const {
     data: isPlayerEliminated,
-    refetch: refetchEliminated
-  } = useIsPlayerEliminated(poolId ? BigInt(poolId) : undefined, address);
+    isLoading: isLoadingEliminated,
+    error: eliminatedError
+  } = useIsPlayerEliminated(poolId ? parseInt(poolId) : 0, address);
 
   const {
     makeSelection,
