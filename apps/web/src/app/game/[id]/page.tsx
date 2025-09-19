@@ -24,10 +24,10 @@ import {
   useGameProgress,
   usePlayerGameState,
   useMakeSelection,
-  useGetPlayerChoice,
+  usePlayerChoice,
   useHasPlayerChosen,
   useIsPlayerEliminated,
-  useGetRemainingPlayers,
+  useRemainingPlayers,
   useWatchPlayerMadeChoice,
   useWatchRoundResolved,
   useWatchGameCompleted
