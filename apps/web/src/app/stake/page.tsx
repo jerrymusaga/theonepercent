@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { 
+import { useAccount, useBalance } from "wagmi";
+import { formatEther } from "viem";
+import {
   Coins,
   Calculator,
   AlertTriangle,
@@ -14,33 +16,81 @@ import {
   Info,
   DollarSign,
   Target,
-  Crown
+  Crown,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  useCreatorInfo,
+  useStakeForPoolCreation,
+  useCalculatePoolsEligible,
+  useCreatorReward
+} from "@/hooks";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock user data - will be replaced with real wallet data
-const mockUserData = {
-  address: "0x1234...5678",
-  celoBalance: "157.5",
-  hasActiveStake: false,
-  currentStake: "0",
-  poolsRemaining: 0,
-  totalEarnings: "0"
-};
+// Loading component
+const LoadingSpinner = ({ className = "" }: { className?: string }) => (
+  <div className={`animate-spin rounded-full border-b-2 border-current ${className}`}></div>
+);
 
-const StakeCalculator = ({ 
-  stakeAmount, 
-  onStakeChange 
-}: { 
+// Error component
+const ErrorBanner = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
+  <Card className="p-4 bg-red-50 border-red-200">
+    <div className="flex items-center gap-3">
+      <AlertTriangle className="w-5 h-5 text-red-600" />
+      <div className="flex-1">
+        <p className="font-medium text-red-800">Error</p>
+        <p className="text-sm text-red-700">{message}</p>
+      </div>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  </Card>
+);
+
+// Wallet connection component
+const WalletConnectionRequired = () => (
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+    <Card className="p-8 text-center max-w-md mx-4">
+      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Wallet className="w-8 h-8 text-blue-600" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Wallet</h2>
+      <p className="text-gray-600 mb-6">
+        You need to connect your wallet to stake CELO and create game pools.
+      </p>
+      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
+        Connect Wallet
+      </Button>
+    </Card>
+  </div>
+);
+
+const StakeCalculator = ({
+  stakeAmount,
+  onStakeChange,
+  address
+}: {
   stakeAmount: number;
   onStakeChange: (amount: number) => void;
+  address?: `0x${string}`;
 }) => {
   const baseStake = 5; // 5 CELO minimum
   const maxStake = 50; // 50 CELO maximum
-  const poolsEligible = Math.floor(stakeAmount / baseStake);
-  const potentialEarnings = poolsEligible * 2.5 * 0.05; // Assuming avg 2.5 CELO entry fee, 5% creator reward
-  
+
+  // Use real contract data for pool calculation
+  const { data: poolsEligible, isLoading: isCalculating } = useCalculatePoolsEligible(
+    stakeAmount.toString(),
+    address
+  );
+
+  const poolsEligibleNumber = poolsEligible ? Number(poolsEligible) : Math.floor(stakeAmount / baseStake);
+  const potentialEarnings = poolsEligibleNumber * 2.5 * 0.05; // Assuming avg 2.5 CELO entry fee, 5% creator reward
+
   const presetAmounts = [5, 10, 25, 50];
 
   return (
@@ -96,8 +146,16 @@ const StakeCalculator = ({
             <Target className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-800">Pools Eligible</span>
           </div>
-          <p className="text-2xl font-bold text-blue-600">{poolsEligible}</p>
-          <p className="text-xs text-blue-700">Create up to {poolsEligible} game{poolsEligible !== 1 ? 's' : ''}</p>
+          {isCalculating ? (
+            <div className="flex justify-center mb-2">
+              <LoadingSpinner className="w-6 h-6 text-blue-600" />
+            </div>
+          ) : (
+            <p className="text-2xl font-bold text-blue-600">{poolsEligibleNumber}</p>
+          )}
+          <p className="text-xs text-blue-700">
+            Create up to {poolsEligibleNumber} game{poolsEligibleNumber !== 1 ? 's' : ''}
+          </p>
         </div>
         
         <div className="p-4 bg-green-50 rounded-lg text-center">
@@ -243,32 +301,117 @@ const StakingBenefits = () => {
 export default function StakePage() {
   const router = useRouter();
   const [stakeAmount, setStakeAmount] = useState(10);
-  const [isStaking, setIsStaking] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const userData = mockUserData;
-  const canStake = parseFloat(userData.celoBalance) >= stakeAmount && !userData.hasActiveStake;
-  const poolsEligible = Math.floor(stakeAmount / 5);
+  // Wallet and contract hooks
+  const { address, isConnected, isConnecting } = useAccount();
+  const { data: balance, isLoading: isLoadingBalance, refetch: refetchBalance } = useBalance({
+    address,
+    query: {
+      enabled: !!address,
+    }
+  });
 
-  const handleStake = async () => {
-    if (!canStake || !agreedToTerms) return;
-    
-    setIsStaking(true);
-    
-    // Simulate blockchain transaction
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    setIsStaking(false);
-    setShowSuccess(true);
-    
-    // Auto-redirect to create pool after 2 seconds
-    setTimeout(() => {
-      router.push('/create-pool');
-    }, 2000);
+  const {
+    data: creatorInfo,
+    isLoading: isLoadingCreator,
+    error: creatorError,
+    refetch: refetchCreator
+  } = useCreatorInfo(address);
+
+  const {
+    data: creatorReward,
+    isLoading: isLoadingReward
+  } = useCreatorReward(address);
+
+  const {
+    stake,
+    isPending: isStaking,
+    isConfirming,
+    isConfirmed,
+    error: stakeError,
+    hash
+  } = useStakeForPoolCreation();
+
+  const { success, error } = useToast();
+
+  // Handle successful staking
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      setShowSuccess(true);
+      success("Staking successful!", "Your CELO has been staked successfully.");
+
+      // Refresh data after successful transaction
+      refetchCreator();
+      refetchBalance();
+
+      // Auto-redirect after 3 seconds
+      setTimeout(() => {
+        router.push('/create-pool');
+      }, 3000);
+    }
+  }, [isConfirmed, hash, success, refetchCreator, refetchBalance, router]);
+
+  // Handle staking errors
+  useEffect(() => {
+    if (stakeError) {
+      error("Staking failed", stakeError.message || "Failed to stake CELO. Please try again.");
+    }
+  }, [stakeError, error]);
+
+  // Access control - must be connected
+  if (!isConnected && !isConnecting) {
+    return <WalletConnectionRequired />;
+  }
+
+  // Loading state
+  if (isConnecting || isLoadingBalance || isLoadingCreator) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <LoadingSpinner className="w-12 h-12 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your wallet data...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (creatorError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="max-w-md mx-4">
+          <ErrorBanner
+            message={creatorError.message || "Failed to load creator data"}
+            onRetry={refetchCreator}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const celoBalance = balance ? formatEther(balance.value) : "0";
+  const hasActiveStake = creatorInfo?.hasActiveStake || false;
+  const stakedAmount = creatorInfo?.stakedAmount ? formatEther(creatorInfo.stakedAmount) : "0";
+  const poolsRemaining = creatorInfo?.poolsRemaining ? Number(creatorInfo.poolsRemaining) : 0;
+  const totalEarnings = creatorReward ? formatEther(creatorReward) : "0";
+
+  const canStake = parseFloat(celoBalance) >= stakeAmount && !hasActiveStake && !!address;
+
+  const handleStake = () => {
+    if (!canStake || !agreedToTerms || !address) return;
+
+    try {
+      stake(stakeAmount.toString());
+    } catch (err) {
+      console.error("Staking error:", err);
+      // Error is handled by useEffect above
+    }
   };
 
   if (showSuccess) {
+    const poolsEligible = creatorInfo ? Number(creatorInfo.poolsRemaining) : 0;
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
         <Card className="p-8 text-center max-w-md mx-4">
@@ -279,6 +422,14 @@ export default function StakePage() {
           <p className="text-gray-600 mb-4">
             You've staked {stakeAmount} CELO and can now create {poolsEligible} game pool{poolsEligible !== 1 ? 's' : ''}.
           </p>
+          {hash && (
+            <div className="p-3 bg-white/60 rounded-lg mb-4">
+              <p className="text-xs text-gray-600 mb-1">Transaction Hash:</p>
+              <p className="text-xs font-mono text-gray-800 break-all">
+                {hash.slice(0, 10)}...{hash.slice(-8)}
+              </p>
+            </div>
+          )}
           <div className="animate-pulse text-blue-600">
             Redirecting to pool creation...
           </div>
@@ -304,28 +455,50 @@ export default function StakePage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-90">Your CELO Balance</p>
-              <p className="text-2xl font-bold">{userData.celoBalance} CELO</p>
+              {isLoadingBalance ? (
+                <div className="flex items-center gap-2">
+                  <LoadingSpinner className="w-4 h-4" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <p className="text-2xl font-bold">{parseFloat(celoBalance).toFixed(2)} CELO</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm opacity-90">Current Status</p>
               <p className="text-lg font-medium">
-                {userData.hasActiveStake ? `Staked: ${userData.currentStake} CELO` : "Not Staking"}
+                {hasActiveStake ? `Staked: ${parseFloat(stakedAmount).toFixed(2)} CELO` : "Not Staking"}
               </p>
+              {hasActiveStake && (
+                <p className="text-xs opacity-80">
+                  {poolsRemaining} pool{poolsRemaining !== 1 ? 's' : ''} remaining
+                </p>
+              )}
             </div>
           </div>
         </Card>
 
         {/* Already staking warning */}
-        {userData.hasActiveStake && (
+        {hasActiveStake && (
           <Card className="p-4 mb-6 bg-yellow-50 border-yellow-200">
             <div className="flex items-center gap-3">
               <Info className="w-5 h-5 text-yellow-600" />
               <div>
                 <p className="font-medium text-yellow-800">You already have an active stake</p>
                 <p className="text-sm text-yellow-700">
-                  You have {userData.poolsRemaining} pool creation{userData.poolsRemaining !== 1 ? 's' : ''} remaining. 
+                  You have {poolsRemaining} pool creation{poolsRemaining !== 1 ? 's' : ''} remaining.
                   Wait for your current pools to complete before staking again.
                 </p>
+                {isLoadingReward ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <LoadingSpinner className="w-3 h-3 text-yellow-600" />
+                    <span className="text-xs text-yellow-600">Loading earnings...</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Current earnings: {parseFloat(totalEarnings).toFixed(4)} CELO
+                  </p>
+                )}
               </div>
             </div>
           </Card>
@@ -333,9 +506,10 @@ export default function StakePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Staking calculator */}
-          <StakeCalculator 
+          <StakeCalculator
             stakeAmount={stakeAmount}
             onStakeChange={setStakeAmount}
+            address={address}
           />
 
           {/* Benefits */}
@@ -371,10 +545,19 @@ export default function StakePage() {
             </div>
 
             {/* Insufficient balance warning */}
-            {parseFloat(userData.celoBalance) < stakeAmount && (
+            {parseFloat(celoBalance) < stakeAmount && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-800">
-                  Insufficient balance. You need {stakeAmount} CELO but only have {userData.celoBalance} CELO.
+                  Insufficient balance. You need {stakeAmount} CELO but only have {parseFloat(celoBalance).toFixed(2)} CELO.
+                </p>
+              </div>
+            )}
+
+            {/* Transaction error */}
+            {stakeError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  {stakeError.message || "Transaction failed. Please try again."}
                 </p>
               </div>
             )}
@@ -382,14 +565,19 @@ export default function StakePage() {
             {/* Stake button */}
             <Button
               onClick={handleStake}
-              disabled={!canStake || !agreedToTerms || isStaking}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg py-4"
+              disabled={!canStake || !agreedToTerms || isStaking || isConfirming}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg py-4 disabled:opacity-50"
               size="lg"
             >
               {isStaking ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Staking {stakeAmount} CELO...
+                  <LoadingSpinner className="w-5 h-5 mr-2" />
+                  Sending Transaction...
+                </>
+              ) : isConfirming ? (
+                <>
+                  <LoadingSpinner className="w-5 h-5 mr-2" />
+                  Confirming on Blockchain...
                 </>
               ) : (
                 <>
@@ -401,9 +589,20 @@ export default function StakePage() {
             </Button>
 
             <p className="text-center text-xs text-gray-500">
-              After staking, you'll be able to create {poolsEligible} game pool{poolsEligible !== 1 ? 's' : ''} 
-              and start earning creator rewards.
+              After staking, you'll be able to create pools and start earning creator rewards.
+              {isStaking || isConfirming ? " Please wait for the transaction to complete." : ""}
             </p>
+
+            {/* Transaction hash display during confirmation */}
+            {hash && isConfirming && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800 mb-1">Transaction submitted:</p>
+                <p className="text-xs font-mono text-blue-700 break-all">
+                  {hash.slice(0, 10)}...{hash.slice(-8)}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">Waiting for confirmation...</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>

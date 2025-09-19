@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { useCoinTossRead, useContractAddress } from './use-contract';
@@ -8,9 +8,24 @@ import { PoolInfo, PoolStatus, CONTRACT_CONFIG } from '@/lib/contract';
  * Hook to get pool information
  */
 export function usePoolInfo(poolId: number) {
-  return useCoinTossRead('getPoolInfo', [BigInt(poolId)], {
+  const result = useCoinTossRead('getPoolInfo', [BigInt(poolId)], {
     enabled: poolId > 0,
-  }) as {
+  });
+
+  // Transform array response to PoolInfo object
+  const transformedResult = {
+    ...result,
+    data: result.data ? {
+      creator: (result.data as any)[0] as `0x${string}`,
+      entryFee: (result.data as any)[1] as bigint,
+      maxPlayers: (result.data as any)[2] as bigint,
+      currentPlayers: (result.data as any)[3] as bigint,
+      prizePool: (result.data as any)[4] as bigint,
+      status: (result.data as any)[5] as PoolStatus,
+    } as PoolInfo : undefined
+  };
+
+  return transformedResult as {
     data: PoolInfo | undefined;
     isLoading: boolean;
     error: Error | null;
@@ -185,27 +200,31 @@ export function useActivatePool() {
  * Hook to get multiple pools information (for pool listing)
  */
 export function usePoolsList(poolIds: number[]) {
-  // Create individual queries for each pool ID
-  const poolQueries = poolIds.map(poolId => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Use a fixed number of hooks (maximum 20 pools)
+  const maxPools = 20;
+  const queries = Array.from({ length: maxPools }, (_, i) => {
+    const poolId = poolIds[i] || 0;
     return usePoolInfo(poolId);
   });
 
-  const pools = poolQueries.map((query, index) => ({
-    id: poolIds[index],
-    data: query.data,
-    isLoading: query.isLoading,
-    error: query.error,
-  })).filter(pool => pool.data);
+  const pools = poolIds.map((poolId, index) => {
+    const query = queries[index];
+    return {
+      id: poolId,
+      data: query?.data,
+      isLoading: query?.isLoading || false,
+      error: query?.error || null,
+    };
+  }).filter(pool => pool.data); // Only include pools with valid data
 
-  const isLoading = poolQueries.some(query => query.isLoading);
-  const hasError = poolQueries.some(query => query.error);
+  const isLoading = queries.slice(0, poolIds.length).some(query => query?.isLoading);
+  const hasError = queries.slice(0, poolIds.length).some(query => query?.error);
 
   return {
     pools,
     isLoading,
     hasError,
-    refetch: () => poolQueries.forEach(query => query.refetch()),
+    refetch: () => queries.slice(0, poolIds.length).forEach(query => query?.refetch?.()),
   };
 }
 
@@ -216,8 +235,8 @@ export function useActivePools() {
   const { data: currentPoolId, isLoading: isLoadingCurrentId } = useCurrentPoolId();
   
   // Generate array of pool IDs to query (last 20 pools for example)
-  const poolIds = currentPoolId 
-    ? Array.from({ length: Math.min(Number(currentPoolId), 20) }, (_, i) => 
+  const poolIds = currentPoolId && Number(currentPoolId) > 0
+    ? Array.from({ length: Math.min(Number(currentPoolId), 20) }, (_, i) =>
         Number(currentPoolId) - i
       ).filter(id => id > 0)
     : [];
@@ -225,7 +244,7 @@ export function useActivePools() {
   const poolsQuery = usePoolsList(poolIds);
 
   // Filter for only active/open pools
-  const activePools = poolsQuery.pools.filter(pool => 
+  const activePools = poolsQuery.pools.filter(pool =>
     pool.data && (pool.data.status === PoolStatus.OPENED || pool.data.status === PoolStatus.ACTIVE)
   );
 

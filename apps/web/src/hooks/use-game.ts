@@ -59,6 +59,7 @@ export function usePlayerChoice(poolId: number, playerAddress?: `0x${string}`) {
     data: PlayerChoice | undefined;
     isLoading: boolean;
     error: Error | null;
+    refetch: () => void;
   };
 }
 
@@ -77,6 +78,7 @@ export function useHasPlayerChosen(poolId: number, playerAddress?: `0x${string}`
     data: boolean | undefined;
     isLoading: boolean;
     error: Error | null;
+    refetch: () => void;
   };
 }
 
@@ -95,6 +97,7 @@ export function useIsPlayerEliminated(poolId: number, playerAddress?: `0x${strin
     data: boolean | undefined;
     isLoading: boolean;
     error: Error | null;
+    refetch: () => void;
   };
 }
 
