@@ -240,10 +240,11 @@ export default function PoolDetailPage() {
     }
   };
 
-  const canJoin = pool.status === PoolStatus.OPENED && pool.currentPlayers < pool.maxPlayers && isConnected;
+  const isCreator = address?.toLowerCase() === pool.creator.toLowerCase();
+  const hasEnoughBalance = balance ? parseFloat(formatEther(balance.value)) >= parseFloat(pool.entryFee) : false;
+  const canJoin = pool.status === PoolStatus.OPENED && pool.currentPlayers < pool.maxPlayers && isConnected && !isCreator && hasEnoughBalance;
   const canActivate = pool.currentPlayers >= Math.ceil(pool.maxPlayers / 2);
   const fillPercentage = (pool.currentPlayers / pool.maxPlayers) * 100;
-  const hasEnoughBalance = balance ? parseFloat(formatEther(balance.value)) >= parseFloat(pool.entryFee) : false;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -523,6 +524,14 @@ export default function PoolDetailPage() {
               >
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Insufficient Balance
+              </Button>
+            ) : isCreator && pool.status === PoolStatus.OPENED ? (
+              <Button
+                disabled
+                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600"
+                size="lg"
+              >
+                👑 This is Your Pool
               </Button>
             ) : canJoin ? (
               <Button

@@ -128,7 +128,8 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
   const entryFeeFormatted = formatEther(entryFee);
   const prizePoolFormatted = formatEther(prizePool);
   const hasEnoughBalance = balance ? balance >= entryFee : false;
-  const canJoin = address && hasEnoughBalance && status === PoolStatus.OPENED && currentPlayers < maxPlayers;
+  const isCreator = address?.toLowerCase() === creator.toLowerCase();
+  const canJoin = address && hasEnoughBalance && status === PoolStatus.OPENED && currentPlayers < maxPlayers && !isCreator;
 
   const handleJoinPool = () => {
     if (!canJoin) return;
@@ -222,8 +223,17 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
           )}
         </div>
 
+        {/* Creator notice */}
+        {isCreator && status === PoolStatus.OPENED && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-700">
+              👑 This is your pool. Creators cannot join their own pools.
+            </p>
+          </div>
+        )}
+
         {/* Insufficient balance warning */}
-        {address && !hasEnoughBalance && status === PoolStatus.OPENED && (
+        {address && !hasEnoughBalance && status === PoolStatus.OPENED && !isCreator && (
           <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-xs text-red-700">
               Insufficient balance. Need {parseFloat(entryFeeFormatted).toFixed(2)} CELO to join.
@@ -258,6 +268,8 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
                   "Pool Full"
                 ) : !address ? (
                   "Connect Wallet to Join"
+                ) : isCreator ? (
+                  "👑 Your Pool"
                 ) : !hasEnoughBalance ? (
                   "Insufficient Balance"
                 ) : (
