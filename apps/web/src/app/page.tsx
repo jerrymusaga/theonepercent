@@ -1,14 +1,16 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { sdk } from "@farcaster/frame-sdk";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAccount, useConnect } from "wagmi";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Crown, Users, Coins, ArrowRight } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
   const { context, isMiniAppReady } = useMiniApp();
-  const [isAddingMiniApp, setIsAddingMiniApp] = useState(false);
-  const [addMiniAppMessage, setAddMiniAppMessage] = useState<string | null>(null);
-  
+
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
@@ -40,10 +42,10 @@ export default function Home() {
   if (!isMiniAppReady) {
     return (
       <main className="flex-1">
-        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
           <div className="w-full max-w-md mx-auto p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+            <p className="text-gray-300">Loading The One Percent...</p>
           </div>
         </section>
       </main>
@@ -52,117 +54,91 @@ export default function Home() {
   
   return (
     <main className="flex-1">
-      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="w-full max-w-md mx-auto p-8 text-center">
+      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+        <div className="w-full max-w-lg mx-auto p-8 text-center">
           {/* Welcome Header */}
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome
-          </h1>
-          
-          {/* Status Message */}
-          <p className="text-lg text-gray-600 mb-6">
-            You are signed in!
-          </p>
-          
-          {/* User Wallet Address */}
           <div className="mb-8">
-            <div className="bg-white/20 backdrop-blur-sm px-4 py-3 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-600 font-medium">Wallet Status</span>
-                <div className={`flex items-center gap-1 text-xs ${
-                  isConnected ? 'text-green-600' : isConnecting ? 'text-yellow-600' : 'text-gray-500'
-                }`}>
-                  <div className={`w-2 h-2 rounded-full ${
-                    isConnected ? 'bg-green-500' : isConnecting ? 'bg-yellow-500' : 'bg-gray-400'
-                  }`}></div>
-                  {isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}
+            <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-full px-4 py-2 mb-6">
+              <Crown className="w-4 h-4 text-yellow-500" />
+              <span className="text-yellow-500 text-sm font-medium">Elite Gaming</span>
+            </div>
+
+            <h1 className="text-5xl font-bold text-white mb-4">
+              The One
+              <span className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent">
+                {" "}Percent
+              </span>
+            </h1>
+
+            <p className="text-gray-300 text-lg mb-2">
+              Where the minority wins
+            </p>
+            <p className="text-gray-400">
+              Elite prediction elimination game
+            </p>
+          </div>
+          
+          {/* User Profile Card */}
+          {isConnected && (
+            <Card className="bg-gray-800/50 backdrop-blur-xl border-gray-700 p-6 mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full p-0.5">
+                  <div className="w-full h-full rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
+                    {pfpUrl ? (
+                      <img src={pfpUrl} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <Crown className="w-6 h-6 text-yellow-500" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold text-lg">{displayName}</h3>
+                  <p className="text-gray-400 text-sm">{username}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className={`w-2 h-2 rounded-full ${
+                      isConnected ? 'bg-green-500' : 'bg-red-500'
+                    }`}></div>
+                    <span className="text-gray-300 text-xs font-mono">{formatAddress(walletAddress)}</span>
+                  </div>
                 </div>
               </div>
-              <p className="text-sm text-gray-700 font-mono">
-                {formatAddress(walletAddress)}
-              </p>
-            </div>
-          </div>
+            </Card>
+          )}
           
-          {/* User Profile Section */}
-          <div className="mb-8">
-            {/* Profile Avatar */}
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center overflow-hidden">
-              {pfpUrl ? (
-                <img 
-                  src={pfpUrl} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover rounded-full"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center">
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                </div>
-              )}
-            </div>
-            
-            {/* Profile Info */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                {displayName}
-              </h2>
-              <p className="text-gray-500">
-                {username.startsWith('@') ? username : `@${username}`}
-              </p>
-            </div>
-          </div>
-          
-
-          {/* Add Miniapp Button */}
-          <div className="mb-6">
-            <button
-              onClick={async () => {
-                if (isAddingMiniApp) return;
-
-                setIsAddingMiniApp(true);
-                setAddMiniAppMessage(null);
-
-                try {
-                  const result = await sdk.actions.addMiniApp();
-                  if (result && 'added' in result && result.added) {
-                    setAddMiniAppMessage("✅ Miniapp added successfully!");
-                  } else {
-                    setAddMiniAppMessage("ℹ️ Miniapp was not added (user declined or already exists)");
-                  }
-                } catch (error: any) {
-                  console.error('Add miniapp error:', error);
-                  if (error?.message?.includes('domain')) {
-                    setAddMiniAppMessage("⚠️ This miniapp can only be added from its official domain");
-                  } else {
-                    setAddMiniAppMessage("❌ Failed to add miniapp. Please try again.");
-                  }
-                } finally {
-                  setIsAddingMiniApp(false);
-                }
-              }}
-              disabled={isAddingMiniApp}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+          {/* Quick Actions */}
+          <div className="flex flex-col gap-4 mb-8">
+            <Button
+              onClick={() => router.push('/pools')}
+              className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold py-6 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105"
             >
-              {isAddingMiniApp ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <span>📱</span>
-                  Add Miniapp
-                </>
-              )}
-            </button>
+              <Users className="w-5 h-5 mr-2" />
+              Join a Game
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
 
-            {/* Add Miniapp Status Message */}
-            {addMiniAppMessage && (
-              <div className="mt-3 p-3 bg-white/30 backdrop-blur-sm rounded-lg">
-                <p className="text-sm text-gray-700">{addMiniAppMessage}</p>
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                onClick={() => router.push('/dashboard')}
+                variant="outline"
+                className="border-2 border-gray-600 hover:border-yellow-500 text-gray-300 hover:text-yellow-500 py-4 px-6 rounded-lg transition-all duration-300"
+              >
+                <Coins className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
+
+              <Button
+                onClick={() => router.push('/stake')}
+                variant="outline"
+                className="border-2 border-gray-600 hover:border-yellow-500 text-gray-300 hover:text-yellow-500 py-4 px-6 rounded-lg transition-all duration-300"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Stake
+              </Button>
+            </div>
           </div>
+          
+
         </div>
       </section>
     </main>
