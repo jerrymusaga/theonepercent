@@ -74,7 +74,8 @@ const JoinPoolModal = ({
         entryFee: entryFee
       });
       success("Joining pool...", "Your transaction is being processed.");
-      onClose();
+      // Don't close modal immediately - let the loading state show
+      // Modal will close when user manually closes it or when transaction completes
     } catch (err) {
       console.error("Join pool error:", err);
       error("Failed to join", "Could not join the pool. Please try again.");
@@ -121,7 +122,7 @@ const JoinPoolModal = ({
             disabled={isJoining}
             className="flex-1"
           >
-            Cancel
+            {isJoining ? "Processing..." : "Cancel"}
           </Button>
           <Button
             onClick={handleJoin}
@@ -152,6 +153,9 @@ export default function PoolDetailPage() {
   // Wallet and balance
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
+
+  // Join pool state for loading indication
+  const { isPending: isJoining } = useJoinPool();
 
   // Farcaster context for usernames
   const { context } = useMiniApp();
@@ -652,11 +656,21 @@ export default function PoolDetailPage() {
             ) : canJoin ? (
               <Button
                 onClick={() => setShowJoinModal(true)}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                disabled={isJoining}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
                 size="lg"
               >
-                <Play className="w-4 h-4 mr-2" />
-                Join Game ({pool.entryFee} CELO)
+                {isJoining ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Joining...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Join Game ({pool.entryFee} CELO)
+                  </>
+                )}
               </Button>
             ) : pool.status === PoolStatus.ACTIVE ? (
               <Button
