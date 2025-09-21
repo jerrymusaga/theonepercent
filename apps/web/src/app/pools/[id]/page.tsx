@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAccount, useBalance } from "wagmi";
 import { formatEther } from "viem";
+import { useMiniApp } from "@/contexts/miniapp-context";
 import {
   ArrowLeft,
   Users,
@@ -151,6 +152,48 @@ export default function PoolDetailPage() {
   // Wallet and balance
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
+
+  // Farcaster context for usernames
+  const { context } = useMiniApp();
+  const currentUser = context?.user;
+
+  // Helper function to get display name for a player address
+  const getPlayerDisplayName = (playerAddress: `0x${string}`) => {
+    // Check if this address belongs to the current Farcaster user
+    const userAddresses = [
+      currentUser?.custody,
+      ...(currentUser?.verifications || []),
+      address // Also check the connected wallet address
+    ].filter(Boolean).map(addr => addr?.toLowerCase());
+
+    const isCurrentUser = userAddresses.some(userAddr =>
+      userAddr === playerAddress.toLowerCase()
+    );
+
+    if (isCurrentUser && currentUser) {
+      // Return Farcaster username or display name
+      if (currentUser.username) return `@${currentUser.username}`;
+      if (currentUser.displayName) return currentUser.displayName;
+    }
+
+    // Fallback to formatted wallet address
+    return formatAddress(playerAddress);
+  };
+
+  // Helper function to get player label (You vs Player)
+  const getPlayerLabel = (playerAddress: `0x${string}`) => {
+    const userAddresses = [
+      currentUser?.custody,
+      ...(currentUser?.verifications || []),
+      address
+    ].filter(Boolean).map(addr => addr?.toLowerCase());
+
+    const isCurrentUser = userAddresses.some(userAddr =>
+      userAddr === playerAddress.toLowerCase()
+    );
+
+    return isCurrentUser ? 'You' : 'Player';
+  };
 
   const poolId = params?.id as string;
 
@@ -487,9 +530,9 @@ export default function PoolDetailPage() {
                           {playerAddress.slice(2, 4).toUpperCase()}
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{formatAddress(playerAddress)}</p>
+                          <p className="text-sm font-medium">{getPlayerDisplayName(playerAddress)}</p>
                           <p className="text-xs text-gray-500">
-                            {playerAddress === address ? 'You' : 'Player'}
+                            {getPlayerLabel(playerAddress)}
                           </p>
                         </div>
                       </div>
