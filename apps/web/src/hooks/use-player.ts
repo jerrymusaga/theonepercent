@@ -256,9 +256,9 @@ export function usePlayerStats(address?: `0x${string}`) {
 }
 
 /**
- * Hook for claiming prize from a completed pool
+ * Hook for claiming prize from a completed pool (player version)
  */
-export function useClaimPrize() {
+export function usePlayerClaimPrize() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
@@ -268,7 +268,7 @@ export function useClaimPrize() {
     hash,
   });
 
-  const claimPrize = useMutation({
+  const claimPlayerPrize = useMutation({
     mutationFn: async (poolId: number) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
 
@@ -289,12 +289,12 @@ export function useClaimPrize() {
   });
 
   return {
-    claimPrize: claimPrize.mutate,
-    claimPrizeAsync: claimPrize.mutateAsync,
-    isPending: isPending || claimPrize.isPending,
+    claimPrize: claimPlayerPrize.mutate,
+    claimPrizeAsync: claimPlayerPrize.mutateAsync,
+    isPending: isPending || claimPlayerPrize.isPending,
     isConfirming,
     isConfirmed,
-    error: error || claimPrize.error,
+    error: error || claimPlayerPrize.error,
     hash,
   };
 }

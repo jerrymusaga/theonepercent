@@ -4,6 +4,7 @@ export * from './use-staking';
 export * from './use-pools';
 export * from './use-game';
 export * from './use-events';
+export * from './use-player';
 
 // Re-export commonly used hooks for convenience
 export { 
@@ -47,5 +48,16 @@ export {
   useWatchGameCompleted,
   useGameEventWatchers
 } from './use-events';
+
+export {
+  usePlayerJoinedPools,
+  usePlayerPoolsDetails,
+  usePlayerPrizes,
+  useHasJoinedPools,
+  usePlayerStats,
+  usePlayerClaimPrize,
+  useUserParticipation,
+  usePlayerGameResults
+} from './use-player';
 
 export { useJoinedPlayers } from './use-joined-players';
