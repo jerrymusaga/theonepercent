@@ -435,29 +435,50 @@ export default function CreatorDashboard() {
   const { activatePool } = useActivatePool();
 
   // Unstaking hooks
-  const { unstake, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
+  const { unstake, unstakeAsync, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
   const stakingStats = useStakingStats();
 
   // Handle unstaking success
   useEffect(() => {
     if (isUnstakeConfirmed) {
+      const stakedAmount = creatorInfo ? parseFloat(formatEther(creatorInfo.stakedAmount)) : 0;
+      const rewardsAmount = totalEarnings ? parseFloat(formatEther(totalEarnings)) : 0;
+      const totalWithdrawn = stakedAmount + rewardsAmount;
+
       toast({
-        title: "Unstaking completed! 🎉",
-        description: "Your stake and rewards have been withdrawn to your wallet.",
+        title: "🎉 Unstaking Successful!",
+        description: `${totalWithdrawn.toFixed(4)} CELO has been withdrawn to your wallet. Page will refresh automatically.`,
         type: "success"
       });
-      // Refresh all data after successful unstaking
-      refetchCreator();
-      refetchPools();
+
+      // Auto-refresh the page after a short delay to show the toast
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
     }
-  }, [isUnstakeConfirmed, toast, refetchCreator, refetchPools]);
+  }, [isUnstakeConfirmed, toast, creatorInfo, totalEarnings]);
 
   // Handle unstaking errors
   useEffect(() => {
     if (unstakeError) {
+      console.error('Unstaking error details:', unstakeError);
+
+      let errorMessage = "Transaction failed. Please try again.";
+
+      // Provide more specific error messages
+      if (unstakeError.message?.includes("User rejected")) {
+        errorMessage = "Transaction was cancelled by user.";
+      } else if (unstakeError.message?.includes("insufficient funds")) {
+        errorMessage = "Insufficient funds for gas fees.";
+      } else if (unstakeError.message?.includes("execution reverted")) {
+        errorMessage = "Transaction failed. You may not be eligible to unstake yet.";
+      } else if (unstakeError.message) {
+        errorMessage = unstakeError.message;
+      }
+
       toast({
-        title: "Unstaking failed",
-        description: unstakeError.message || "Transaction failed. Please try again.",
+        title: "❌ Unstaking Failed",
+        description: errorMessage,
         type: "error"
       });
     }
@@ -603,28 +624,39 @@ export default function CreatorDashboard() {
     try {
       setShowUnstakeConfirm(false);
 
-      // Check if all pools are completed before unstaking
-      if (!stakingStats.canUnstake) {
-        toast({
-          title: "Cannot unstake yet",
-          description: "You must complete or abandon all your pools before unstaking. Early unstaking incurs a 30% penalty.",
-          type: "warning"
-        });
-        return;
-      }
+      // Calculate withdrawal amount for the message
+      const stakedAmount = creatorInfo ? parseFloat(formatEther(creatorInfo.stakedAmount)) : 0;
+      const rewardsAmount = totalEarnings ? parseFloat(formatEther(totalEarnings)) : 0;
+      const withdrawalAmount = stakingStats.canUnstake
+        ? stakedAmount + rewardsAmount
+        : (stakedAmount * 0.7) + rewardsAmount; // Apply 30% penalty if early unstaking
 
-      await unstake();
+      await unstakeAsync();
 
       toast({
-        title: "Unstaking initiated",
-        description: "Your unstaking transaction is being processed...",
+        title: "🔄 Transaction Submitted",
+        description: `Unstaking ${withdrawalAmount.toFixed(4)} CELO. Please wait for blockchain confirmation...`,
         type: "info"
       });
     } catch (error: any) {
       console.error('Unstaking error:', error);
+
+      let errorMessage = "Failed to unstake. Please try again.";
+
+      // Provide more specific error messages for submission errors too
+      if (error?.message?.includes("User rejected")) {
+        errorMessage = "Transaction was cancelled by user.";
+      } else if (error?.message?.includes("insufficient funds")) {
+        errorMessage = "Insufficient funds for gas fees.";
+      } else if (error?.message?.includes("execution reverted")) {
+        errorMessage = "Transaction failed. You may not be eligible to unstake yet.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
       toast({
-        title: "Unstaking failed",
-        description: error?.message || "Failed to unstake. Please try again.",
+        title: "❌ Transaction Failed",
+        description: errorMessage,
         type: "error"
       });
     }
@@ -683,11 +715,17 @@ export default function CreatorDashboard() {
               variant="outline"
               onClick={handleUnstake}
               disabled={isUnstaking || isUnstakeConfirming || !creatorInfo?.hasActiveStake}
+              className={isUnstaking || isUnstakeConfirming ? "bg-blue-50 border-blue-200" : ""}
             >
-              {isUnstaking || isUnstakeConfirming ? (
+              {isUnstaking ? (
                 <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  {isUnstaking ? "Submitting..." : "Confirming..."}
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin text-blue-600" />
+                  <span className="text-blue-600">Submitting Transaction...</span>
+                </>
+              ) : isUnstakeConfirming ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin text-orange-600" />
+                  <span className="text-orange-600">Awaiting Confirmation...</span>
                 </>
               ) : (
                 <>
