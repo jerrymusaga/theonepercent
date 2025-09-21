@@ -713,11 +713,23 @@ export default function UniversalDashboard() {
   };
 
   // Loading state
-  const isLoading = creatorLoading || earningsLoading || poolsLoading;
+  const isLoading = participationLoading || (isCreator && (creatorLoading || earningsLoading || poolsLoading)) || (isPlayer && (joinedPoolsLoading || prizesLoading));
 
   // Calculate stats from real data
   const stats = calculateStats(activePools);
   const celoBalance = balance ? formatEther(balance.value) : "0";
+
+  // Determine dashboard title and icon based on user type
+  const getDashboardTitle = () => {
+    switch (userType) {
+      case 'both': return { title: 'Creator & Player Dashboard', icon: <Crown className="w-8 h-8 text-yellow-600" /> };
+      case 'creator': return { title: 'Creator Dashboard', icon: <Crown className="w-8 h-8 text-yellow-600" /> };
+      case 'player': return { title: 'Player Dashboard', icon: <Users className="w-8 h-8 text-blue-600" /> };
+      default: return { title: 'Dashboard', icon: <Users className="w-8 h-8 text-gray-600" /> };
+    }
+  };
+
+  const { title: dashboardTitle, icon: dashboardIcon } = getDashboardTitle();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
@@ -730,13 +742,18 @@ export default function UniversalDashboard() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Crown className="w-8 h-8 text-yellow-600" />
-                Creator Dashboard
+                {dashboardIcon}
+                {dashboardTitle}
               </h1>
               <p className="text-gray-600">
                 {address ? formatAddress(address) : "Not connected"} •
-                Balance: {parseFloat(celoBalance).toFixed(4)} CELO •
-                Staked: {creatorInfo?.stakedAmount ? formatEther(creatorInfo.stakedAmount) : "0"} CELO
+                Balance: {parseFloat(celoBalance).toFixed(4)} CELO
+                {isCreator && (
+                  <>
+                    {" • "}
+                    Staked: {creatorInfo?.stakedAmount ? formatEther(creatorInfo.stakedAmount) : "0"} CELO
+                  </>
+                )}
               </p>
             </div>
           </div>
