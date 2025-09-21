@@ -665,6 +665,22 @@ export default function UniversalDashboard() {
     }
   }, [isUnstakeConfirmed, toast, creatorInfo, totalEarnings]);
 
+  // Handle prize claiming success
+  useEffect(() => {
+    if (isClaimConfirmed) {
+      toast({
+        title: "🎉 Prize Claimed!",
+        description: "Your prize has been successfully claimed and sent to your wallet.",
+        type: "success"
+      });
+
+      // Refresh player data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  }, [isClaimConfirmed, toast]);
+
   // Handle unstaking errors
   useEffect(() => {
     if (unstakeError) {
@@ -822,6 +838,24 @@ export default function UniversalDashboard() {
       return;
     }
     router.push('/create-pool');
+  };
+
+  const handleClaimPrize = async (poolId: number) => {
+    try {
+      await claimPrize(poolId);
+      toast({
+        title: "Prize Claiming",
+        description: `Claiming prize from pool #${poolId}. Please confirm the transaction.`,
+        type: "info"
+      });
+    } catch (error: any) {
+      console.error('Prize claiming error:', error);
+      toast({
+        title: "Claim Failed",
+        description: error?.message || "Failed to claim prize. Please try again.",
+        type: "error"
+      });
+    }
   };
 
   const handleUnstake = () => {
@@ -1012,14 +1046,15 @@ export default function UniversalDashboard() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Active pools */}
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Play className="w-5 h-5 text-green-600" />
-                Active Pools ({activePools.length})
-              </h2>
-            </div>
+          {/* Creator Pools - Show if user is a creator */}
+          {isCreator && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-purple-600" />
+                  My Created Pools ({activePools.length})
+                </h2>
+              </div>
             
             <div className="space-y-4">
               {isLoading ? (
@@ -1067,39 +1102,161 @@ export default function UniversalDashboard() {
                   </Button>
                 </Card>
               )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Recent pools */}
+          {/* Player Pools - Show if user is a player */}
+          {isPlayer && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  Pools I Joined ({joinedPools.length})
+                </h2>
+              </div>
+
+              <div className="space-y-4">
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <Card key={i} className="p-6">
+                        <div className="animate-pulse">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                            <div className="space-y-2 flex-1">
+                              <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="h-16 bg-gray-200 rounded"></div>
+                            <div className="h-16 bg-gray-200 rounded"></div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : joinedPools.length > 0 ? (
+                  joinedPools.map((pool) => (
+                    <PlayerPoolCard
+                      key={pool.id}
+                      pool={pool}
+                      onClaimPrize={handleClaimPrize}
+                      onViewPool={handleViewPool}
+                    />
+                  ))
+                ) : (
+                  <Card className="p-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Users className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No pools joined yet</h3>
+                    <p className="text-gray-500 mb-4">Join a pool to start playing and winning prizes.</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => window.location.href = '/pools'}
+                    >
+                      Browse Available Pools
+                    </Button>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Claimable Prizes or Recent Activity */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
-                Recent Pools
-              </h2>
-            </div>
-            
-            <div className="space-y-4">
-              <Card className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Clock className="w-8 h-8 text-gray-400" />
+            {isPlayer && claimablePrizes.length > 0 ? (
+              // Show claimable prizes if user has any
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-green-600" />
+                    Claimable Prizes ({claimablePrizes.length})
+                  </h2>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Pool History Coming Soon</h3>
-                <p className="text-gray-500 mb-4">Historical pool data and analytics will be available in a future update.</p>
-                <Button variant="outline" disabled>
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  View Pool History
-                </Button>
-              </Card>
-            </div>
 
-            {/* View all pools */}
-            <div className="mt-6 text-center">
-              <Button variant="outline">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                View All Pool History
-              </Button>
-            </div>
+                <div className="space-y-4">
+                  {claimablePrizes.map((prize) => (
+                    <Card key={prize.poolId} className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                            <Trophy className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-green-900">Pool #{prize.poolId} Winner!</p>
+                            <p className="text-sm text-green-700">Prize: {prize.formattedAmount} CELO</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => handleClaimPrize(prize.poolId)}
+                          disabled={isClaimingPrize}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {isClaimingPrize ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              Claiming...
+                            </>
+                          ) : (
+                            <>
+                              <Trophy className="w-4 h-4 mr-2" />
+                              Claim Prize
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <div className="p-3 bg-white/50 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          Total claimable: <span className="font-bold">{totalClaimableFormatted} CELO</span>
+                        </p>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            ) : (
+              // Show recent activity or creator history
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                    {isCreator ? 'Recent Pools' : 'Activity History'}
+                  </h2>
+                </div>
+            
+                <div className="space-y-4">
+                  <Card className="p-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Clock className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      {isCreator ? 'Pool History Coming Soon' : 'Activity History Coming Soon'}
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      {isCreator
+                        ? 'Historical pool data and analytics will be available in a future update.'
+                        : 'Your gaming history and performance analytics will be available soon.'
+                      }
+                    </p>
+                    <Button variant="outline" disabled>
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      {isCreator ? 'View Pool History' : 'View Game History'}
+                    </Button>
+                  </Card>
+                </div>
+
+                {/* View all history */}
+                <div className="mt-6 text-center">
+                  <Button variant="outline">
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    {isCreator ? 'View All Pool History' : 'View All Activity'}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
