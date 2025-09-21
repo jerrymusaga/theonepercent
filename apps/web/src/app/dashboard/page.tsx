@@ -605,8 +605,9 @@ export default function UniversalDashboard() {
     return <WalletConnectionRequired />;
   }
 
-  if (!creatorLoading && !creatorInfo?.hasActiveStake) {
-    return <StakingRequired error={creatorError} />;
+  // Check if user has any participation (creator or player)
+  if (!participationLoading && !hasParticipation) {
+    return <NoParticipationPrompt error={creatorError} />;
   }
 
   const handleRefresh = async () => {
