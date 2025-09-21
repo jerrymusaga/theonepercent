@@ -47,3 +47,5 @@ export {
   useWatchGameCompleted,
   useGameEventWatchers
 } from './use-events';
+
+export { useJoinedPlayers } from './use-joined-players';

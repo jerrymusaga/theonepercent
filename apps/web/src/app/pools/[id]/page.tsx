@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { usePoolInfo, useJoinPool, useCreatorInfo, useRemainingPlayers } from "@/hooks";
+import { usePoolInfo, useJoinPool, useCreatorInfo, useRemainingPlayers, useJoinedPlayers } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
 
@@ -174,6 +174,13 @@ export default function PoolDetailPage() {
     isLoading: isLoadingPlayers
   } = useRemainingPlayers(poolId ? parseInt(poolId) : 0);
 
+  // Fetch joined players using events (works for all pool states)
+  const {
+    joinedPlayers,
+    isLoading: isLoadingJoinedPlayers,
+    count: joinedPlayersCount
+  } = useJoinedPlayers(poolId ? parseInt(poolId) : 0);
+
   // Loading state
   if (isLoadingPool || isLoadingCreator) {
     return (
@@ -242,6 +249,20 @@ export default function PoolDetailPage() {
 
   const isCreator = address?.toLowerCase() === pool.creator.toLowerCase();
   const hasEnoughBalance = balance ? parseFloat(formatEther(balance.value)) >= parseFloat(pool.entryFee) : false;
+  // Debug logs to understand the issue
+  console.log('Pool Debug Info:', {
+    poolId,
+    poolStatus: pool.status,
+    currentPlayers: pool.currentPlayers,
+    maxPlayers: pool.maxPlayers,
+    playerAddresses,
+    playerAddressesLength: playerAddresses?.length,
+    isLoadingPlayers,
+    joinedPlayers,
+    joinedPlayersCount,
+    isLoadingJoinedPlayers
+  });
+
   const canJoin = pool.status === PoolStatus.OPENED && pool.currentPlayers < pool.maxPlayers && isConnected && !isCreator && hasEnoughBalance;
   const canActivate = pool.currentPlayers >= Math.ceil(pool.maxPlayers / 2);
   const fillPercentage = (pool.currentPlayers / pool.maxPlayers) * 100;
@@ -436,15 +457,15 @@ export default function PoolDetailPage() {
           <Card className="p-6">
             <h3 className="text-lg font-bold mb-4">Players ({pool.currentPlayers}/{pool.maxPlayers})</h3>
             <div className="space-y-3">
-              {isLoadingPlayers ? (
+              {isLoadingPlayers || isLoadingJoinedPlayers ? (
                 <div className="text-center py-4">
                   <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
                   <p className="text-sm text-gray-500">Loading players...</p>
                 </div>
-              ) : playerAddresses && playerAddresses.length > 0 ? (
+              ) : joinedPlayers && joinedPlayers.length > 0 ? (
                 <>
-                  {/* Show actual players */}
-                  {playerAddresses.map((playerAddress) => {
+                  {/* Show actual players from events */}
+                  {joinedPlayers.map((playerAddress) => {
                     const generateAvatar = (addr: string) => {
                       const colors = [
                         'from-red-400 to-red-600',
@@ -474,6 +495,33 @@ export default function PoolDetailPage() {
                       </div>
                     );
                   })}
+
+                  {/* Empty slots */}
+                  {Array.from({ length: pool.maxPlayers - joinedPlayers.length }, (_, index) => (
+                    <div key={`empty-${index}`} className="flex items-center gap-3 opacity-50">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <Users className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-400">Waiting for player...</p>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : pool.currentPlayers > 0 ? (
+                <>
+                  {/* Show placeholder players when we don't have addresses but know count */}
+                  {Array.from({ length: pool.currentPlayers }, (_, index) => (
+                    <div key={`joined-${index}`} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                        ?
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Player #{index + 1}</p>
+                        <p className="text-xs text-gray-500">Joined</p>
+                      </div>
+                    </div>
+                  ))}
 
                   {/* Empty slots */}
                   {Array.from({ length: pool.maxPlayers - pool.currentPlayers }, (_, index) => (
