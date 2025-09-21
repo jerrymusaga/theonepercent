@@ -33,7 +33,9 @@ import {
   useWatchPoolCreated,
   useWatchPoolActivated,
   useWatchGameCompleted,
-  useWatchPlayerJoined
+  useWatchPlayerJoined,
+  useUnstakeAndClaim,
+  useStakingStats
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
@@ -416,6 +418,7 @@ export default function CreatorDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
+  const [showUnstakeConfirm, setShowUnstakeConfirm] = useState(false);
 
   // Wallet connection check
   const { address, isConnected } = useAccount();
@@ -423,13 +426,17 @@ export default function CreatorDashboard() {
 
   // Contract hooks with error handling
   const { data: creatorInfo, isLoading: creatorLoading, refetch: refetchCreator, error: creatorError } = useCreatorInfo();
-  const { data: totalEarnings, isLoading: earningsLoading, error: earningsError } = useCreatorReward();
-  const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools, hasError: poolsError } = useActivePools();
+  const { data: totalEarnings, isLoading: earningsLoading } = useCreatorReward();
+  const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools } = useActivePools();
   const activePools = activePoolsData
     .filter(pool => pool.data) // Filter out pools with no data first
     .map(pool => ({ id: pool.id, ...pool.data }))
     .filter(pool => pool.status !== undefined);
   const { activatePool } = useActivatePool();
+
+  // Unstaking hooks
+  const { unstake, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
+  const stakingStats = useStakingStats();
 
   // Real-time event watching
   useWatchPoolCreated((poolId, creator, entryFee, maxPlayers) => {
