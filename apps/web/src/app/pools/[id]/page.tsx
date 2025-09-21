@@ -292,6 +292,22 @@ export default function PoolDetailPage() {
 
   const isCreator = address?.toLowerCase() === pool.creator.toLowerCase();
   const hasEnoughBalance = balance ? parseFloat(formatEther(balance.value)) >= parseFloat(pool.entryFee) : false;
+
+  // Check if current user has already joined the pool
+  const hasJoined = joinedPlayers && joinedPlayers.length > 0 ? joinedPlayers.some(playerAddress => {
+    const userAddresses = [
+      currentUser?.custody,
+      ...(currentUser?.verifications || []),
+      address
+    ].filter(Boolean).map(addr => addr?.toLowerCase());
+
+    return userAddresses.some(userAddr =>
+      userAddr === playerAddress.toLowerCase()
+    );
+  }) : false;
+
+  const canJoin = pool.status === PoolStatus.OPENED && pool.currentPlayers < pool.maxPlayers && isConnected && !isCreator && !hasJoined && hasEnoughBalance;
+
   // Debug logs to understand the issue
   console.log('Pool Debug Info:', {
     poolId,
@@ -303,10 +319,11 @@ export default function PoolDetailPage() {
     isLoadingPlayers,
     joinedPlayers,
     joinedPlayersCount,
-    isLoadingJoinedPlayers
+    isLoadingJoinedPlayers,
+    hasJoined,
+    canJoin,
+    isCreator
   });
-
-  const canJoin = pool.status === PoolStatus.OPENED && pool.currentPlayers < pool.maxPlayers && isConnected && !isCreator && hasEnoughBalance;
   const canActivate = pool.currentPlayers >= Math.ceil(pool.maxPlayers / 2);
   const fillPercentage = (pool.currentPlayers / pool.maxPlayers) * 100;
 
@@ -623,6 +640,14 @@ export default function PoolDetailPage() {
                 size="lg"
               >
                 👑 This is Your Pool
+              </Button>
+            ) : hasJoined && pool.status === PoolStatus.OPENED ? (
+              <Button
+                disabled
+                className="w-full bg-gradient-to-r from-green-500 to-green-600"
+                size="lg"
+              >
+                ✅ Already Joined - Wait for Activation
               </Button>
             ) : canJoin ? (
               <Button

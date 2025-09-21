@@ -12,8 +12,10 @@ import {
   useWatchPlayerJoined,
   useWatchPoolActivated,
   useWatchGameCompleted,
-  usePoolInfo
+  usePoolInfo,
+  useJoinedPlayers
 } from "@/hooks";
+import { useMiniApp } from "@/contexts/miniapp-context";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
 
@@ -117,9 +119,11 @@ interface PoolCardProps {
   status: PoolStatus;
   address?: `0x${string}`;
   balance?: bigint;
+  hasJoined?: boolean;
+  currentUser?: any;
 }
 
-const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prizePool, status, address, balance }: PoolCardProps) => {
+const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prizePool, status, address, balance, hasJoined = false, currentUser }: PoolCardProps) => {
   const { joinPool, isPending: isJoining, error: joinError } = useJoinPool();
   const { success, error } = useToast();
 
@@ -129,7 +133,7 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
   const prizePoolFormatted = formatEther(prizePool);
   const hasEnoughBalance = balance ? balance >= entryFee : false;
   const isCreator = address?.toLowerCase() === creator.toLowerCase();
-  const canJoin = address && hasEnoughBalance && status === PoolStatus.OPENED && currentPlayers < maxPlayers && !isCreator;
+  const canJoin = address && hasEnoughBalance && status === PoolStatus.OPENED && currentPlayers < maxPlayers && !isCreator && !hasJoined;
 
   const handleJoinPool = () => {
     if (!canJoin) return;
@@ -232,6 +236,15 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
           </div>
         )}
 
+        {/* Already joined notice */}
+        {hasJoined && status === PoolStatus.OPENED && !isCreator && (
+          <div className="mb-4 p-2 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-xs text-green-700">
+              ✅ You have already joined this pool. Wait for activation.
+            </p>
+          </div>
+        )}
+
         {/* Insufficient balance warning */}
         {address && !hasEnoughBalance && status === PoolStatus.OPENED && !isCreator && (
           <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-lg">
@@ -270,6 +283,8 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
                   "Connect Wallet to Join"
                 ) : isCreator ? (
                   "👑 Your Pool"
+                ) : hasJoined ? (
+                  "✅ Already Joined"
                 ) : !hasEnoughBalance ? (
                   "Insufficient Balance"
                 ) : (
@@ -311,6 +326,46 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
   );
 };
 
+// Wrapper component for PoolCard that handles joined status
+const PoolCardWithJoinedStatus = ({ pool, address, balance, currentUser }: {
+  pool: any;
+  address?: `0x${string}`;
+  balance?: bigint;
+  currentUser?: any;
+}) => {
+  // Get joined players for this specific pool
+  const { joinedPlayers } = useJoinedPlayers(pool.id);
+
+  // Check if current user has joined this pool
+  const hasJoined = joinedPlayers && joinedPlayers.length > 0 ? (() => {
+    const userAddresses = [
+      currentUser?.custody,
+      ...(currentUser?.verifications || []),
+      address
+    ].filter(Boolean).map(addr => addr?.toLowerCase());
+
+    return joinedPlayers.some(playerAddress =>
+      userAddresses.some(userAddr => userAddr === playerAddress.toLowerCase())
+    );
+  })() : false;
+
+  return (
+    <PoolCard
+      poolId={BigInt(pool.id)}
+      creator={pool.data.creator}
+      entryFee={pool.data.entryFee}
+      maxPlayers={pool.data.maxPlayers}
+      currentPlayers={pool.data.currentPlayers}
+      prizePool={pool.data.prizePool}
+      status={pool.data.status}
+      address={address}
+      balance={balance}
+      hasJoined={hasJoined}
+      currentUser={currentUser}
+    />
+  );
+};
+
 export default function PoolsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -319,6 +374,11 @@ export default function PoolsPage() {
   // Wallet hooks
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
+
+  // Farcaster context
+  const { context } = useMiniApp();
+  const currentUser = context?.user;
+
 
   // Contract hooks
   const {
@@ -535,17 +595,12 @@ export default function PoolsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredPools.map((pool: any) => (
           pool.data && (
-            <PoolCard
+            <PoolCardWithJoinedStatus
               key={pool.id.toString()}
-              poolId={BigInt(pool.id)}
-              creator={pool.data.creator}
-              entryFee={pool.data.entryFee}
-              maxPlayers={pool.data.maxPlayers}
-              currentPlayers={pool.data.currentPlayers}
-              prizePool={pool.data.prizePool}
-              status={pool.data.status}
+              pool={pool}
               address={address}
               balance={balance?.value}
+              currentUser={currentUser}
             />
           )
         ))}
