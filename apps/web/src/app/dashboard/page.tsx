@@ -868,17 +868,39 @@ export default function CreatorDashboard() {
                       <span className="text-sm font-medium text-gray-700">Creator Rewards:</span>
                       <span className="font-bold text-green-600">{totalEarnings ? formatEther(totalEarnings) : "0"} CELO</span>
                     </div>
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-900">Total Withdrawal:</span>
-                        <span className="font-bold text-lg">
-                          {(creatorInfo && totalEarnings)
-                            ? (parseFloat(formatEther(creatorInfo.stakedAmount)) + parseFloat(formatEther(totalEarnings))).toFixed(4)
-                            : "0"
-                          } CELO
-                        </span>
+                    {!stakingStats.canUnstake && (
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Penalty (30%):</span>
+                          <span className="font-bold text-red-600">
+                            -{creatorInfo ? (parseFloat(formatEther(creatorInfo.stakedAmount)) * 0.3).toFixed(4) : "0"} CELO
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">Total Withdrawal:</span>
+                          <span className="font-bold text-lg">
+                            {(creatorInfo && totalEarnings)
+                              ? (parseFloat(formatEther(creatorInfo.stakedAmount)) * 0.7 + parseFloat(formatEther(totalEarnings))).toFixed(4)
+                              : "0"
+                            } CELO
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {stakingStats.canUnstake && (
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">Total Withdrawal:</span>
+                          <span className="font-bold text-lg text-green-600">
+                            {(creatorInfo && totalEarnings)
+                              ? (parseFloat(formatEther(creatorInfo.stakedAmount)) + parseFloat(formatEther(totalEarnings))).toFixed(4)
+                              : "0"
+                            } CELO
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {!stakingStats.canUnstake && (
