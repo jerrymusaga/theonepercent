@@ -33,7 +33,9 @@ import {
   useWatchPoolCreated,
   useWatchPoolActivated,
   useWatchGameCompleted,
-  useWatchPlayerJoined
+  useWatchPlayerJoined,
+  useUnstakeAndClaim,
+  useStakingStats
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
@@ -416,6 +418,7 @@ export default function CreatorDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
+  const [showUnstakeConfirm, setShowUnstakeConfirm] = useState(false);
 
   // Wallet connection check
   const { address, isConnected } = useAccount();
@@ -423,16 +426,66 @@ export default function CreatorDashboard() {
 
   // Contract hooks with error handling
   const { data: creatorInfo, isLoading: creatorLoading, refetch: refetchCreator, error: creatorError } = useCreatorInfo();
-  const { data: totalEarnings, isLoading: earningsLoading, error: earningsError } = useCreatorReward();
-  const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools, hasError: poolsError } = useActivePools();
+  const { data: totalEarnings, isLoading: earningsLoading } = useCreatorReward();
+  const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools } = useActivePools();
   const activePools = activePoolsData
     .filter(pool => pool.data) // Filter out pools with no data first
     .map(pool => ({ id: pool.id, ...pool.data }))
     .filter(pool => pool.status !== undefined);
   const { activatePool } = useActivatePool();
 
+  // Unstaking hooks
+  const { unstake, unstakeAsync, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
+  const stakingStats = useStakingStats();
+
+  // Handle unstaking success
+  useEffect(() => {
+    if (isUnstakeConfirmed) {
+      const stakedAmount = creatorInfo ? parseFloat(formatEther(creatorInfo.stakedAmount)) : 0;
+      const rewardsAmount = totalEarnings ? parseFloat(formatEther(totalEarnings)) : 0;
+      const totalWithdrawn = stakedAmount + rewardsAmount;
+
+      toast({
+        title: "🎉 Unstaking Successful!",
+        description: `${totalWithdrawn.toFixed(4)} CELO has been withdrawn to your wallet. Page will refresh automatically.`,
+        type: "success"
+      });
+
+      // Auto-refresh the page after a short delay to show the toast
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    }
+  }, [isUnstakeConfirmed, toast, creatorInfo, totalEarnings]);
+
+  // Handle unstaking errors
+  useEffect(() => {
+    if (unstakeError) {
+      console.error('Unstaking error details:', unstakeError);
+
+      let errorMessage = "Transaction failed. Please try again.";
+
+      // Provide more specific error messages
+      if (unstakeError.message?.includes("User rejected")) {
+        errorMessage = "Transaction was cancelled by user.";
+      } else if (unstakeError.message?.includes("insufficient funds")) {
+        errorMessage = "Insufficient funds for gas fees.";
+      } else if (unstakeError.message?.includes("execution reverted")) {
+        errorMessage = "Transaction failed. You may not be eligible to unstake yet.";
+      } else if (unstakeError.message) {
+        errorMessage = unstakeError.message;
+      }
+
+      toast({
+        title: "❌ Unstaking Failed",
+        description: errorMessage,
+        type: "error"
+      });
+    }
+  }, [unstakeError, toast]);
+
   // Real-time event watching
-  useWatchPoolCreated((poolId, creator, entryFee, maxPlayers) => {
+  useWatchPoolCreated((poolId, creator) => {
     if (creator === address) {
       toast({
         title: "Pool Created!",
@@ -564,11 +617,49 @@ export default function CreatorDashboard() {
   };
 
   const handleUnstake = () => {
-    toast({
-      title: "Unstaking coming soon",
-      description: "Unstaking functionality will be available in a future update.",
-      type: "info"
-    });
+    setShowUnstakeConfirm(true);
+  };
+
+  const confirmUnstake = async () => {
+    try {
+      setShowUnstakeConfirm(false);
+
+      // Calculate withdrawal amount for the message
+      const stakedAmount = creatorInfo ? parseFloat(formatEther(creatorInfo.stakedAmount)) : 0;
+      const rewardsAmount = totalEarnings ? parseFloat(formatEther(totalEarnings)) : 0;
+      const withdrawalAmount = stakingStats.canUnstake
+        ? stakedAmount + rewardsAmount
+        : (stakedAmount * 0.7) + rewardsAmount; // Apply 30% penalty if early unstaking
+
+      await unstakeAsync();
+
+      toast({
+        title: "🔄 Transaction Submitted",
+        description: `Unstaking ${withdrawalAmount.toFixed(4)} CELO. Please wait for blockchain confirmation...`,
+        type: "info"
+      });
+    } catch (error: any) {
+      console.error('Unstaking error:', error);
+
+      let errorMessage = "Failed to unstake. Please try again.";
+
+      // Provide more specific error messages for submission errors too
+      if (error?.message?.includes("User rejected")) {
+        errorMessage = "Transaction was cancelled by user.";
+      } else if (error?.message?.includes("insufficient funds")) {
+        errorMessage = "Insufficient funds for gas fees.";
+      } else if (error?.message?.includes("execution reverted")) {
+        errorMessage = "Transaction failed. You may not be eligible to unstake yet.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "❌ Transaction Failed",
+        description: errorMessage,
+        type: "error"
+      });
+    }
   };
 
   // Loading state
@@ -623,8 +714,25 @@ export default function CreatorDashboard() {
             <Button
               variant="outline"
               onClick={handleUnstake}
+              disabled={isUnstaking || isUnstakeConfirming || !creatorInfo?.hasActiveStake}
+              className={isUnstaking || isUnstakeConfirming ? "bg-blue-50 border-blue-200" : ""}
             >
-              Unstake & Withdraw
+              {isUnstaking ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin text-blue-600" />
+                  <span className="text-blue-600">Submitting Transaction...</span>
+                </>
+              ) : isUnstakeConfirming ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin text-orange-600" />
+                  <span className="text-orange-600">Awaiting Confirmation...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Unstake & Withdraw
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -772,6 +880,122 @@ export default function CreatorDashboard() {
             </div>
           </div>
         </Card>
+
+        {/* Unstaking Confirmation Dialog */}
+        {showUnstakeConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg">
+              <div className="p-6">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="w-8 h-8 text-orange-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Unstaking</h3>
+                  <p className="text-gray-600">
+                    You are about to unstake your CELO and withdraw all rewards.
+                  </p>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">Staked Amount:</span>
+                      <span className="font-bold">{creatorInfo ? formatEther(creatorInfo.stakedAmount) : "0"} CELO</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">Creator Rewards:</span>
+                      <span className="font-bold text-green-600">{totalEarnings ? formatEther(totalEarnings) : "0"} CELO</span>
+                    </div>
+
+                    {!stakingStats.canUnstake && (
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Penalty (30%):</span>
+                          <span className="font-bold text-red-600">
+                            -{creatorInfo ? (parseFloat(formatEther(creatorInfo.stakedAmount)) * 0.3).toFixed(4) : "0"} CELO
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">Total Withdrawal:</span>
+                          <span className="font-bold text-lg">
+                            {(() => {
+                              const stakedAmount = creatorInfo ? parseFloat(formatEther(creatorInfo.stakedAmount)) : 0;
+                              const rewardsAmount = totalEarnings ? parseFloat(formatEther(totalEarnings)) : 0;
+                              const penaltyAmount = stakedAmount * 0.3;
+                              const finalAmount = (stakedAmount - penaltyAmount) + rewardsAmount;
+                              return finalAmount.toFixed(4);
+                            })()} CELO
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {stakingStats.canUnstake && (
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">Total Withdrawal:</span>
+                          <span className="font-bold text-lg text-green-600">
+                            {(() => {
+                              const stakedAmount = creatorInfo ? parseFloat(formatEther(creatorInfo.stakedAmount)) : 0;
+                              const rewardsAmount = totalEarnings ? parseFloat(formatEther(totalEarnings)) : 0;
+                              const finalAmount = stakedAmount + rewardsAmount;
+                              return finalAmount.toFixed(4);
+                            })()} CELO
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!stakingStats.canUnstake && (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-orange-800 mb-1">Early Unstaking Penalty</p>
+                          <p className="text-sm text-orange-700">
+                            You have active pools that are not completed. Early unstaking will incur a 30% penalty
+                            and automatically abandon your incomplete pools, refunding players.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {stakingStats.canUnstake && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="font-medium text-green-800">No Penalty</p>
+                          <p className="text-sm text-green-700">
+                            All your pools are completed. You can unstake without any penalties.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowUnstakeConfirm(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-orange-600 hover:bg-orange-700"
+                    onClick={confirmUnstake}
+                  >
+                    {stakingStats.canUnstake ? "Confirm Unstake" : "Unstake with Penalty"}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
