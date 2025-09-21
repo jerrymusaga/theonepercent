@@ -35,7 +35,13 @@ import {
   useWatchGameCompleted,
   useWatchPlayerJoined,
   useUnstakeAndClaim,
-  useStakingStats
+  useStakingStats,
+  useUserParticipation,
+  usePlayerPoolsDetails,
+  usePlayerPrizes,
+  usePlayerStats,
+  usePlayerClaimPrize,
+  useHasJoinedPools
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
