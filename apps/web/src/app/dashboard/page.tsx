@@ -87,16 +87,52 @@ const WalletConnectionRequired = () => (
   </div>
 );
 
-const StakingRequired = ({ error }: { error?: any }) => (
+const NoParticipationPrompt = ({ error }: { error?: any }) => (
   <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
-    <Card className="p-8 text-center max-w-md mx-4">
-      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Crown className="w-8 h-8 text-purple-600" />
+    <Card className="p-8 text-center max-w-lg mx-4">
+      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Users className="w-8 h-8 text-blue-600" />
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Become a Creator</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to The One Percent</h2>
       <p className="text-gray-600 mb-6">
-        You need to stake CELO first to access your creator dashboard and start creating game pools.
+        Get started by either joining a game pool or becoming a creator to host your own pools.
       </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <Card className="p-4 border-2 border-blue-200 hover:border-blue-300 transition-colors">
+          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Play className="w-6 h-6 text-blue-600" />
+          </div>
+          <h3 className="font-semibold text-gray-900 mb-2">Join as Player</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Join existing pools, compete against others, and win prizes.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => window.location.href = '/pools'}
+          >
+            Browse Pools
+          </Button>
+        </Card>
+
+        <Card className="p-4 border-2 border-purple-200 hover:border-purple-300 transition-colors">
+          <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Crown className="w-6 h-6 text-purple-600" />
+          </div>
+          <h3 className="font-semibold text-gray-900 mb-2">Become Creator</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Stake CELO to create pools and earn creator rewards.
+          </p>
+          <Button
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
+            onClick={() => window.location.href = '/stake'}
+          >
+            Start Staking
+          </Button>
+        </Card>
+      </div>
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-800">
@@ -104,12 +140,10 @@ const StakingRequired = ({ error }: { error?: any }) => (
           </p>
         </div>
       )}
-      <Button
-        className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
-        onClick={() => window.location.href = '/stake'}
-      >
-        Start Staking
-      </Button>
+
+      <p className="text-sm text-gray-500">
+        Once you participate, return here to track your activity and manage your pools.
+      </p>
     </Card>
   </div>
 );
@@ -420,7 +454,7 @@ const PoolCard = ({
   );
 };
 
-export default function CreatorDashboard() {
+export default function UniversalDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
@@ -430,7 +464,10 @@ export default function CreatorDashboard() {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
 
-  // Contract hooks with error handling
+  // User participation detection
+  const { userType, isCreator, isPlayer, hasParticipation, isLoading: participationLoading } = useUserParticipation(address);
+
+  // Creator-specific hooks
   const { data: creatorInfo, isLoading: creatorLoading, refetch: refetchCreator, error: creatorError } = useCreatorInfo();
   const { data: totalEarnings, isLoading: earningsLoading } = useCreatorReward();
   const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools } = useActivePools();
@@ -440,7 +477,13 @@ export default function CreatorDashboard() {
     .filter(pool => pool.status !== undefined);
   const { activatePool } = useActivatePool();
 
-  // Unstaking hooks
+  // Player-specific hooks
+  const { pools: joinedPools, isLoading: joinedPoolsLoading } = usePlayerPoolsDetails(address);
+  const { prizes: claimablePrizes, totalClaimableFormatted, isLoading: prizesLoading } = usePlayerPrizes(address);
+  const { stats: playerStats, isLoading: playerStatsLoading } = usePlayerStats(address);
+  const { claimPrize, isPending: isClaimingPrize, isConfirming: isClaimConfirming, isConfirmed: isClaimConfirmed, error: claimError } = usePlayerClaimPrize();
+
+  // Unstaking hooks (creator only)
   const { unstake, unstakeAsync, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
   const stakingStats = useStakingStats();
 
