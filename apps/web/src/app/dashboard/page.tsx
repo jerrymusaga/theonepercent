@@ -294,13 +294,15 @@ const PlayerPoolCard = ({
   onClaimPrize,
   onClaimRefund,
   onViewPool,
-  isClaimingRefund
+  isClaimingRefund,
+  isClaimingPrize
 }: {
   pool: any; // JoinedPool type
   onClaimPrize?: (poolId: number) => void;
   onClaimRefund?: (poolId: number) => void;
   onViewPool?: (poolId: number, status: number) => void;
   isClaimingRefund?: boolean;
+  isClaimingPrize?: boolean;
 }) => {
   const getStatusColor = (status: number) => {
     switch (status) {
@@ -404,10 +406,20 @@ const PlayerPoolCard = ({
           <Button
             size="sm"
             onClick={() => onClaimPrize?.(pool.id)}
-            className="w-full bg-green-600 hover:bg-green-700"
+            disabled={isClaimingPrize}
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50"
           >
-            <Trophy className="w-4 h-4 mr-2" />
-            Claim Prize
+            {isClaimingPrize ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Claiming...
+              </>
+            ) : (
+              <>
+                <Trophy className="w-4 h-4 mr-2" />
+                Claim Prize
+              </>
+            )}
           </Button>
         </div>
       )}
@@ -692,7 +704,7 @@ const PoolCard = ({
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => window.location.href = `/pools?highlight=${pool.id}`}
+            onClick={() => window.location.href = `/pools?highlight=${poolId}`}
           >
             <Eye className="w-4 h-4 mr-2" />
             View on Pools Page
@@ -1434,6 +1446,7 @@ export default function UniversalDashboard() {
                       onClaimRefund={handleClaimRefund}
                       onViewPool={handleViewPool}
                       isClaimingRefund={isClaimingRefund}
+                      isClaimingPrize={isClaimingPrize}
                     />
                   ))
                 ) : (

@@ -61,7 +61,8 @@ export {
   useUserParticipation,
   usePlayerGameResults,
   useCreatedPools,
-  useHasCreatedPools
+  useHasCreatedPools,
+  useHasClaimedPrize
 } from './use-player';
 
 export { useJoinedPlayers } from './use-joined-players';

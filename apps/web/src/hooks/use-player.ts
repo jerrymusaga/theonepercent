@@ -102,6 +102,71 @@ export function usePlayerJoinedPools(address?: `0x${string}`) {
 }
 
 /**
+ * Hook to check if a player has claimed prize from a specific pool
+ * Since there's no PrizeClaimed event, we check if prizePool is 0 after game completion
+ */
+export function useHasClaimedPrize(poolId: number, address?: `0x${string}`) {
+  const { address: connectedAddress } = useAccount();
+  const targetAddress = address || connectedAddress;
+  const publicClient = usePublicClient();
+  const contractAddress = useContractAddress();
+
+  return useQuery({
+    queryKey: ['hasClaimedPrize', poolId, targetAddress],
+    queryFn: async () => {
+      if (!publicClient || !contractAddress || !targetAddress || poolId <= 0) {
+        return false;
+      }
+
+      try {
+        // First check if there's a GameCompleted event for this pool with this winner
+        const gameCompletedLogs = await publicClient.getLogs({
+          address: contractAddress,
+          event: {
+            type: 'event',
+            name: 'GameCompleted',
+            inputs: [
+              { name: 'poolId', type: 'uint256', indexed: true },
+              { name: 'winner', type: 'address', indexed: true },
+              { name: 'prizeAmount', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            poolId: BigInt(poolId),
+            winner: targetAddress
+          },
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        });
+
+        // If no GameCompleted event with this winner, they didn't win
+        if (gameCompletedLogs.length === 0) {
+          return false;
+        }
+
+        // If they won, check if the prize has been claimed by reading pool info
+        const poolInfo = await publicClient.readContract({
+          address: contractAddress,
+          abi: CONTRACT_CONFIG.abi,
+          functionName: 'getPoolInfo',
+          args: [BigInt(poolId)],
+        });
+
+        // If prizePool is 0, the prize has been claimed
+        const prizePool = (poolInfo as any[])[4] as bigint;
+        return prizePool === BigInt(0);
+
+      } catch (error) {
+        console.error('Error checking prize claimed status:', error);
+        return false;
+      }
+    },
+    enabled: !!targetAddress && !!publicClient && !!contractAddress && poolId > 0,
+    staleTime: 30000, // 30 seconds
+  });
+}
+
+/**
  * Hook to get detailed information about pools a player has joined
  */
 export function usePlayerPoolsDetails(address?: `0x${string}`) {
@@ -141,6 +206,36 @@ export function usePlayerPoolsDetails(address?: `0x${string}`) {
           args: [BigInt(poolId)]
         }));
 
+        // Check if player won any of these pools by looking for GameCompleted events
+        const gameCompletedChecks = await Promise.all(
+          poolIds.map(async (poolId) => {
+            try {
+              const logs = await publicClient.getLogs({
+                address: contractAddress,
+                event: {
+                  type: 'event',
+                  name: 'GameCompleted',
+                  inputs: [
+                    { name: 'poolId', type: 'uint256', indexed: true },
+                    { name: 'winner', type: 'address', indexed: true },
+                    { name: 'prizeAmount', type: 'uint256', indexed: false }
+                  ]
+                },
+                args: {
+                  poolId: BigInt(poolId),
+                  winner: targetAddress
+                },
+                fromBlock: 'earliest',
+                toBlock: 'latest',
+              });
+              return logs.length > 0;
+            } catch (error) {
+              console.error(`Error checking winner status for pool ${poolId}:`, error);
+              return false;
+            }
+          })
+        );
+
         // Execute all calls in batches
         const [poolInfoResults, eliminationResults, remainingPlayersResults] = await Promise.all([
           publicClient.multicall({ contracts: poolInfoCalls as any }),
@@ -175,18 +270,23 @@ export function usePlayerPoolsDetails(address?: `0x${string}`) {
           const remainingPlayers = remainingPlayersResult.status === 'success' ?
             (remainingPlayersResult.result as `0x${string}`[]) : [];
 
-          // Check if player won (is the only remaining player in a completed pool)
-          const hasWon = poolInfo.status === PoolStatus.COMPLETED &&
-                         remainingPlayers.length === 1 &&
-                         remainingPlayers[0]?.toLowerCase() === targetAddress.toLowerCase();
+          // Check if player won using GameCompleted events (more reliable than pool state)
+          const hasWonFromEvent = gameCompletedChecks[index] || false;
+
+          // Also check pool state for completeness
+          const hasWonFromState = poolInfo.status === PoolStatus.COMPLETED &&
+                                  remainingPlayers.length === 1 &&
+                                  remainingPlayers[0]?.toLowerCase() === targetAddress.toLowerCase();
+
+          const hasWon = hasWonFromEvent || hasWonFromState;
 
           // Calculate prize amount (total pool minus 5% creator fee)
           const prizeAmount = hasWon ?
             poolInfo.prizePool - (poolInfo.prizePool * BigInt(5) / BigInt(100)) :
             undefined;
 
-          // TODO: Check if prize has been claimed by listening to events
-          const hasClaimed = false;
+          // Check if prize has been claimed: if player won but prizePool is 0, it's been claimed
+          const hasClaimed = hasWon && poolInfo.prizePool === BigInt(0);
 
           const getStatusText = (status: PoolStatus): string => {
             switch (status) {
@@ -330,11 +430,12 @@ export function usePlayerClaimPrize() {
         args: [BigInt(poolId)],
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, poolId) => {
       // Invalidate player data to refresh
       if (address) {
         queryClient.invalidateQueries({ queryKey: ['playerJoinedPools', address] });
         queryClient.invalidateQueries({ queryKey: ['playerPoolsDetails', address] });
+        queryClient.invalidateQueries({ queryKey: ['hasClaimedPrize', poolId, address] });
       }
     },
   });
