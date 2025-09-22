@@ -9,7 +9,6 @@ import {
   Crown,
   BarChart3,
   ArrowRight,
-  Users,
   TrendingDown,
   Zap,
   Skull,
@@ -270,12 +269,17 @@ export default function RoundResultsPage() {
   }
 
   // Transform blockchain data to match UI expectations
+  // For prize pool: use winner's prize amount if game is completed and pool shows 0 (claimed)
+  const actualPrizePool = poolInfo.status === PoolStatus.COMPLETED && poolInfo.prizePool === BigInt(0) && gameResults.winner
+    ? gameResults.winner.prizeAmount
+    : poolInfo.prizePool;
+
   const results = {
     round: Number(currentRound || 0),
     gameStats: {
-      prizePool: formatEther(poolInfo.prizePool),
+      prizePool: formatEther(actualPrizePool),
       remainingPlayers: Array.isArray(remainingPlayers) ? remainingPlayers.length : 0,
-      totalPlayers: Number(poolInfo.maxPlayers),
+      totalPlayers: gameProgress?.totalPlayersCount ? Number(gameProgress.totalPlayersCount) : Number(poolInfo.currentPlayers || 0),
       isGameComplete: poolInfo.status === PoolStatus.COMPLETED,
       winner: gameResults.winner
     },
@@ -361,7 +365,7 @@ export default function RoundResultsPage() {
                     </div>
 
                     <div className="text-center p-4 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">{results.gameStats.totalPlayers - 1}</p>
+                      <p className="text-2xl font-bold text-red-600">{Math.max(0, results.gameStats.totalPlayers - 1)}</p>
                       <p className="text-sm text-red-800">Eliminated</p>
                     </div>
                   </>
