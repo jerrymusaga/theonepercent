@@ -351,6 +351,71 @@ export function usePlayerClaimPrize() {
 }
 
 /**
+ * Hook to get all pools created by a specific address
+ */
+export function useCreatedPools(address?: `0x${string}`) {
+  const { address: connectedAddress } = useAccount();
+  const targetAddress = address || connectedAddress;
+  const publicClient = usePublicClient();
+  const contractAddress = useContractAddress();
+
+  return useQuery({
+    queryKey: ['createdPools', targetAddress],
+    queryFn: async () => {
+      if (!publicClient || !contractAddress || !targetAddress) {
+        return [];
+      }
+
+      try {
+        // Get PoolCreated events for this creator
+        const logs = await publicClient.getLogs({
+          address: contractAddress,
+          event: {
+            type: 'event',
+            name: 'PoolCreated',
+            inputs: [
+              { name: 'poolId', type: 'uint256', indexed: true },
+              { name: 'creator', type: 'address', indexed: true },
+              { name: 'entryFee', type: 'uint256', indexed: false },
+              { name: 'maxPlayers', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            creator: targetAddress
+          },
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        });
+
+        // Extract pool IDs and sort by most recent first
+        const poolIds = logs
+          .map(log => Number(log.args.poolId))
+          .sort((a, b) => b - a); // Newest first
+
+        return poolIds;
+      } catch (error) {
+        console.error('Error fetching created pools:', error);
+        return [];
+      }
+    },
+    enabled: !!targetAddress && !!publicClient && !!contractAddress,
+    staleTime: 30000, // 30 seconds
+  });
+}
+
+/**
+ * Hook to check if address has ever created pools (historical creator status)
+ */
+export function useHasCreatedPools(address?: `0x${string}`) {
+  const { data: createdPools, isLoading } = useCreatedPools(address);
+
+  return {
+    data: (createdPools?.length || 0) > 0,
+    isLoading,
+  };
+}
+
+/**
  * Hook to get user participation status (creator, player, both, or none)
  */
 export function useUserParticipation(address?: `0x${string}`) {
@@ -362,10 +427,13 @@ export function useUserParticipation(address?: `0x${string}`) {
   });
 
   const { hasJoinedPools, isLoading: isLoadingPools } = useHasJoinedPools(targetAddress);
+  const { data: hasCreatedPools, isLoading: isLoadingCreated } = useHasCreatedPools(targetAddress);
 
-  const isCreator = creatorInfo.data ? (creatorInfo.data as any)[3] as boolean : false; // hasActiveStake
+  // Creator status: either has active stake OR has created pools historically
+  const hasActiveStake = creatorInfo.data ? (creatorInfo.data as any)[3] as boolean : false;
+  const isCreator = hasActiveStake || hasCreatedPools || false;
   const isPlayer = hasJoinedPools;
-  const isLoading = creatorInfo.isLoading || isLoadingPools;
+  const isLoading = creatorInfo.isLoading || isLoadingPools || isLoadingCreated;
 
   let userType: 'creator' | 'player' | 'both' | 'none' = 'none';
 
@@ -381,6 +449,8 @@ export function useUserParticipation(address?: `0x${string}`) {
     userType,
     isCreator,
     isPlayer,
+    hasActiveStake, // Expose current stake status separately
+    hasCreatedPools: hasCreatedPools || false,
     hasParticipation: isCreator || isPlayer,
     isLoading,
   };

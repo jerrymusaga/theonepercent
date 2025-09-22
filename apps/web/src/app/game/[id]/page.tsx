@@ -2,17 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount } from "wagmi";
 import { formatEther } from "viem";
 import {
   ArrowLeft,
   Users,
-  Coins,
-  Trophy,
   CircleDot,
   CheckCircle2,
   AlertCircle,
-  Timer,
   Crown,
   Zap,
   Wallet
@@ -22,7 +19,6 @@ import { Card } from "@/components/ui/card";
 import {
   usePoolInfo,
   useGameProgress,
-  usePlayerGameState,
   useMakeSelection,
   usePlayerChoice,
   useHasPlayerChosen,
@@ -176,25 +172,6 @@ interface PlayerCardProps {
   poolId: number;
 }
 
-// Hook to efficiently count player choices using multicall
-const usePlayerChoicesCount = (poolId: number, players: `0x${string}`[]) => {
-  const [chosenCount, setChosenCount] = useState(0);
-
-  // For now, we'll use a simplified approach since implementing multicall here
-  // would require access to publicClient and contract setup
-  // In production, this would be optimized with batch calls
-  useEffect(() => {
-    setChosenCount(0); // Reset to 0 - real implementation would use multicall
-  }, [poolId, players]);
-
-  return chosenCount;
-};
-
-// Component to count how many players have made their choices
-const PlayerChoiceCount = ({ poolId, players }: { poolId: number; players: `0x${string}`[] }) => {
-  const chosenCount = usePlayerChoicesCount(poolId, players);
-  return <span>{chosenCount}</span>;
-};
 
 const PlayerCard = ({ address, isEliminated, isCurrentUser, poolId }: PlayerCardProps) => {
   const { data: hasChosen } = useHasPlayerChosen(poolId, address);
@@ -502,14 +479,6 @@ export default function GameArenaPage() {
                 <p className="text-xs opacity-80">Total</p>
                 <p className="text-xl font-bold">{totalPlayers.toString()}</p>
               </div>
-              {remainingPlayers && (
-                <div className="text-center">
-                  <p className="text-xs opacity-80">Chosen</p>
-                  <p className="text-xl font-bold">
-                    <PlayerChoiceCount poolId={parseInt(poolId)} players={remainingPlayers} />/{remainingPlayers.length}
-                  </p>
-                </div>
-              )}
             </div>
 
             {isGameComplete && (
@@ -689,42 +658,6 @@ export default function GameArenaPage() {
               </Card>
             )}
 
-            {/* Game Progress Info */}
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-blue-600" />
-                Game Progress
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Current Round:</span>
-                  <span className="font-bold">{currentRound.toString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Players Remaining:</span>
-                  <span className="font-bold">{remainingPlayersCount.toString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total Started:</span>
-                  <span className="font-bold">{totalPlayers.toString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Elimination Rate:</span>
-                  <span className="font-bold">
-                    {totalPlayers > BigInt(0)
-                      ? ((Number(totalPlayers - remainingPlayersCount) / Number(totalPlayers)) * 100).toFixed(1)
-                      : 0}%
-                  </span>
-                </div>
-              </div>
-
-              {isGameComplete && (
-                <div className="mt-4 p-3 bg-green-100 rounded-lg text-center">
-                  <p className="text-green-800 font-medium">🎉 Game Complete!</p>
-                  <p className="text-green-700 text-sm mt-1">Check results for winner details</p>
-                </div>
-              )}
-            </Card>
           </div>
         </div>
       </div>

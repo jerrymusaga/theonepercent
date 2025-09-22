@@ -59,7 +59,9 @@ export {
   usePlayerClaimPrize,
   useClaimAbandonedPoolRefund,
   useUserParticipation,
-  usePlayerGameResults
+  usePlayerGameResults,
+  useCreatedPools,
+  useHasCreatedPools
 } from './use-player';
 
 export { useJoinedPlayers } from './use-joined-players';

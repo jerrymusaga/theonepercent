@@ -28,7 +28,6 @@ import { Card } from "@/components/ui/card";
 import {
   useCreatorInfo,
   useCreatorReward,
-  useActivePools,
   useActivatePool,
   useCanActivatePool,
   useWatchPoolCreated,
@@ -42,7 +41,9 @@ import {
   usePlayerPrizes,
   usePlayerStats,
   usePlayerClaimPrize,
-  useClaimAbandonedPoolRefund
+  useClaimAbandonedPoolRefund,
+  useCreatedPools,
+  usePoolInfo
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
@@ -275,14 +276,14 @@ const CreatorStatsOverview = ({ creatorInfo, totalEarnings, activePools, stats, 
   );
 };
 
-const PoolCardWithActivation = ({ pool, onActivate, onViewPool }: { pool: any; onActivate: (poolId: number) => void; onViewPool?: (poolId: number, status: number) => void }) => {
-  const { data: canActivate = false } = useCanActivatePool(pool.id);
+const PoolCardWithActivation = ({ poolId, onActivate, onViewPool }: { poolId: number; onActivate: (poolId: number) => void; onViewPool?: (poolId: number, status: number) => void }) => {
+  const { data: canActivate = false } = useCanActivatePool(poolId);
 
   return (
     <PoolCard
-      pool={pool}
+      poolId={poolId}
       canActivate={canActivate}
-      onActivate={() => onActivate(pool.id)}
+      onActivate={() => onActivate(poolId)}
       onViewPool={onViewPool}
     />
   );
@@ -497,16 +498,38 @@ const PlayerPoolCard = ({
 };
 
 const PoolCard = ({
-  pool,
+  poolId,
   canActivate,
   onActivate,
   onViewPool
 }: {
-  pool: any;
+  poolId: number;
   canActivate?: boolean;
   onActivate?: () => void;
   onViewPool?: (poolId: number, status: number) => void;
 }) => {
+  const { data: pool, isLoading } = usePoolInfo(poolId);
+
+  if (isLoading) {
+    return (
+      <Card className="p-6">
+        <div className="animate-pulse">
+          <div className="h-20 bg-gray-200 rounded mb-4"></div>
+          <div className="h-16 bg-gray-200 rounded"></div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!pool) {
+    return (
+      <Card className="p-6">
+        <div className="text-center text-gray-500">
+          <p>Pool #{poolId} not found</p>
+        </div>
+      </Card>
+    );
+  }
   const getStatusColor = (status: number) => {
     switch (status) {
       case PoolStatus.OPENED: return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -542,10 +565,10 @@ const PoolCard = ({
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-            #{Number(pool.id)}
+            #{poolId}
           </div>
           <div>
-            <p className="font-medium text-gray-900">Pool #{Number(pool.id)}</p>
+            <p className="font-medium text-gray-900">Pool #{poolId}</p>
             <p className="text-sm text-gray-500">
               Created by you
             </p>
@@ -681,7 +704,7 @@ const PoolCard = ({
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => onViewPool?.(Number(pool.id), Number(pool.status))}
+            onClick={() => onViewPool?.(poolId, Number(pool.status))}
           >
             <Play className="w-4 h-4 mr-2" />
             Watch Game
@@ -693,7 +716,7 @@ const PoolCard = ({
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => onViewPool?.(Number(pool.id), Number(pool.status))}
+            onClick={() => onViewPool?.(poolId, Number(pool.status))}
           >
             <Trophy className="w-4 h-4 mr-2" />
             View Results
@@ -720,11 +743,11 @@ export default function UniversalDashboard() {
   // Creator-specific hooks
   const { data: creatorInfo, isLoading: creatorLoading, refetch: refetchCreator, error: creatorError } = useCreatorInfo();
   const { data: totalEarnings, isLoading: earningsLoading } = useCreatorReward();
-  const { pools: activePoolsData = [], isLoading: poolsLoading, refetch: refetchPools } = useActivePools();
-  const activePools = activePoolsData
-    .filter(pool => pool.data) // Filter out pools with no data first
-    .map(pool => ({ id: pool.id, ...pool.data }))
-    .filter(pool => pool.status !== undefined);
+  const { data: createdPoolIds = [], isLoading: poolsLoading, refetch: refetchPools } = useCreatedPools(address);
+
+  // For creators, show ALL pools they've ever created (regardless of current stake status)
+  // This ensures pool history persists even after unstaking
+  const activePools = createdPoolIds; // Just use the pool IDs - individual pool data will be fetched as needed
   const { activatePool, isPending: isActivating, isConfirming: isActivateConfirming, isConfirmed: isActivateConfirmed, error: activateError } = useActivatePool();
 
   // Player-specific hooks
@@ -1050,8 +1073,13 @@ export default function UniversalDashboard() {
   // Loading state
   const isLoading = participationLoading || (isCreator && (creatorLoading || earningsLoading || poolsLoading)) || (isPlayer && (joinedPoolsLoading || prizesLoading));
 
-  // Calculate stats from real data
-  const stats = calculateStats(activePools);
+  // Calculate basic stats from pool IDs (simplified for now)
+  const stats = {
+    averagePoolSize: "0",
+    completionRate: "0%",
+    totalPlayersHosted: 0,
+    bestPerformingEntry: "0 CELO"
+  };
   const celoBalance = balance ? formatEther(balance.value) : "0";
 
   // Determine dashboard title and icon based on user type
@@ -1338,10 +1366,10 @@ export default function UniversalDashboard() {
                   ))}
                 </div>
               ) : activePools.length > 0 ? (
-                activePools.map((pool) => (
+                activePools.map((poolId) => (
                   <PoolCardWithActivation
-                    key={pool.id}
-                    pool={pool}
+                    key={poolId}
+                    poolId={poolId}
                     onActivate={handleActivatePool}
                     onViewPool={handleViewPool}
                   />
