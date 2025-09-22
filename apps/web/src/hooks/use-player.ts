@@ -387,9 +387,9 @@ export function useUserParticipation(address?: `0x${string}`) {
 }
 
 /**
- * Hook for claiming refund from abandoned pools
+ * Hook for claiming refund from abandoned pools (player version)
  */
-export function useClaimRefund() {
+export function useClaimAbandonedPoolRefund() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();

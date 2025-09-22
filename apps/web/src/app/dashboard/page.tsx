@@ -40,7 +40,8 @@ import {
   usePlayerPoolsDetails,
   usePlayerPrizes,
   usePlayerStats,
-  usePlayerClaimPrize
+  usePlayerClaimPrize,
+  useClaimAbandonedPoolRefund
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
@@ -276,11 +277,15 @@ const CreatorStatsOverview = ({ creatorInfo, totalEarnings, activePools, stats, 
 const PlayerPoolCard = ({
   pool,
   onClaimPrize,
-  onViewPool
+  onClaimRefund,
+  onViewPool,
+  isClaimingRefund
 }: {
   pool: any; // JoinedPool type
   onClaimPrize?: (poolId: number) => void;
+  onClaimRefund?: (poolId: number) => void;
   onViewPool?: (poolId: number, status: number) => void;
+  isClaimingRefund?: boolean;
 }) => {
   const getStatusColor = (status: number) => {
     switch (status) {
@@ -417,14 +422,21 @@ const PlayerPoolCard = ({
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  // TODO: Implement claimRefundFromAbandonedPool
-                  window.location.href = `/pools/${pool.id}`;
-                }}
+                onClick={() => onClaimRefund?.(pool.id)}
+                disabled={isClaimingRefund}
                 className="w-full bg-orange-600 hover:bg-orange-700"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Claim Refund
+                {isClaimingRefund ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Claiming...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Claim Refund
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -678,6 +690,7 @@ export default function UniversalDashboard() {
   const { prizes: claimablePrizes, totalClaimableFormatted, isLoading: prizesLoading } = usePlayerPrizes(address);
   const { stats: playerStats, isLoading: playerStatsLoading } = usePlayerStats(address);
   const { claimPrize, isPending: isClaimingPrize, isConfirming: isClaimConfirming, isConfirmed: isClaimConfirmed, error: claimError } = usePlayerClaimPrize();
+  const { claimRefund, isPending: isClaimingRefund, isConfirming: isRefundConfirming, isConfirmed: isRefundConfirmed, error: refundError } = useClaimAbandonedPoolRefund();
 
   // Unstaking hooks (creator only)
   const { unstake, unstakeAsync, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
@@ -718,6 +731,22 @@ export default function UniversalDashboard() {
       }, 2000);
     }
   }, [isClaimConfirmed, toast]);
+
+  // Handle refund claiming success
+  useEffect(() => {
+    if (isRefundConfirmed) {
+      toast({
+        title: "💰 Refund Claimed!",
+        description: "Your entry fee has been successfully refunded to your wallet.",
+        type: "success"
+      });
+
+      // Refresh player data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  }, [isRefundConfirmed, toast]);
 
   // Handle unstaking errors
   useEffect(() => {
@@ -891,6 +920,24 @@ export default function UniversalDashboard() {
       toast({
         title: "Claim Failed",
         description: error?.message || "Failed to claim prize. Please try again.",
+        type: "error"
+      });
+    }
+  };
+
+  const handleClaimRefund = async (poolId: number) => {
+    try {
+      await claimRefund(poolId);
+      toast({
+        title: "Refund Claiming",
+        description: `Claiming refund from abandoned pool #${poolId}. Please confirm the transaction.`,
+        type: "info"
+      });
+    } catch (error: any) {
+      console.error('Refund claiming error:', error);
+      toast({
+        title: "Refund Failed",
+        description: error?.message || "Failed to claim refund. Please try again.",
         type: "error"
       });
     }
@@ -1298,7 +1345,9 @@ export default function UniversalDashboard() {
                       key={pool.id}
                       pool={pool}
                       onClaimPrize={handleClaimPrize}
+                      onClaimRefund={handleClaimRefund}
                       onViewPool={handleViewPool}
+                      isClaimingRefund={isClaimingRefund}
                     />
                   ))
                 ) : (

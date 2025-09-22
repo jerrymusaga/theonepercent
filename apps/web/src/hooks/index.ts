@@ -56,6 +56,7 @@ export {
   useHasJoinedPools,
   usePlayerStats,
   usePlayerClaimPrize,
+  useClaimAbandonedPoolRefund,
   useUserParticipation,
   usePlayerGameResults
 } from './use-player';
