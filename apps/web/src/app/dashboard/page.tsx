@@ -30,6 +30,7 @@ import {
   useCreatorReward,
   useActivePools,
   useActivatePool,
+  useCanActivatePool,
   useWatchPoolCreated,
   useWatchPoolActivated,
   useWatchGameCompleted,
@@ -274,6 +275,19 @@ const CreatorStatsOverview = ({ creatorInfo, totalEarnings, activePools, stats, 
   );
 };
 
+const PoolCardWithActivation = ({ pool, onActivate, onViewPool }: { pool: any; onActivate: (poolId: number) => void; onViewPool?: (poolId: number, status: number) => void }) => {
+  const { data: canActivate = false } = useCanActivatePool(pool.id);
+
+  return (
+    <PoolCard
+      pool={pool}
+      canActivate={canActivate}
+      onActivate={() => onActivate(pool.id)}
+      onViewPool={onViewPool}
+    />
+  );
+};
+
 const PlayerPoolCard = ({
   pool,
   onClaimPrize,
@@ -484,10 +498,12 @@ const PlayerPoolCard = ({
 
 const PoolCard = ({
   pool,
+  canActivate,
   onActivate,
   onViewPool
 }: {
   pool: any;
+  canActivate?: boolean;
   onActivate?: () => void;
   onViewPool?: (poolId: number, status: number) => void;
 }) => {
@@ -572,16 +588,42 @@ const PoolCard = ({
               {Number(pool.maxPlayers) - Number(pool.currentPlayers)} slots left
             </span>
           </div>
-          {Number(pool.currentPlayers) >= Number(pool.maxPlayers) && (
+
+          {/* Show activation options */}
+          {Number(pool.currentPlayers) >= Number(pool.maxPlayers) ? (
+            // Pool is 100% full - auto-activation
             <div className="mt-2">
+              <div className="p-2 bg-green-50 rounded-lg mb-2">
+                <div className="text-sm text-green-800 text-center">
+                  🎉 Pool is full! Game will start automatically.
+                </div>
+              </div>
+            </div>
+          ) : canActivate ? (
+            // Pool is 50%+ full - manual activation available
+            <div className="mt-2">
+              <div className="p-2 bg-orange-50 rounded-lg mb-2">
+                <div className="text-sm text-orange-800 text-center">
+                  ⚡ Pool is 50% full - you can start the game now!
+                </div>
+              </div>
               <Button
                 size="sm"
                 onClick={onActivate}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-orange-600 hover:bg-orange-700"
               >
                 <Zap className="w-4 h-4 mr-2" />
-                Activate Pool
+                Start Game Now
               </Button>
+            </div>
+          ) : (
+            // Show progress towards 50% threshold
+            <div className="mt-2">
+              <div className="p-2 bg-gray-50 rounded-lg">
+                <div className="text-sm text-gray-600 text-center">
+                  Need {Math.ceil(Number(pool.maxPlayers) / 2) - Number(pool.currentPlayers)} more players to enable manual start
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -683,7 +725,7 @@ export default function UniversalDashboard() {
     .filter(pool => pool.data) // Filter out pools with no data first
     .map(pool => ({ id: pool.id, ...pool.data }))
     .filter(pool => pool.status !== undefined);
-  const { activatePool } = useActivatePool();
+  const { activatePool, isPending: isActivating, isConfirming: isActivateConfirming, isConfirmed: isActivateConfirmed, error: activateError } = useActivatePool();
 
   // Player-specific hooks
   const { pools: joinedPools, isLoading: joinedPoolsLoading } = usePlayerPoolsDetails(address);
@@ -747,6 +789,22 @@ export default function UniversalDashboard() {
       }, 2000);
     }
   }, [isRefundConfirmed, toast]);
+
+  // Handle pool activation success
+  useEffect(() => {
+    if (isActivateConfirmed) {
+      toast({
+        title: "🎮 Pool Activated!",
+        description: "The pool has been activated and the game has started!",
+        type: "success"
+      });
+
+      // Refresh creator data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  }, [isActivateConfirmed, toast]);
 
   // Handle unstaking errors
   useEffect(() => {
@@ -1281,10 +1339,10 @@ export default function UniversalDashboard() {
                 </div>
               ) : activePools.length > 0 ? (
                 activePools.map((pool) => (
-                  <PoolCard
+                  <PoolCardWithActivation
                     key={pool.id}
                     pool={pool}
-                    onActivate={() => handleActivatePool(Number(pool.id))}
+                    onActivate={handleActivatePool}
                     onViewPool={handleViewPool}
                   />
                 ))
