@@ -153,7 +153,7 @@ export function useHasClaimedPrize(poolId: number, address?: `0x${string}`) {
         });
 
         // If prizePool is 0, the prize has been claimed
-        const prizePool = (poolInfo as any[])[4] as bigint;
+        const prizePool = (poolInfo as unknown as any[])[4] as bigint;
         return prizePool === BigInt(0);
 
       } catch (error) {
