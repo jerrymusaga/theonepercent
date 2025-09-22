@@ -108,78 +108,129 @@ export function usePlayerPoolsDetails(address?: `0x${string}`) {
   const { data: poolIds = [], isLoading: isLoadingIds } = usePlayerJoinedPools(address);
   const { address: connectedAddress } = useAccount();
   const targetAddress = address || connectedAddress;
+  const publicClient = usePublicClient();
+  const contractAddress = useContractAddress();
 
-  // Get pool info for each joined pool
-  const poolQueries = poolIds.map(poolId =>
-    useCoinTossRead('getPoolInfo', [BigInt(poolId)], {
-      enabled: poolId > 0,
-    })
-  );
-
-  // Get player elimination status for each pool
-  const eliminationQueries = poolIds.map(poolId =>
-    useCoinTossRead('isPlayerEliminated', [BigInt(poolId), targetAddress], {
-      enabled: poolId > 0 && !!targetAddress,
-    })
-  );
-
-  // Get remaining players for each pool to check if player won
-  const remainingPlayersQueries = poolIds.map(poolId =>
-    useCoinTossRead('getRemainingPlayers', [BigInt(poolId)], {
-      enabled: poolId > 0,
-    })
-  );
-
-  const isLoading = isLoadingIds || poolQueries.some(q => q.isLoading) ||
-                   eliminationQueries.some(q => q.isLoading) ||
-                   remainingPlayersQueries.some(q => q.isLoading);
-
-  const joinedPools: JoinedPool[] = poolIds.map((poolId, index) => {
-    const poolQuery = poolQueries[index];
-    const eliminationQuery = eliminationQueries[index];
-    const remainingPlayersQuery = remainingPlayersQueries[index];
-
-    if (!poolQuery.data) return null;
-
-    const poolInfo: PoolInfo = {
-      creator: (poolQuery.data as any)[0] as `0x${string}`,
-      entryFee: (poolQuery.data as any)[1] as bigint,
-      maxPlayers: (poolQuery.data as any)[2] as bigint,
-      currentPlayers: (poolQuery.data as any)[3] as bigint,
-      prizePool: (poolQuery.data as any)[4] as bigint,
-      status: (poolQuery.data as any)[5] as PoolStatus,
-    };
-
-    const isEliminated = eliminationQuery.data || false;
-    const remainingPlayers = remainingPlayersQuery.data as `0x${string}`[] || [];
-    const hasWon = poolInfo.status === PoolStatus.COMPLETED &&
-                   remainingPlayers.length === 1 &&
-                   remainingPlayers[0] === targetAddress;
-
-    const prizeAmount = hasWon ? poolInfo.prizePool - (poolInfo.prizePool * BigInt(5) / BigInt(100)) : undefined;
-
-    return {
-      id: poolId,
-      poolInfo,
-      isEliminated,
-      hasWon,
-      hasClaimed: false, // TODO: Track this via events or contract state
-      prizeAmount,
-      formattedData: {
-        id: poolId,
-        entryFee: formatEther(poolInfo.entryFee),
-        prizePool: formatEther(poolInfo.prizePool),
-        status: poolInfo.status,
-        statusText: PoolStatus[poolInfo.status] as keyof typeof PoolStatus,
-        isWinner: hasWon,
-        canClaim: hasWon && !false, // TODO: Check actual claim status
+  const { data: joinedPools = [], isLoading: isPoolsLoading } = useQuery({
+    queryKey: ['playerPoolsDetails', targetAddress, poolIds],
+    queryFn: async () => {
+      if (!poolIds.length || !targetAddress || !publicClient || !contractAddress) {
+        return [];
       }
-    };
-  }).filter(Boolean) as JoinedPool[];
+
+      try {
+        // Prepare batch contract calls for all pools
+        const poolInfoCalls = poolIds.map(poolId => ({
+          address: contractAddress,
+          abi: CONTRACT_CONFIG.abi,
+          functionName: 'getPoolInfo',
+          args: [BigInt(poolId)]
+        }));
+
+        const eliminationCalls = poolIds.map(poolId => ({
+          address: contractAddress,
+          abi: CONTRACT_CONFIG.abi,
+          functionName: 'isPlayerEliminated',
+          args: [BigInt(poolId), targetAddress]
+        }));
+
+        const remainingPlayersCalls = poolIds.map(poolId => ({
+          address: contractAddress,
+          abi: CONTRACT_CONFIG.abi,
+          functionName: 'getRemainingPlayers',
+          args: [BigInt(poolId)]
+        }));
+
+        // Execute all calls in batches
+        const [poolInfoResults, eliminationResults, remainingPlayersResults] = await Promise.all([
+          publicClient.multicall({ contracts: poolInfoCalls as any }),
+          publicClient.multicall({ contracts: eliminationCalls as any }),
+          publicClient.multicall({ contracts: remainingPlayersCalls as any })
+        ]);
+
+        // Process results into JoinedPool objects
+        const joinedPools: JoinedPool[] = poolIds.map((poolId, index) => {
+          const poolInfoResult = poolInfoResults[index];
+          const eliminationResult = eliminationResults[index];
+          const remainingPlayersResult = remainingPlayersResults[index];
+
+          // Skip if pool info failed to load
+          if (poolInfoResult.status !== 'success' || !poolInfoResult.result) {
+            return null;
+          }
+
+          const poolData = poolInfoResult.result as any[];
+          const poolInfo: PoolInfo = {
+            creator: poolData[0] as `0x${string}`,
+            entryFee: poolData[1] as bigint,
+            maxPlayers: poolData[2] as bigint,
+            currentPlayers: poolData[3] as bigint,
+            prizePool: poolData[4] as bigint,
+            status: poolData[5] as PoolStatus,
+          };
+
+          const isEliminated = eliminationResult.status === 'success' ?
+            (eliminationResult.result as boolean) : false;
+
+          const remainingPlayers = remainingPlayersResult.status === 'success' ?
+            (remainingPlayersResult.result as `0x${string}`[]) : [];
+
+          // Check if player won (is the only remaining player in a completed pool)
+          const hasWon = poolInfo.status === PoolStatus.COMPLETED &&
+                         remainingPlayers.length === 1 &&
+                         remainingPlayers[0]?.toLowerCase() === targetAddress.toLowerCase();
+
+          // Calculate prize amount (total pool minus 5% creator fee)
+          const prizeAmount = hasWon ?
+            poolInfo.prizePool - (poolInfo.prizePool * BigInt(5) / BigInt(100)) :
+            undefined;
+
+          // TODO: Check if prize has been claimed by listening to events
+          const hasClaimed = false;
+
+          const getStatusText = (status: PoolStatus): string => {
+            switch (status) {
+              case PoolStatus.OPENED: return 'OPENED';
+              case PoolStatus.ACTIVE: return 'ACTIVE';
+              case PoolStatus.COMPLETED: return 'COMPLETED';
+              case PoolStatus.ABANDONED: return 'ABANDONED';
+              default: return 'UNKNOWN';
+            }
+          };
+
+          return {
+            id: poolId,
+            poolInfo,
+            isEliminated,
+            hasWon,
+            hasClaimed,
+            prizeAmount,
+            formattedData: {
+              id: poolId,
+              entryFee: formatEther(poolInfo.entryFee),
+              prizePool: formatEther(poolInfo.prizePool),
+              status: poolInfo.status,
+              statusText: getStatusText(poolInfo.status),
+              isWinner: hasWon,
+              canClaim: hasWon && !hasClaimed,
+            }
+          };
+        }).filter(Boolean) as JoinedPool[];
+
+        return joinedPools;
+
+      } catch (error) {
+        console.error('Error fetching player pool details:', error);
+        return [];
+      }
+    },
+    enabled: !!targetAddress && poolIds.length > 0 && !isLoadingIds && !!publicClient && !!contractAddress,
+    staleTime: 30000,
+  });
 
   return {
     pools: joinedPools,
-    isLoading,
+    isLoading: isLoadingIds || isPoolsLoading,
     poolIds,
   };
 }

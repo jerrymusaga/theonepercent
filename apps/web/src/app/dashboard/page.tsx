@@ -40,8 +40,7 @@ import {
   usePlayerPoolsDetails,
   usePlayerPrizes,
   usePlayerStats,
-  usePlayerClaimPrize,
-  useHasJoinedPools
+  usePlayerClaimPrize
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
@@ -393,7 +392,46 @@ const PlayerPoolCard = ({
         </div>
       )}
 
-      {pool.isEliminated && (
+      {pool.poolInfo.status === PoolStatus.ABANDONED && (
+        <div className="p-3 bg-orange-50 rounded-lg mb-4 border border-orange-200">
+          {pool.poolInfo.prizePool === BigInt(0) ? (
+            // Automatic refund was processed
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">Pool Abandoned - Refund Processed</span>
+              </div>
+              <div className="text-sm text-green-700">
+                <p>Your entry fee of <span className="font-bold">{pool.formattedData.entryFee} CELO</span> was automatically refunded to your wallet.</p>
+              </div>
+            </div>
+          ) : (
+            // Manual refund needed
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+                <span className="text-sm font-medium text-orange-800">Pool Abandoned - Refund Available</span>
+              </div>
+              <div className="text-sm text-orange-700 mb-3">
+                <p>This pool was abandoned and you can claim your <span className="font-bold">{pool.formattedData.entryFee} CELO</span> entry fee refund.</p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  // TODO: Implement claimRefundFromAbandonedPool
+                  window.location.href = `/pools/${pool.id}`;
+                }}
+                className="w-full bg-orange-600 hover:bg-orange-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Claim Refund
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {pool.isEliminated && pool.poolInfo.status !== PoolStatus.ABANDONED && (
         <div className="p-3 bg-red-50 rounded-lg mb-4">
           <div className="flex justify-between items-center">
             <span className="text-sm text-red-800">Eliminated</span>
@@ -1021,14 +1059,131 @@ export default function UniversalDashboard() {
           </div>
         </div>
 
-        {/* Stats overview */}
-        <CreatorStatsOverview
-          creatorInfo={creatorInfo}
-          totalEarnings={totalEarnings}
-          activePools={activePools}
-          stats={stats}
-          isLoading={isLoading}
-        />
+        {/* Stats overview - Adaptive based on user type */}
+        {userType === 'both' ? (
+          // Show combined stats for users who are both creators and players
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Creator earnings */}
+            <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-500 rounded-full">
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="text-sm font-medium text-green-800 mb-1">Creator Earnings</h3>
+              <p className="text-2xl font-bold text-green-600">
+                {totalEarnings ? parseFloat(formatEther(totalEarnings)).toFixed(4) : "0"} CELO
+              </p>
+              <p className="text-xs text-green-700 mt-1">From {creatorInfo?.poolsCreated ? Number(creatorInfo.poolsCreated) : 0} pools</p>
+            </Card>
+
+            {/* Player winnings */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-blue-500 rounded-full">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+                <Target className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-medium text-blue-800 mb-1">Player Winnings</h3>
+              <p className="text-2xl font-bold text-blue-600">{playerStats?.totalEarnings || "0"} CELO</p>
+              <p className="text-xs text-blue-700 mt-1">Win rate: {playerStats?.winRate || "0"}%</p>
+            </Card>
+
+            {/* Total pools */}
+            <Card className="p-6 bg-gradient-to-br from-purple-50 to-violet-100 border-purple-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-purple-500 rounded-full">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <BarChart3 className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="text-sm font-medium text-purple-800 mb-1">Total Activity</h3>
+              <p className="text-2xl font-bold text-purple-600">
+                {(activePools.length + (playerStats?.totalPoolsJoined || 0))}
+              </p>
+              <p className="text-xs text-purple-700 mt-1">Created: {activePools.length} • Joined: {playerStats?.totalPoolsJoined || 0}</p>
+            </Card>
+
+            {/* Claimable prizes */}
+            <Card className="p-6 bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-orange-500 rounded-full">
+                  <Coins className="w-6 h-6 text-white" />
+                </div>
+                <Zap className="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 className="text-sm font-medium text-orange-800 mb-1">Claimable</h3>
+              <p className="text-2xl font-bold text-orange-600">{totalClaimableFormatted} CELO</p>
+              <p className="text-xs text-orange-700 mt-1">{claimablePrizes.length} prizes waiting</p>
+            </Card>
+          </div>
+        ) : userType === 'creator' ? (
+          // Show creator-focused stats
+          <CreatorStatsOverview
+            creatorInfo={creatorInfo}
+            totalEarnings={totalEarnings}
+            activePools={activePools}
+            stats={stats}
+            isLoading={isLoading}
+          />
+        ) : userType === 'player' ? (
+          // Show player-focused stats
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Total winnings */}
+            <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-500 rounded-full">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="text-sm font-medium text-green-800 mb-1">Total Winnings</h3>
+              <p className="text-2xl font-bold text-green-600">{playerStats?.totalEarnings || "0"} CELO</p>
+              <p className="text-xs text-green-700 mt-1">From {playerStats?.totalGamesWon || 0} wins</p>
+            </Card>
+
+            {/* Games played */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-blue-500 rounded-full">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <Play className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-medium text-blue-800 mb-1">Games Played</h3>
+              <p className="text-2xl font-bold text-blue-600">{playerStats?.totalPoolsJoined || 0}</p>
+              <p className="text-xs text-blue-700 mt-1">{playerStats?.activePools || 0} currently active</p>
+            </Card>
+
+            {/* Win rate */}
+            <Card className="p-6 bg-gradient-to-br from-purple-50 to-violet-100 border-purple-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-purple-500 rounded-full">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <BarChart3 className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="text-sm font-medium text-purple-800 mb-1">Win Rate</h3>
+              <p className="text-2xl font-bold text-purple-600">{playerStats?.winRate || "0"}%</p>
+              <p className="text-xs text-purple-700 mt-1">{playerStats?.totalGamesWon || 0} wins total</p>
+            </Card>
+
+            {/* Claimable prizes */}
+            <Card className="p-6 bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-orange-500 rounded-full">
+                  <Coins className="w-6 h-6 text-white" />
+                </div>
+                <Zap className="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 className="text-sm font-medium text-orange-800 mb-1">Claimable</h3>
+              <p className="text-2xl font-bold text-orange-600">{totalClaimableFormatted} CELO</p>
+              <p className="text-xs text-orange-700 mt-1">{claimablePrizes.length} prizes waiting</p>
+            </Card>
+          </div>
+        ) : null}
 
         {/* No pools remaining warning */}
         {creatorInfo && Number(creatorInfo.poolsRemaining) <= 0 && (
