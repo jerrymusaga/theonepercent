@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useWatchContractEvent, usePublicClient } from 'wagmi';
+import { useWatchContractEvent, usePublicClient, useChainId } from 'wagmi';
 import { CONTRACT_CONFIG } from '@/lib/contract';
 import { useContractAddress } from './use-contract';
 
@@ -215,6 +215,10 @@ export function usePoolEvents(poolId: number, fromBlock?: bigint) {
   const [isLoading, setIsLoading] = useState(false);
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   useEffect(() => {
     if (!publicClient || !contractAddress || poolId <= 0) return;
@@ -222,13 +226,27 @@ export function usePoolEvents(poolId: number, fromBlock?: bigint) {
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
-        const logs = await publicClient.getLogs({
-          address: contractAddress,
-          events: CONTRACT_CONFIG.abi.filter(item => item.type === 'event') as any,
-          args: { poolId: BigInt(poolId) } as any,
-          fromBlock: fromBlock || 'earliest',
-          toBlock: 'latest',
-        });
+        // Get current block for reasonable range calculation
+        const currentBlock = await publicClient.getBlockNumber();
+
+        // Use provided fromBlock, or limited range on mainnet, or earliest on testnet
+        const effectiveFromBlock = fromBlock || (isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const);
+
+        const logs = await Promise.race([
+          publicClient.getLogs({
+            address: contractAddress,
+            events: CONTRACT_CONFIG.abi.filter(item => item.type === 'event') as any,
+            args: { poolId: BigInt(poolId) } as any,
+            fromBlock: effectiveFromBlock,
+            toBlock: 'latest',
+          }),
+          // Timeout after 8 seconds to quickly fallback on mainnet
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+          )
+        ]) as any[];
 
         const formattedEvents = logs.map((log) => ({
           ...log,
@@ -237,14 +255,15 @@ export function usePoolEvents(poolId: number, fromBlock?: bigint) {
 
         setEvents(formattedEvents);
       } catch (error) {
-        // Error handled silently
+        // Error handled silently - return empty events for timeout
+        setEvents([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchEvents();
-  }, [publicClient, contractAddress, poolId, fromBlock]);
+  }, [publicClient, contractAddress, poolId, fromBlock, isMainnet]);
 
   return { events, isLoading, refetch: () => {} };
 }
@@ -372,6 +391,10 @@ export function useGameResults(poolId: number) {
 
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   useEffect(() => {
     if (!publicClient || !contractAddress || poolId <= 0) return;
@@ -380,60 +403,85 @@ export function useGameResults(poolId: number) {
       setGameResults(prev => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        // Fetch all relevant events for this pool
-        const [roundResolvedLogs, playerChoiceLogs, gameCompletedLogs] = await Promise.all([
+        // Get current block for reasonable range calculation
+        const currentBlock = await publicClient.getBlockNumber();
+
+        // Use last 100k blocks for mainnet, earliest for testnet
+        const fromBlock = isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const;
+
+        // Fetch all relevant events for this pool with timeout protection
+        const eventFetches = [
           // Round resolved events
-          publicClient.getLogs({
-            address: contractAddress,
-            event: {
-              type: 'event',
-              name: 'RoundResolved',
-              inputs: [
-                { name: 'poolId', type: 'uint256', indexed: true },
-                { name: 'round', type: 'uint256', indexed: false },
-                { name: 'winningChoice', type: 'uint8', indexed: false },
-                { name: 'eliminatedCount', type: 'uint256', indexed: false },
-                { name: 'remainingCount', type: 'uint256', indexed: false }
-              ]
-            },
-            args: { poolId: BigInt(poolId) },
-            fromBlock: 'earliest',
-            toBlock: 'latest'
-          }),
+          Promise.race([
+            publicClient.getLogs({
+              address: contractAddress,
+              event: {
+                type: 'event',
+                name: 'RoundResolved',
+                inputs: [
+                  { name: 'poolId', type: 'uint256', indexed: true },
+                  { name: 'round', type: 'uint256', indexed: false },
+                  { name: 'winningChoice', type: 'uint8', indexed: false },
+                  { name: 'eliminatedCount', type: 'uint256', indexed: false },
+                  { name: 'remainingCount', type: 'uint256', indexed: false }
+                ]
+              },
+              args: { poolId: BigInt(poolId) },
+              fromBlock,
+              toBlock: 'latest'
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+            )
+          ]) as Promise<any[]>,
           // Player choice events
-          publicClient.getLogs({
-            address: contractAddress,
-            event: {
-              type: 'event',
-              name: 'PlayerMadeChoice',
-              inputs: [
-                { name: 'poolId', type: 'uint256', indexed: true },
-                { name: 'player', type: 'address', indexed: true },
-                { name: 'choice', type: 'uint8', indexed: false },
-                { name: 'round', type: 'uint256', indexed: false }
-              ]
-            },
-            args: { poolId: BigInt(poolId) },
-            fromBlock: 'earliest',
-            toBlock: 'latest'
-          }),
+          Promise.race([
+            publicClient.getLogs({
+              address: contractAddress,
+              event: {
+                type: 'event',
+                name: 'PlayerMadeChoice',
+                inputs: [
+                  { name: 'poolId', type: 'uint256', indexed: true },
+                  { name: 'player', type: 'address', indexed: true },
+                  { name: 'choice', type: 'uint8', indexed: false },
+                  { name: 'round', type: 'uint256', indexed: false }
+                ]
+              },
+              args: { poolId: BigInt(poolId) },
+              fromBlock,
+              toBlock: 'latest'
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+            )
+          ]) as Promise<any[]>,
           // Game completed events
-          publicClient.getLogs({
-            address: contractAddress,
-            event: {
-              type: 'event',
-              name: 'GameCompleted',
-              inputs: [
-                { name: 'poolId', type: 'uint256', indexed: true },
-                { name: 'winner', type: 'address', indexed: true },
-                { name: 'prizeAmount', type: 'uint256', indexed: false }
-              ]
-            },
-            args: { poolId: BigInt(poolId) },
-            fromBlock: 'earliest',
-            toBlock: 'latest'
-          })
-        ]);
+          Promise.race([
+            publicClient.getLogs({
+              address: contractAddress,
+              event: {
+                type: 'event',
+                name: 'GameCompleted',
+                inputs: [
+                  { name: 'poolId', type: 'uint256', indexed: true },
+                  { name: 'winner', type: 'address', indexed: true },
+                  { name: 'prizeAmount', type: 'uint256', indexed: false }
+                ]
+              },
+              args: { poolId: BigInt(poolId) },
+              fromBlock,
+              toBlock: 'latest'
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+            )
+          ]) as Promise<any[]>
+        ];
+
+        const [roundResolvedLogs, playerChoiceLogs, gameCompletedLogs] = await Promise.all(eventFetches);
 
         // Process round resolved events
         const rounds = roundResolvedLogs.map(log => ({
@@ -471,17 +519,19 @@ export function useGameResults(poolId: number) {
         });
 
       } catch (error) {
-        // Error handled silently
-        setGameResults(prev => ({
-          ...prev,
+        // For timeout errors, set empty results to allow UI to render
+        setGameResults({
+          rounds: [],
+          playerChoices: [],
+          winner: null,
           isLoading: false,
           error: error as Error
-        }));
+        });
       }
     };
 
     fetchGameResults();
-  }, [publicClient, contractAddress, poolId]);
+  }, [publicClient, contractAddress, poolId, isMainnet]);
 
   return gameResults;
 }

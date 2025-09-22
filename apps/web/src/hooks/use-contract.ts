@@ -18,6 +18,10 @@ export function useCoinTossRead(
   options?: { enabled?: boolean }
 ) {
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive caching on mainnet
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   return useReadContract({
     address: contractAddress,
@@ -26,6 +30,9 @@ export function useCoinTossRead(
     args: args as any,
     query: {
       enabled: !!contractAddress && options?.enabled !== false,
+      staleTime: isMainnet ? 5000 : 10000, // 5s on mainnet, 10s on testnet
+      gcTime: 2 * 60 * 1000, // 2 minutes cache
+      refetchOnWindowFocus: true, // Refetch when window gains focus
     },
   });
 }
