@@ -38,6 +38,7 @@ import {
   useStakingStats,
   useUserParticipation,
   usePlayerPoolsDetails,
+  useVerificationInfo,
   usePlayerPrizes,
   usePlayerStats,
   usePlayerClaimPrize,
@@ -46,6 +47,7 @@ import {
   usePoolInfo
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
+import { VerificationStatus, VerificationBadge } from "@/components/verification-status";
 import { PoolStatus } from "@/lib/contract";
 
 // Loading component
@@ -769,6 +771,9 @@ export default function UniversalDashboard() {
   const { claimPrize, isPending: isClaimingPrize, isConfirming: isClaimConfirming, isConfirmed: isClaimConfirmed, error: claimError } = usePlayerClaimPrize();
   const { claimRefund, isPending: isClaimingRefund, isConfirming: isRefundConfirming, isConfirmed: isRefundConfirmed, error: refundError } = useClaimAbandonedPoolRefund();
 
+  // Verification status
+  const { data: verificationInfo } = useVerificationInfo(address);
+
   // Unstaking hooks (creator only)
   const { unstake, unstakeAsync, isPending: isUnstaking, isConfirming: isUnstakeConfirming, isConfirmed: isUnstakeConfirmed, error: unstakeError } = useUnstakeAndClaim();
   const stakingStats = useStakingStats();
@@ -1119,6 +1124,7 @@ export default function UniversalDashboard() {
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
                 {dashboardIcon}
                 {dashboardTitle}
+                <VerificationBadge address={address} size="md" />
               </h1>
               <p className="text-gray-600">
                 {address ? formatAddress(address) : "Not connected"} •
@@ -1130,6 +1136,9 @@ export default function UniversalDashboard() {
                   </>
                 )}
               </p>
+              <div className="mt-2">
+                <VerificationStatus address={address} showActions={true} size="sm" />
+              </div>
             </div>
           </div>
           

@@ -20,6 +20,7 @@ import {
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
+import { VerificationBadge } from "@/components/verification-status";
 
 // Loading component
 const LoadingSpinner = ({ className = "" }: { className?: string }) => (
@@ -200,6 +201,7 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
                   <span className="text-xs text-white font-bold">{creator.slice(2, 4).toUpperCase()}</span>
                 </div>
                 <span className="text-sm font-medium text-gray-700">{formatAddress(creator)}</span>
+                <VerificationBadge address={creator as `0x${string}`} size="sm" showText={false} />
               </div>
               <p className="text-xs text-gray-500">{getTimeDisplay()}</p>
             </div>

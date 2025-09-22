@@ -25,9 +25,11 @@ import {
   useCreatorInfo,
   useStakeForPoolCreation,
   useCalculatePoolsEligible,
-  useCreatorReward
+  useCreatorReward,
+  useVerificationInfo
 } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
+import { VerificationStatus, VerificationBonusDisplay } from "@/components/verification-status";
 
 // Loading component
 const LoadingSpinner = ({ className = "" }: { className?: string }) => (
@@ -87,6 +89,9 @@ const StakeCalculator = ({
     stakeAmount.toString(),
     address
   );
+
+  // Get verification info for this component
+  const { data: verificationInfo } = useVerificationInfo(address);
 
   const poolsEligibleNumber = poolsEligible ? Number(poolsEligible) : Math.floor(stakeAmount / baseStake);
   const potentialEarnings = poolsEligibleNumber * 2.5 * 0.05; // Assuming avg 2.5 CELO entry fee, 5% creator reward
@@ -151,7 +156,17 @@ const StakeCalculator = ({
               <LoadingSpinner className="w-6 h-6 text-blue-600" />
             </div>
           ) : (
-            <p className="text-2xl font-bold text-blue-600">{poolsEligibleNumber}</p>
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{poolsEligibleNumber}</p>
+              {verificationInfo?.isVerified && verificationInfo.bonusPools > 0 && (
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <Crown className="w-3 h-3 text-yellow-500" />
+                  <span className="text-xs font-medium text-yellow-600">
+                    +{verificationInfo.bonusPools} bonus
+                  </span>
+                </div>
+              )}
+            </div>
           )}
           <p className="text-xs text-blue-700">
             Create up to {poolsEligibleNumber} game{poolsEligibleNumber !== 1 ? 's' : ''}
@@ -179,11 +194,24 @@ const StakeCalculator = ({
         </div>
       </div>
 
+      {/* Verification Status */}
+      <div className="mb-4">
+        <VerificationBonusDisplay address={address} />
+        {!verificationInfo?.isVerified && (
+          <div className="mt-3">
+            <VerificationStatus address={address} showActions={true} size="md" />
+          </div>
+        )}
+      </div>
+
       {/* How it works */}
       <div className="p-4 bg-gray-50 rounded-lg">
         <h4 className="font-medium text-gray-800 mb-2">How Staking Works:</h4>
         <ul className="text-sm text-gray-600 space-y-1">
           <li>• Every 5 CELO staked = 1 pool creation right</li>
+          {verificationInfo?.isVerified && (
+            <li className="text-green-700 font-medium">• Verified users get +{verificationInfo.bonusPools} bonus pool per stake</li>
+          )}
           <li>• Earn 5% of each completed pool's prize</li>
           <li>• Stake remains locked until all pools complete</li>
           <li>• 30% penalty for early withdrawal</li>
@@ -324,6 +352,10 @@ export default function StakePage() {
     data: creatorReward,
     isLoading: isLoadingReward
   } = useCreatorReward(address);
+
+  const {
+    data: verificationInfo
+  } = useVerificationInfo(address);
 
   const {
     stake,

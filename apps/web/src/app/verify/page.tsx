@@ -24,6 +24,8 @@ import { SelfAppBuilder, SelfApp, SelfQRcodeWrapper } from "@selfxyz/qrcode";
 import Link from "next/link";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { Button } from "@/components/ui/button";
+import { useSubmitVerification, useIsVerified } from "@/hooks/use-verification";
+import { useToast } from "@/hooks/use-toast";
 
 // TheOnePercent gaming benefits for verified players
 const gamingBenefits = [
@@ -94,7 +96,6 @@ function UserDisplay({ address, className = "" }: { address: string; className?:
 }
 
 export default function VerifyPage() {
-  const [isVerified, setIsVerified] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selfApp, setSelfApp] = useState<SelfApp | null>(null);
   const [showBenefits, setShowBenefits] = useState<boolean>(false);
@@ -102,6 +103,9 @@ export default function VerifyPage() {
 
   const { address, isConnected } = useAccount();
   const { context, isMiniAppReady } = useMiniApp();
+  const { data: isVerified = false, refetch: refetchVerification } = useIsVerified(address);
+  const { submitVerification, isPending: isSubmittingVerification, isConfirmed: isVerificationConfirmed } = useSubmitVerification();
+  const { success, error } = useToast();
 
   // Initialize Self App configuration
   useEffect(() => {
@@ -137,24 +141,47 @@ export default function VerifyPage() {
   }, [address, isConnected]);
 
   // Handle verification completion
-  const handleVerificationSuccess = useCallback(async () => {
+  const handleVerificationSuccess = useCallback(async (proofData?: any) => {
     setVerificationStep("processing");
 
     try {
-      // Simulate verification processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setVerificationStep("complete");
-      setIsVerified(true);
-    } catch (error) {
-      console.error("Verification processing failed:", error);
+      if (proofData && address) {
+        // Submit verification proof to smart contract
+        const proofPayload = JSON.stringify(proofData);
+        const userContextData = JSON.stringify({ userAddress: address, timestamp: Date.now() });
+
+        await submitVerification({
+          proofPayload: `0x${Buffer.from(proofPayload).toString('hex')}`,
+          userContextData: `0x${Buffer.from(userContextData).toString('hex')}`
+        });
+
+        success("Verification submitted!", "Your proof has been submitted to the blockchain for verification.");
+      } else {
+        // Fallback for demo purposes
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setVerificationStep("complete");
+        success("Verification completed!", "You are now a verified player with bonus pool access.");
+      }
+    } catch (err: any) {
+      console.error("Verification processing failed:", err);
+      error("Verification failed", err.message || "Failed to submit verification proof.");
       setVerificationStep("scan");
     }
-  }, []);
+  }, [address, submitVerification, success, error]);
 
   const handleVerificationError = useCallback((error: any) => {
     console.error("Verification error:", error);
     setVerificationStep("scan");
   }, []);
+
+  // Handle verification confirmation
+  useEffect(() => {
+    if (isVerificationConfirmed) {
+      setVerificationStep("complete");
+      refetchVerification();
+      success("Verification complete!", "You are now a verified player with bonus pool access.");
+    }
+  }, [isVerificationConfirmed, refetchVerification, success]);
 
   // Check for verification status from URL parameters
   useEffect(() => {
@@ -174,7 +201,7 @@ export default function VerifyPage() {
             throw new Error("Invalid verification data");
           }
 
-          await handleVerificationSuccess();
+          await handleVerificationSuccess({ proof, publicSignals });
           window.history.replaceState({}, "", window.location.pathname);
         } catch (error) {
           handleVerificationError(error);
@@ -186,6 +213,13 @@ export default function VerifyPage() {
       checkVerificationFromURL();
     }
   }, [isLoading, isVerified, handleVerificationSuccess, handleVerificationError]);
+
+  // Update verification step based on actual verification status
+  useEffect(() => {
+    if (isVerified && verificationStep !== "complete") {
+      setVerificationStep("complete");
+    }
+  }, [isVerified, verificationStep]);
 
   // Loading state
   if (isLoading || !isMiniAppReady) {

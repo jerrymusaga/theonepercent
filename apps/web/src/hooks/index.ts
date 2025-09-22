@@ -69,3 +69,11 @@ export {
 } from './use-player';
 
 export { useJoinedPlayers } from './use-joined-players';
+
+export {
+  useIsVerified,
+  useVerificationInfo,
+  useMultipleVerificationStatus,
+  useSubmitVerification,
+  useFormattedVerificationStatus
+} from './use-verification';
