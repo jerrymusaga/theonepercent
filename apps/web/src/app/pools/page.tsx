@@ -13,7 +13,9 @@ import {
   useWatchPoolActivated,
   useWatchGameCompleted,
   usePoolInfo,
-  useJoinedPlayers
+  useJoinedPlayers,
+  useCurrentRound,
+  useRemainingPlayers
 } from "@/hooks";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useToast } from "@/hooks/use-toast";
@@ -109,6 +111,23 @@ const StatusBadge = ({
   );
 };
 
+// Enhanced StatusBadge that fetches real-time game data for active pools
+const EnhancedStatusBadge = ({ status, poolId }: { status: PoolStatus; poolId: number }) => {
+  const { data: currentRoundBigInt } = useCurrentRound(poolId);
+  const { data: remainingPlayersArray } = useRemainingPlayers(poolId);
+
+  const currentRound = currentRoundBigInt ? Number(currentRoundBigInt) : undefined;
+  const remainingPlayers = remainingPlayersArray ? remainingPlayersArray.length : undefined;
+
+  return (
+    <StatusBadge
+      status={status}
+      currentRound={currentRound}
+      remainingPlayers={remainingPlayers}
+    />
+  );
+};
+
 interface PoolCardProps {
   poolId: bigint;
   creator: `0x${string}`;
@@ -179,7 +198,7 @@ const PoolCard = ({ poolId, creator, entryFee, maxPlayers, currentPlayers, prize
               <p className="text-xs text-gray-500">{getTimeDisplay()}</p>
             </div>
           </div>
-          <StatusBadge status={status} />
+          <EnhancedStatusBadge status={status} poolId={Number(poolId)} />
         </div>
 
         {/* Prize Pool & Entry Fee */}

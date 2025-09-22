@@ -172,13 +172,33 @@ const CoinChoiceButton = ({
 interface PlayerCardProps {
   address: `0x${string}`;
   isEliminated: boolean;
-  hasChosen: boolean;
-  choice?: PlayerChoice;
   isCurrentUser: boolean;
-  poolId: bigint;
+  poolId: number;
 }
 
-const PlayerCard = ({ address, isEliminated, hasChosen, choice, isCurrentUser, poolId }: PlayerCardProps) => {
+// Hook to efficiently count player choices using multicall
+const usePlayerChoicesCount = (poolId: number, players: `0x${string}`[]) => {
+  const [chosenCount, setChosenCount] = useState(0);
+
+  // For now, we'll use a simplified approach since implementing multicall here
+  // would require access to publicClient and contract setup
+  // In production, this would be optimized with batch calls
+  useEffect(() => {
+    setChosenCount(0); // Reset to 0 - real implementation would use multicall
+  }, [poolId, players]);
+
+  return chosenCount;
+};
+
+// Component to count how many players have made their choices
+const PlayerChoiceCount = ({ poolId, players }: { poolId: number; players: `0x${string}`[] }) => {
+  const chosenCount = usePlayerChoicesCount(poolId, players);
+  return <span>{chosenCount}</span>;
+};
+
+const PlayerCard = ({ address, isEliminated, isCurrentUser, poolId }: PlayerCardProps) => {
+  const { data: hasChosen } = useHasPlayerChosen(poolId, address);
+  const { data: choice } = usePlayerChoice(poolId, address);
   const getStatusColor = () => {
     if (isEliminated) return "bg-red-100 border-red-200 text-red-800";
     if (hasChosen) return "bg-green-100 border-green-200 text-green-800";
@@ -486,10 +506,7 @@ export default function GameArenaPage() {
                 <div className="text-center">
                   <p className="text-xs opacity-80">Chosen</p>
                   <p className="text-xl font-bold">
-                    {remainingPlayers.filter(player => {
-                      // For now we'll show a loading state since we'd need individual calls for each player
-                      return false; // TODO: Track individual player choices
-                    }).length}/{remainingPlayers.length}
+                    <PlayerChoiceCount poolId={parseInt(poolId)} players={remainingPlayers} />/{remainingPlayers.length}
                   </p>
                 </div>
               )}
@@ -639,9 +656,8 @@ export default function GameArenaPage() {
                       key={playerAddress}
                       address={playerAddress}
                       isEliminated={false}
-                      hasChosen={false} // TODO: We'd need individual calls to check this
                       isCurrentUser={address === playerAddress}
-                      poolId={BigInt(poolId)}
+                      poolId={parseInt(poolId)}
                     />
                   ))}
                 </div>
