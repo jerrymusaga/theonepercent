@@ -142,6 +142,8 @@ export function useJoinPool() {
     onSuccess: (_, { poolId }) => {
       // Invalidate pool info to refresh the data
       queryClient.invalidateQueries({ queryKey: ['getPoolInfo', poolId] });
+      // Force refresh of joined players data
+      queryClient.invalidateQueries({ queryKey: ['joinedPlayers', poolId] });
     },
   });
 

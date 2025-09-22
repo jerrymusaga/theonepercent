@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { usePublicClient } from 'wagmi';
 import { CONTRACT_CONFIG } from '@/lib/contract';
 import { useContractAddress } from './use-contract';
@@ -7,19 +7,20 @@ import { useContractAddress } from './use-contract';
  * Hook to get all players who have joined a pool by watching PlayerJoined events
  */
 export function useJoinedPlayers(poolId: number) {
-  const [joinedPlayers, setJoinedPlayers] = useState<`0x${string}`[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
 
-  useEffect(() => {
-    if (!publicClient || !contractAddress || poolId <= 0) {
-      setJoinedPlayers([]);
-      return;
-    }
+  const {
+    data: joinedPlayers = [],
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['joinedPlayers', poolId],
+    queryFn: async () => {
+      if (!publicClient || !contractAddress || poolId <= 0) {
+        return [];
+      }
 
-    const fetchJoinedPlayers = async () => {
-      setIsLoading(true);
       try {
         // Get all PlayerJoined events for this pool
         const logs = await publicClient.getLogs({
@@ -45,21 +46,21 @@ export function useJoinedPlayers(poolId: number) {
           .filter((player): player is `0x${string}` => !!player)
           .filter((player, index, array) => array.indexOf(player) === index); // Remove duplicates
 
-        setJoinedPlayers(players);
+        return players;
       } catch (error) {
         console.error('Error fetching joined players:', error);
-        setJoinedPlayers([]);
-      } finally {
-        setIsLoading(false);
+        return [];
       }
-    };
-
-    fetchJoinedPlayers();
-  }, [publicClient, contractAddress, poolId]);
+    },
+    enabled: !!publicClient && !!contractAddress && poolId > 0,
+    staleTime: 30000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   return {
     joinedPlayers,
     isLoading,
+    error,
     count: joinedPlayers.length
   };
 }

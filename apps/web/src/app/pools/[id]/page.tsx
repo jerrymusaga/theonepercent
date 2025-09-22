@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAccount, useBalance } from "wagmi";
 import { formatEther } from "viem";
@@ -9,20 +9,18 @@ import {
   ArrowLeft,
   Users,
   Coins,
-  Clock,
   Trophy,
   AlertCircle,
   Play,
   Eye,
   Share2,
-  Copy,
   CheckCircle2,
   Loader2,
   Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { usePoolInfo, useJoinPool, useCreatorInfo, useRemainingPlayers, useJoinedPlayers } from "@/hooks";
+import { usePoolInfo, useJoinPool, useCreatorInfo, useRemainingPlayers, useJoinedPlayers, useWatchPlayerJoined } from "@/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
 
@@ -227,6 +225,15 @@ export default function PoolDetailPage() {
     isLoading: isLoadingJoinedPlayers,
     count: joinedPlayersCount
   } = useJoinedPlayers(poolId ? parseInt(poolId) : 0);
+
+  // Watch for new players joining to refresh the data
+  useWatchPlayerJoined({
+    poolId: parseInt(poolId || '0'),
+    onLogs: () => {
+      // Force refresh of all pool-related data
+      refetchPool();
+    }
+  });
 
   // Loading state
   if (isLoadingPool || isLoadingCreator) {
