@@ -712,7 +712,7 @@ export default function UniversalDashboard() {
     .filter(pool => pool.data) // Filter out pools with no data first
     .map(pool => ({ id: pool.id, ...pool.data }))
     .filter(pool => pool.status !== undefined);
-  const { activatePool } = useActivatePool();
+  const { activatePool, isPending: isActivating, isConfirming: isActivateConfirming, isConfirmed: isActivateConfirmed, error: activateError } = useActivatePool();
 
   // Player-specific hooks
   const { pools: joinedPools, isLoading: joinedPoolsLoading } = usePlayerPoolsDetails(address);
@@ -776,6 +776,22 @@ export default function UniversalDashboard() {
       }, 2000);
     }
   }, [isRefundConfirmed, toast]);
+
+  // Handle pool activation success
+  useEffect(() => {
+    if (isActivateConfirmed) {
+      toast({
+        title: "🎮 Pool Activated!",
+        description: "The pool has been activated and the game has started!",
+        type: "success"
+      });
+
+      // Refresh creator data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  }, [isActivateConfirmed, toast]);
 
   // Handle unstaking errors
   useEffect(() => {
