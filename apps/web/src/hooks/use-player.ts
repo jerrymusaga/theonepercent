@@ -387,6 +387,50 @@ export function useUserParticipation(address?: `0x${string}`) {
 }
 
 /**
+ * Hook for claiming refund from abandoned pools
+ */
+export function useClaimRefund() {
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const contractAddress = useContractAddress();
+  const queryClient = useQueryClient();
+  const { address } = useAccount();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  const claimRefund = useMutation({
+    mutationFn: async (poolId: number) => {
+      if (!writeContract || !contractAddress) throw new Error('Contract not available');
+
+      return writeContract({
+        address: contractAddress,
+        abi: CONTRACT_CONFIG.abi,
+        functionName: 'claimRefundFromAbandonedPool',
+        args: [BigInt(poolId)],
+      });
+    },
+    onSuccess: () => {
+      // Invalidate player data to refresh
+      if (address) {
+        queryClient.invalidateQueries({ queryKey: ['playerJoinedPools', address] });
+        queryClient.invalidateQueries({ queryKey: ['playerPoolsDetails', address] });
+      }
+    },
+  });
+
+  return {
+    claimRefund: claimRefund.mutate,
+    claimRefundAsync: claimRefund.mutateAsync,
+    isPending: isPending || claimRefund.isPending,
+    isConfirming,
+    isConfirmed,
+    error: error || claimRefund.error,
+    hash,
+  };
+}
+
+/**
  * Hook to get game results for pools where the player participated
  */
 export function usePlayerGameResults(address?: `0x${string}`) {
