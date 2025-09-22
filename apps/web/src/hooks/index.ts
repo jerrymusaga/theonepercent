@@ -24,6 +24,7 @@ export {
   useCreatePool,
   useJoinPool,
   useActivatePool,
+  useCanActivatePool,
   useActivePools,
   useFormattedPoolInfo
 } from './use-pools';

@@ -30,6 +30,7 @@ import {
   useCreatorReward,
   useActivePools,
   useActivatePool,
+  useCanActivatePool,
   useWatchPoolCreated,
   useWatchPoolActivated,
   useWatchGameCompleted,
@@ -484,10 +485,12 @@ const PlayerPoolCard = ({
 
 const PoolCard = ({
   pool,
+  canActivate,
   onActivate,
   onViewPool
 }: {
   pool: any;
+  canActivate?: boolean;
   onActivate?: () => void;
   onViewPool?: (poolId: number, status: number) => void;
 }) => {
@@ -572,16 +575,42 @@ const PoolCard = ({
               {Number(pool.maxPlayers) - Number(pool.currentPlayers)} slots left
             </span>
           </div>
-          {Number(pool.currentPlayers) >= Number(pool.maxPlayers) && (
+
+          {/* Show activation options */}
+          {Number(pool.currentPlayers) >= Number(pool.maxPlayers) ? (
+            // Pool is 100% full - auto-activation
             <div className="mt-2">
+              <div className="p-2 bg-green-50 rounded-lg mb-2">
+                <div className="text-sm text-green-800 text-center">
+                  🎉 Pool is full! Game will start automatically.
+                </div>
+              </div>
+            </div>
+          ) : canActivate ? (
+            // Pool is 50%+ full - manual activation available
+            <div className="mt-2">
+              <div className="p-2 bg-orange-50 rounded-lg mb-2">
+                <div className="text-sm text-orange-800 text-center">
+                  ⚡ Pool is 50% full - you can start the game now!
+                </div>
+              </div>
               <Button
                 size="sm"
                 onClick={onActivate}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-orange-600 hover:bg-orange-700"
               >
                 <Zap className="w-4 h-4 mr-2" />
-                Activate Pool
+                Start Game Now
               </Button>
+            </div>
+          ) : (
+            // Show progress towards 50% threshold
+            <div className="mt-2">
+              <div className="p-2 bg-gray-50 rounded-lg">
+                <div className="text-sm text-gray-600 text-center">
+                  Need {Math.ceil(Number(pool.maxPlayers) / 2) - Number(pool.currentPlayers)} more players to enable manual start
+                </div>
+              </div>
             </div>
           )}
         </div>
