@@ -130,7 +130,7 @@ export function useJoinPool() {
   const joinPool = useMutation({
     mutationFn: async (params: { poolId: number; entryFee: string }) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
-      
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
