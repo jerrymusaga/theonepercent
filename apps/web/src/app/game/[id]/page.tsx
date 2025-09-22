@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Crown,
   Zap,
-  Wallet
+  Wallet,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -409,8 +410,18 @@ export default function GameArenaPage() {
     );
   }
 
-  // Game not found or not active
-  if (!poolInfo || poolInfo.status !== PoolStatus.ACTIVE) {
+  // Game not found
+  if (!poolInfo) {
+    return <GameNotFound poolId={poolId} />;
+  }
+
+  // Check if pool is accessible
+  const isAccessible = poolInfo.status === PoolStatus.ACTIVE ||
+                      poolInfo.status === PoolStatus.COMPLETED ||
+                      poolInfo.status === PoolStatus.OPENED ||
+                      poolInfo.status === PoolStatus.ABANDONED;
+
+  if (!isAccessible) {
     return <GameNotFound poolId={poolId} />;
   }
 
@@ -495,103 +506,206 @@ export default function GameArenaPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Game Area */}
           <div className="lg:col-span-2">
-            {/* Choice Selection */}
-            <Card className="p-8 mb-6 text-center">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Make Your Choice</h2>
-                <p className="text-gray-600">
-                  Choose HEADS or TAILS. Remember: <strong>minority wins!</strong>
-                </p>
-              </div>
+            {/* Status-based content */}
+            {poolInfo.status === PoolStatus.ACTIVE && (
+              <Card className="p-8 mb-6 text-center">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Make Your Choice</h2>
+                  <p className="text-gray-600">
+                    Choose HEADS or TAILS. Remember: <strong>minority wins!</strong>
+                  </p>
+                </div>
 
-              <div className="flex justify-center gap-8 mb-6">
-                <CoinChoiceButton
-                  choice={PlayerChoice.HEADS}
-                  selected={selectedChoice === PlayerChoice.HEADS}
-                  onClick={() => handleChoiceSelect(PlayerChoice.HEADS)}
-                  disabled={hasPlayerChosen || isPlayerEliminated || isSubmitting || isConfirming}
-                />
+                <div className="flex justify-center gap-8 mb-6">
+                  <CoinChoiceButton
+                    choice={PlayerChoice.HEADS}
+                    selected={selectedChoice === PlayerChoice.HEADS}
+                    onClick={() => handleChoiceSelect(PlayerChoice.HEADS)}
+                    disabled={hasPlayerChosen || isPlayerEliminated || isSubmitting || isConfirming}
+                  />
 
-                <CoinChoiceButton
-                  choice={PlayerChoice.TAILS}
-                  selected={selectedChoice === PlayerChoice.TAILS}
-                  onClick={() => handleChoiceSelect(PlayerChoice.TAILS)}
-                  disabled={hasPlayerChosen || isPlayerEliminated || isSubmitting || isConfirming}
-                />
-              </div>
+                  <CoinChoiceButton
+                    choice={PlayerChoice.TAILS}
+                    selected={selectedChoice === PlayerChoice.TAILS}
+                    onClick={() => handleChoiceSelect(PlayerChoice.TAILS)}
+                    disabled={hasPlayerChosen || isPlayerEliminated || isSubmitting || isConfirming}
+                  />
+                </div>
 
-              {/* Submit Button */}
-              {!isPlayerEliminated && !hasPlayerChosen && (
-                <div className="space-y-3">
-                  {/* Selection Error */}
-                  {selectionError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-800">
-                        {selectionError.message || "Failed to submit choice. Please try again."}
-                      </p>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={handleSubmitChoice}
-                    disabled={!selectedChoice || isSubmitting || isConfirming}
-                    className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 px-8 py-3 text-lg disabled:opacity-50"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <LoadingSpinner className="w-4 h-4 mr-2" />
-                        Sending Transaction...
-                      </>
-                    ) : isConfirming ? (
-                      <>
-                        <LoadingSpinner className="w-4 h-4 mr-2" />
-                        Confirming on Blockchain...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-5 h-5 mr-2" />
-                        Lock in Choice
-                      </>
+                {/* Submit Button */}
+                {!isPlayerEliminated && !hasPlayerChosen && (
+                  <div className="space-y-3">
+                    {/* Selection Error */}
+                    {selectionError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-800">
+                          {selectionError.message || "Failed to submit choice. Please try again."}
+                        </p>
+                      </div>
                     )}
-                  </Button>
 
-                  {selectedChoice && !isSubmitting && !isConfirming && (
-                    <p className="text-sm text-gray-600">
-                      You selected: <strong>{getChoiceLabel(selectedChoice)}</strong>
-                    </p>
-                  )}
+                    <Button
+                      onClick={handleSubmitChoice}
+                      disabled={!selectedChoice || isSubmitting || isConfirming}
+                      className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 px-8 py-3 text-lg disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <LoadingSpinner className="w-4 h-4 mr-2" />
+                          Sending Transaction...
+                        </>
+                      ) : isConfirming ? (
+                        <>
+                          <LoadingSpinner className="w-4 h-4 mr-2" />
+                          Confirming on Blockchain...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-5 h-5 mr-2" />
+                          Lock in Choice
+                        </>
+                      )}
+                    </Button>
 
-                  {/* Transaction hash display */}
-                  {hash && isConfirming && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-xs text-blue-800 mb-1">Transaction submitted:</p>
-                      <p className="text-xs font-mono text-blue-700 break-all">
-                        {hash.slice(0, 10)}...{hash.slice(-8)}
+                    {selectedChoice && !isSubmitting && !isConfirming && (
+                      <p className="text-sm text-gray-600">
+                        You selected: <strong>{getChoiceLabel(selectedChoice)}</strong>
                       </p>
-                      <p className="text-xs text-blue-600 mt-1">Waiting for confirmation...</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
 
-              {/* Already chosen message */}
-              {hasPlayerChosen && !isPlayerEliminated && (
-                <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="font-medium">
-                    Choice submitted! Your selection: <strong>{getChoiceLabel(playerChoice || PlayerChoice.NONE)}</strong>
-                  </span>
-                </div>
-              )}
+                    {/* Transaction hash display */}
+                    {hash && isConfirming && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-blue-800 mb-1">Transaction submitted:</p>
+                        <p className="text-xs font-mono text-blue-700 break-all">
+                          {hash.slice(0, 10)}...{hash.slice(-8)}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">Waiting for confirmation...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Eliminated Message */}
-              {isPlayerEliminated && (
-                <div className="flex items-center justify-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-medium">You have been eliminated from this game</span>
+                {/* Already chosen message */}
+                {hasPlayerChosen && !isPlayerEliminated && (
+                  <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="font-medium">
+                      Choice submitted! Your selection: <strong>{getChoiceLabel(playerChoice || PlayerChoice.NONE)}</strong>
+                    </span>
+                  </div>
+                )}
+
+                {/* Eliminated Message */}
+                {isPlayerEliminated && (
+                  <div className="flex items-center justify-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-medium">You have been eliminated from this game</span>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Completed Pool */}
+            {poolInfo.status === PoolStatus.COMPLETED && (
+              <Card className="p-8 mb-6 text-center">
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trophy className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Game Completed! 🎉</h2>
+                  <p className="text-gray-600">
+                    This game has finished. Check the results below.
+                  </p>
                 </div>
-              )}
-            </Card>
+
+                {remainingPlayers && remainingPlayers.length === 1 && (
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-green-800 font-medium mb-2">🏆 Winner:</p>
+                    <p className="text-green-700 font-mono">
+                      {formatAddress(remainingPlayers[0])}
+                    </p>
+                    {address === remainingPlayers[0] && (
+                      <p className="text-green-800 font-bold mt-2">That's you! Congratulations! 🎉</p>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  onClick={() => router.push(`/game/${poolId}/results`)}
+                  className="mt-6 bg-green-600 hover:bg-green-700"
+                >
+                  <Trophy className="w-4 h-4 mr-2" />
+                  View Detailed Results
+                </Button>
+              </Card>
+            )}
+
+            {/* Opened Pool */}
+            {poolInfo.status === PoolStatus.OPENED && (
+              <Card className="p-8 mb-6 text-center">
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Waiting for Players</h2>
+                  <p className="text-gray-600">
+                    This pool is open and waiting for more players to join before the game can start.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
+                  <p className="text-blue-800 mb-2">
+                    <strong>{Number(poolInfo.currentPlayers)}/{Number(poolInfo.maxPlayers)}</strong> players joined
+                  </p>
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(Number(poolInfo.currentPlayers) / Number(poolInfo.maxPlayers)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => router.push('/pools')}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Back to Pools
+                </Button>
+              </Card>
+            )}
+
+            {/* Abandoned Pool */}
+            {poolInfo.status === PoolStatus.ABANDONED && (
+              <Card className="p-8 mb-6 text-center">
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-8 h-8 text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Pool Abandoned</h2>
+                  <p className="text-gray-600">
+                    This pool was abandoned and all players have been automatically refunded.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-red-800">
+                    The pool creator unstaked before the game could complete.
+                    All entry fees have been returned to players.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={() => router.push('/pools')}
+                  variant="outline"
+                  className="mt-6"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Pools
+                </Button>
+              </Card>
+            )}
 
             {/* Strategy Tip */}
             <Card className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
