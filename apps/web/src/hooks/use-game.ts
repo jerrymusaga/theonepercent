@@ -7,9 +7,22 @@ import { PlayerChoice, GameProgress, CONTRACT_CONFIG } from '@/lib/contract';
  * Hook to get game progress for a pool
  */
 export function useGameProgress(poolId: number) {
-  return useCoinTossRead('getGameProgress', [BigInt(poolId)], {
+  const result = useCoinTossRead('getGameProgress', [BigInt(poolId)], {
     enabled: poolId > 0,
-  }) as {
+  });
+
+  // Transform array response to GameProgress object
+  const transformedResult = {
+    ...result,
+    data: result.data ? {
+      currentRound: (result.data as any)[0] as bigint,
+      remainingPlayersCount: (result.data as any)[1] as bigint,
+      totalPlayersCount: (result.data as any)[2] as bigint,
+      isGameComplete: (result.data as any)[3] as boolean,
+    } as GameProgress : undefined
+  };
+
+  return transformedResult as {
     data: GameProgress | undefined;
     isLoading: boolean;
     error: Error | null;

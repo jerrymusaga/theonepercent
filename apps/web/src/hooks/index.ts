@@ -48,7 +48,9 @@ export {
   useWatchPoolCreated,
   useWatchPlayerJoined,
   useWatchGameCompleted,
-  useGameEventWatchers
+  useGameEventWatchers,
+  useGameResults,
+  useLatestRoundResult
 } from './use-events';
 
 export {
