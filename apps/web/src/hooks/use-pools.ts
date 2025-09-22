@@ -249,11 +249,37 @@ export function usePoolsList(poolIds: number[]) {
 }
 
 /**
+ * Hook to get all pools regardless of status (for pools page with filters)
+ */
+export function useAllPools() {
+  const { data: currentPoolId, isLoading: isLoadingCurrentId } = useCurrentPoolId();
+
+  // Generate array of pool IDs to query (last 20 pools for example)
+  const poolIds = currentPoolId && Number(currentPoolId) > 0
+    ? Array.from({ length: Math.min(Number(currentPoolId), 20) }, (_, i) =>
+        Number(currentPoolId) - i
+      ).filter(id => id > 0)
+    : [];
+
+  const poolsQuery = usePoolsList(poolIds);
+
+  // Return all pools with data (no status filtering)
+  const allPools = poolsQuery.pools.filter(pool => pool.data);
+
+  return {
+    pools: allPools,
+    isLoading: isLoadingCurrentId || poolsQuery.isLoading,
+    hasError: poolsQuery.hasError,
+    refetch: poolsQuery.refetch,
+  };
+}
+
+/**
  * Hook to get all active pools (helper that combines multiple pool queries)
  */
 export function useActivePools() {
   const { data: currentPoolId, isLoading: isLoadingCurrentId } = useCurrentPoolId();
-  
+
   // Generate array of pool IDs to query (last 20 pools for example)
   const poolIds = currentPoolId && Number(currentPoolId) > 0
     ? Array.from({ length: Math.min(Number(currentPoolId), 20) }, (_, i) =>

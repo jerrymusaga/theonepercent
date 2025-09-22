@@ -7,7 +7,7 @@ import { Search, Filter, Users, Coins, Clock, TrendingUp, Wallet, AlertTriangle 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  useActivePools,
+  useAllPools,
   useJoinPool,
   useWatchPlayerJoined,
   useWatchPoolActivated,
@@ -80,8 +80,14 @@ const getPoolStatusInfo = (status: PoolStatus, currentRound?: number, remainingP
     case PoolStatus.COMPLETED:
       return {
         text: "Completed",
-        color: "bg-gray-100 text-gray-600",
+        color: "bg-emerald-100 text-emerald-800",
         icon: <Clock className="w-3 h-3" />
+      };
+    case PoolStatus.ABANDONED:
+      return {
+        text: "Abandoned",
+        color: "bg-red-100 text-red-800",
+        icon: <AlertTriangle className="w-3 h-3" />
       };
     default:
       return {
@@ -405,7 +411,7 @@ export default function PoolsPage() {
     isLoading: isLoadingPools,
     hasError: poolsError,
     refetch: refetchPools
-  } = useActivePools();
+  } = useAllPools();
 
   const { success } = useToast();
 
@@ -441,7 +447,8 @@ export default function PoolsPage() {
     const matchesStatus = statusFilter === "ALL" ||
                          (statusFilter === "OPENED" && pool.data.status === PoolStatus.OPENED) ||
                          (statusFilter === "ACTIVE" && pool.data.status === PoolStatus.ACTIVE) ||
-                         (statusFilter === "COMPLETED" && pool.data.status === PoolStatus.COMPLETED);
+                         (statusFilter === "COMPLETED" && pool.data.status === PoolStatus.COMPLETED) ||
+                         (statusFilter === "ABANDONED" && pool.data.status === PoolStatus.ABANDONED);
 
     return matchesSearch && matchesStatus;
   }) || [];
@@ -591,6 +598,7 @@ export default function PoolsPage() {
             <option value="OPENED">Open</option>
             <option value="ACTIVE">Active</option>
             <option value="COMPLETED">Completed</option>
+            <option value="ABANDONED">Abandoned</option>
           </select>
           
           <select 
