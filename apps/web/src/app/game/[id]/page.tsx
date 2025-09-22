@@ -425,13 +425,16 @@ export default function GameArenaPage() {
     return <GameNotFound poolId={poolId} />;
   }
 
+  // Check if current user is actually part of the game
+  const isPlayerInGame = address && remainingPlayers?.includes(address);
+
   const handleChoiceSelect = (choice: PlayerChoice) => {
-    if (hasPlayerChosen || isPlayerEliminated) return;
+    if (hasPlayerChosen || isPlayerEliminated || !isPlayerInGame) return;
     setSelectedChoice(choice);
   };
 
   const handleSubmitChoice = () => {
-    if (!selectedChoice || !address || !poolId) return;
+    if (!selectedChoice || !address || !poolId || !isPlayerInGame) return;
 
     try {
       makeSelection({ poolId: parseInt(poolId), choice: selectedChoice });
@@ -510,9 +513,14 @@ export default function GameArenaPage() {
             {poolInfo.status === PoolStatus.ACTIVE && (
               <Card className="p-8 mb-6 text-center">
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Make Your Choice</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {isPlayerInGame ? "Make Your Choice" : "Watch the Game"}
+                  </h2>
                   <p className="text-gray-600">
-                    Choose HEADS or TAILS. Remember: <strong>minority wins!</strong>
+                    {isPlayerInGame
+                      ? "Choose HEADS or TAILS. Remember: minority wins!"
+                      : "Watch as players make their choices. You can only participate if you joined this pool."
+                    }
                   </p>
                 </div>
 
@@ -521,19 +529,19 @@ export default function GameArenaPage() {
                     choice={PlayerChoice.HEADS}
                     selected={selectedChoice === PlayerChoice.HEADS}
                     onClick={() => handleChoiceSelect(PlayerChoice.HEADS)}
-                    disabled={hasPlayerChosen || isPlayerEliminated || isSubmitting || isConfirming}
+                    disabled={hasPlayerChosen || isPlayerEliminated || !isPlayerInGame || isSubmitting || isConfirming}
                   />
 
                   <CoinChoiceButton
                     choice={PlayerChoice.TAILS}
                     selected={selectedChoice === PlayerChoice.TAILS}
                     onClick={() => handleChoiceSelect(PlayerChoice.TAILS)}
-                    disabled={hasPlayerChosen || isPlayerEliminated || isSubmitting || isConfirming}
+                    disabled={hasPlayerChosen || isPlayerEliminated || !isPlayerInGame || isSubmitting || isConfirming}
                   />
                 </div>
 
-                {/* Submit Button */}
-                {!isPlayerEliminated && !hasPlayerChosen && (
+                {/* Submit Button - Only for players in the game */}
+                {!isPlayerEliminated && !hasPlayerChosen && isPlayerInGame && (
                   <div className="space-y-3">
                     {/* Selection Error */}
                     {selectionError && (
@@ -587,7 +595,7 @@ export default function GameArenaPage() {
                 )}
 
                 {/* Already chosen message */}
-                {hasPlayerChosen && !isPlayerEliminated && (
+                {hasPlayerChosen && !isPlayerEliminated && isPlayerInGame && (
                   <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg">
                     <CheckCircle2 className="w-4 h-4" />
                     <span className="font-medium">
@@ -601,6 +609,26 @@ export default function GameArenaPage() {
                   <div className="flex items-center justify-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
                     <AlertCircle className="w-5 h-5" />
                     <span className="font-medium">You have been eliminated from this game</span>
+                  </div>
+                )}
+
+                {/* Not in game message - for users who haven't joined this pool */}
+                {!isPlayerInGame && !isPlayerEliminated && address && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-2 text-gray-600 bg-gray-50 p-4 rounded-lg">
+                      <AlertCircle className="w-5 h-5" />
+                      <span className="font-medium">You are not part of this game - you can only watch</span>
+                    </div>
+                    <div className="text-center">
+                      <Button
+                        onClick={() => router.push('/pools')}
+                        variant="outline"
+                        className="bg-white hover:bg-gray-50"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Join Other Pools
+                      </Button>
+                    </div>
                   </div>
                 )}
               </Card>
