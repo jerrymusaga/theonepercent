@@ -2,111 +2,116 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
+import { formatEther } from "viem";
+import {
   ArrowLeft,
   Trophy,
-  TrendingDown,
-  Users,
-  Zap,
   Crown,
-  Timer,
   BarChart3,
   ArrowRight,
+  Users,
+  TrendingDown,
+  Zap,
   Skull,
   Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  usePoolInfo,
+  useGameProgress,
+  useCurrentRound,
+  useRemainingPlayers,
+  useGameResults,
+  useLatestRoundResult
+} from "@/hooks";
+import { PoolStatus } from "@/lib/contract";
 
-// Mock round results data
-const mockRoundResults = {
-  gameId: 1,
-  round: 2,
-  totalRounds: null, // Game continues until 1 winner
-  
-  choices: {
-    HEADS: {
-      count: 1,
-      players: [
-        { 
-          id: 4,
-          name: "@player4", 
-          avatar: "/api/placeholder/48/48",
-          isCurrentUser: false
+
+const PlayerResultCard = ({
+  player,
+  isWinner,
+  isEliminated,
+  showDelay = 0
+}: {
+  player: any;
+  isWinner: boolean;
+  isEliminated: boolean;
+  showDelay?: number;
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, showDelay);
+
+    return () => clearTimeout(timer);
+  }, [showDelay]);
+
+  return (
+    <div className={`
+      transform transition-all duration-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}
+    `}>
+      <Card className={`
+        p-4 relative overflow-hidden
+        ${isWinner ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-300' :
+          isEliminated ? 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300' :
+          'bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-300'
         }
-      ]
-    },
-    TAILS: {
-      count: 2,
-      players: [
-        { 
-          id: 3,
-          name: "@player3", 
-          avatar: "/api/placeholder/48/48",
-          isCurrentUser: true
-        },
-        { 
-          id: 5,
-          name: "@player5", 
-          avatar: "/api/placeholder/48/48",
-          isCurrentUser: false
-        }
-      ]
-    }
-  },
-  
-  winningChoice: "HEADS", // Minority wins
-  eliminatedPlayers: [
-    { 
-      id: 3,
-      name: "@player3", 
-      avatar: "/api/placeholder/48/48",
-      choice: "TAILS",
-      isCurrentUser: true,
-      finalPosition: 2 // 2nd place
-    },
-    { 
-      id: 5,
-      name: "@player5", 
-      avatar: "/api/placeholder/48/48",
-      choice: "TAILS",
-      isCurrentUser: false,
-      finalPosition: 3 // 3rd place
-    }
-  ],
-  
-  survivors: [
-    { 
-      id: 4,
-      name: "@player4", 
-      avatar: "/api/placeholder/48/48",
-      choice: "HEADS",
-      isCurrentUser: false
-    }
-  ],
-  
-  gameStats: {
-    prizePool: "20.0",
-    remainingPlayers: 1,
-    totalPlayers: 8,
-    isGameComplete: true, // Only 1 player left
-    winner: {
-      id: 4,
-      name: "@player4", 
-      avatar: "/api/placeholder/48/48",
-      prize: "19.0" // 95% of prize pool
-    }
-  },
-  
-  previousRounds: [
-    {
-      round: 1,
-      choices: { HEADS: 1, TAILS: 4 },
-      winningChoice: "HEADS",
-      eliminated: 4,
-      survivors: 3
-    }
-  ]
+      `}>
+        {/* Background decoration */}
+        <div className={`
+          absolute top-0 right-0 opacity-10
+          ${isWinner ? 'text-green-500' : isEliminated ? 'text-red-500' : 'text-blue-500'}
+        `}>
+          {isWinner ? <Crown className="w-16 h-16" /> : isEliminated ? <Skull className="w-16 h-16" /> : <Star className="w-16 h-16" />}
+        </div>
+
+        <div className="relative flex items-center gap-4">
+          <div className="relative">
+            <div className={`w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg ${isEliminated ? 'grayscale' : ''}`}>
+              {player.address ? `${player.address.slice(0, 2)}${player.address.slice(-2)}` : '??'}
+            </div>
+
+            {isWinner && (
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center animate-bounce">
+                <Crown className="w-4 h-4 text-white" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-bold text-lg">
+                {player.address ? `${player.address.slice(0, 6)}...${player.address.slice(-4)}` : 'Unknown'}
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`
+                px-2 py-1 rounded-full text-xs font-medium
+                ${player.choice === "HEADS"
+                  ? 'bg-yellow-200 text-yellow-800'
+                  : 'bg-gray-200 text-gray-800'
+                }
+              `}>
+                Chose: {player.choice}
+              </div>
+            </div>
+
+            <p className={`
+              text-sm font-medium
+              ${isWinner ? 'text-green-700' : isEliminated ? 'text-red-700' : 'text-blue-700'}
+            `}>
+              {isWinner ? "🎉 WINNER!" : isEliminated ? "💀 Eliminated" : "🎯 Survived"}
+              {isWinner && player.prizeAmount && ` • Won ${formatEther(player.prizeAmount)} CELO`}
+            </p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
 };
 
 const CoinFlipAnimation = ({ result, delay = 0 }: { result: "HEADS" | "TAILS"; delay?: number }) => {
@@ -153,110 +158,6 @@ const CoinFlipAnimation = ({ result, delay = 0 }: { result: "HEADS" | "TAILS"; d
   );
 };
 
-const PlayerResultCard = ({ 
-  player, 
-  isWinner, 
-  isEliminated, 
-  showDelay = 0 
-}: { 
-  player: any; 
-  isWinner: boolean; 
-  isEliminated: boolean;
-  showDelay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, showDelay);
-
-    return () => clearTimeout(timer);
-  }, [showDelay]);
-
-  return (
-    <div className={`
-      transform transition-all duration-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}
-    `}>
-      <Card className={`
-        p-4 relative overflow-hidden
-        ${isWinner ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-300' : 
-          isEliminated ? 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300' : 
-          'bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-300'
-        }
-        ${player.isCurrentUser ? 'ring-2 ring-blue-400' : ''}
-      `}>
-        {/* Background decoration */}
-        <div className={`
-          absolute top-0 right-0 opacity-10
-          ${isWinner ? 'text-green-500' : isEliminated ? 'text-red-500' : 'text-blue-500'}
-        `}>
-          {isWinner ? <Crown className="w-16 h-16" /> : isEliminated ? <Skull className="w-16 h-16" /> : <Star className="w-16 h-16" />}
-        </div>
-
-        <div className="relative flex items-center gap-4">
-          <div className="relative">
-            <img 
-              src={player.avatar} 
-              alt={player.name}
-              className={`w-16 h-16 rounded-full ${isEliminated ? 'grayscale' : ''}`}
-            />
-            
-            {isWinner && (
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center animate-bounce">
-                <Crown className="w-4 h-4 text-white" />
-              </div>
-            )}
-            
-            {player.isCurrentUser && (
-              <div className="absolute -bottom-1 -left-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                <Users className="w-3 h-3 text-white" />
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-lg">{player.name}</h3>
-              {player.isCurrentUser && (
-                <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">YOU</span>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`
-                px-2 py-1 rounded-full text-xs font-medium
-                ${player.choice === "HEADS" 
-                  ? 'bg-yellow-200 text-yellow-800' 
-                  : 'bg-gray-200 text-gray-800'
-                }
-              `}>
-                Chose: {player.choice}
-              </div>
-              
-              {isEliminated && player.finalPosition && (
-                <div className="px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-medium">
-                  {player.finalPosition === 1 ? "1st" : 
-                   player.finalPosition === 2 ? "2nd" :
-                   player.finalPosition === 3 ? "3rd" :
-                   `${player.finalPosition}th`} Place
-                </div>
-              )}
-            </div>
-
-            <p className={`
-              text-sm font-medium
-              ${isWinner ? 'text-green-700' : isEliminated ? 'text-red-700' : 'text-blue-700'}
-            `}>
-              {isWinner ? "🎉 WINNER!" : isEliminated ? "💀 Eliminated" : "🎯 Survived"}
-              {isWinner && player.prize && ` • Won ${player.prize} CELO`}
-            </p>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-};
 
 const ChoiceDistributionChart = ({ choices, winningChoice }: { choices: any; winningChoice: string }) => {
   const total = choices.HEADS.count + choices.TAILS.count;
@@ -328,99 +229,157 @@ const ChoiceDistributionChart = ({ choices, winningChoice }: { choices: any; win
 export default function RoundResultsPage() {
   const params = useParams();
   const router = useRouter();
-  const [showContinueButton, setShowContinueButton] = useState(false);
-  
-  const gameId = params?.id;
-  const results = mockRoundResults;
 
-  // Show continue button after animations
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowContinueButton(true);
-    }, 4000);
+  const poolId = Number(params?.id);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Get pool and game data from blockchain
+  const { data: poolInfo, isLoading: isLoadingPool } = usePoolInfo(poolId);
+  const { data: gameProgress, isLoading: isLoadingGame } = useGameProgress(poolId);
+  const { data: currentRound } = useCurrentRound(poolId);
+  const { data: remainingPlayers } = useRemainingPlayers(poolId);
+  const gameResults = useGameResults(poolId);
+  const latestRoundResult = useLatestRoundResult(poolId);
 
-  const handleContinue = () => {
-    if (results.gameStats.isGameComplete) {
-      // Go to game completion page
-      router.push(`/game/${gameId}/complete`);
-    } else {
-      // Go to next round
-      router.push(`/game/${gameId}`);
-    }
+  const isLoading = isLoadingPool || isLoadingGame || gameResults.isLoading;
+
+  // Early return if no pool data
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading game results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!poolInfo || !gameProgress) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Game Not Found</h1>
+          <p className="text-gray-600 mb-4">The game results could not be loaded.</p>
+          <Button onClick={() => router.push('/pools')} variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Pools
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Transform blockchain data to match UI expectations
+  const results = {
+    round: Number(currentRound || 0),
+    gameStats: {
+      prizePool: formatEther(poolInfo.prizePool),
+      remainingPlayers: Array.isArray(remainingPlayers) ? remainingPlayers.length : 0,
+      totalPlayers: Number(poolInfo.maxPlayers),
+      isGameComplete: poolInfo.status === PoolStatus.COMPLETED,
+      winner: gameResults.winner
+    },
+    winningChoice: latestRoundResult.data?.winningChoice || "HEADS",
+    choices: latestRoundResult.data?.choices || {
+      HEADS: { count: 0, players: [] },
+      TAILS: { count: 0, players: [] }
+    },
+    rounds: gameResults.rounds,
+    hasRoundData: gameResults.rounds.length > 0
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Round {results.round} Results</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {results.gameStats.isGameComplete ? "Final Results" : `Round ${results.round} Results`}
+          </h1>
           <p className="text-gray-600">
             {results.gameStats.isGameComplete ? "Game Complete!" : `${results.gameStats.remainingPlayers} player${results.gameStats.remainingPlayers !== 1 ? 's' : ''} remaining`}
           </p>
         </div>
 
         {/* Coin Flip Animation */}
-        <div className="text-center mb-8">
-          <CoinFlipAnimation result={results.winningChoice as "HEADS" | "TAILS"} />
-        </div>
+        {!results.gameStats.isGameComplete && results.hasRoundData && (
+          <div className="text-center mb-8">
+            <CoinFlipAnimation result={results.winningChoice as "HEADS" | "TAILS"} />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Choice Distribution */}
-          <div className="lg:col-span-1">
-            <ChoiceDistributionChart 
-              choices={results.choices} 
-              winningChoice={results.winningChoice} 
-            />
-          </div>
+          {!results.gameStats.isGameComplete && results.hasRoundData && (
+            <div className="lg:col-span-1">
+              <ChoiceDistributionChart
+                choices={results.choices}
+                winningChoice={results.winningChoice}
+              />
+            </div>
+          )}
 
           {/* Game Stats */}
-          <div className="lg:col-span-2">
+          <div className={results.gameStats.isGameComplete ? "lg:col-span-3" : "lg:col-span-2"}>
             <Card className="p-6 h-full">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-yellow-600" />
                 Game Status
               </h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
                   <p className="text-2xl font-bold text-yellow-600">{results.gameStats.prizePool} CELO</p>
                   <p className="text-sm text-yellow-800">Prize Pool</p>
                 </div>
-                
+
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{results.gameStats.remainingPlayers}</p>
-                  <p className="text-sm text-blue-800">Players Left</p>
+                  <p className="text-2xl font-bold text-blue-600">{results.gameStats.totalPlayers}</p>
+                  <p className="text-sm text-blue-800">Total Players</p>
                 </div>
-                
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">{results.eliminatedPlayers.length}</p>
-                  <p className="text-sm text-red-800">Eliminated</p>
-                </div>
-                
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{results.round}</p>
-                  <p className="text-sm text-green-800">Current Round</p>
-                </div>
+
+                {!results.gameStats.isGameComplete && (
+                  <>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <p className="text-2xl font-bold text-green-600">{results.gameStats.remainingPlayers}</p>
+                      <p className="text-sm text-green-800">Players Left</p>
+                    </div>
+
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <p className="text-2xl font-bold text-purple-600">{results.round}</p>
+                      <p className="text-sm text-purple-800">Current Round</p>
+                    </div>
+                  </>
+                )}
+
+                {results.gameStats.isGameComplete && (
+                  <>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <p className="text-2xl font-bold text-green-600">1</p>
+                      <p className="text-sm text-green-800">Winner</p>
+                    </div>
+
+                    <div className="text-center p-4 bg-red-50 rounded-lg">
+                      <p className="text-2xl font-bold text-red-600">{results.gameStats.totalPlayers - 1}</p>
+                      <p className="text-sm text-red-800">Eliminated</p>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {results.gameStats.isGameComplete && results.gameStats.winner && (
+              {results.gameStats.isGameComplete && (
                 <div className="mt-6 p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300">
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={results.gameStats.winner.avatar} 
-                      alt="Winner"
-                      className="w-12 h-12 rounded-full"
-                    />
+                    <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center">
+                      <Crown className="w-6 h-6 text-white" />
+                    </div>
                     <div>
                       <p className="font-bold text-green-900 text-lg">
-                        🏆 {results.gameStats.winner.name} Wins!
+                        🏆 Winner!
                       </p>
                       <p className="text-green-700">
-                        Won {results.gameStats.winner.prize} CELO
+                        Won {results.gameStats.prizePool} CELO
                       </p>
                     </div>
                   </div>
@@ -430,91 +389,158 @@ export default function RoundResultsPage() {
           </div>
         </div>
 
-        {/* Player Results */}
-        <div className="space-y-6 mb-8">
-          {/* Survivors */}
-          {results.survivors.length > 0 && !results.gameStats.isGameComplete && (
-            <div>
-              <h2 className="text-xl font-bold text-green-600 mb-4 flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                Survivors ({results.survivors.length})
+        {/* Game Summary for Completed Games */}
+        {results.gameStats.isGameComplete && (
+          <div className="mb-8">
+            <Card className="p-6 text-center">
+              <h2 className="text-2xl font-bold text-green-600 mb-4 flex items-center justify-center gap-2">
+                <Crown className="w-6 h-6" />
+                Game Complete!
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.survivors.map((player, index) => (
-                  <PlayerResultCard 
-                    key={player.id}
-                    player={player}
-                    isWinner={false}
-                    isEliminated={false}
-                    showDelay={3000 + (index * 200)}
-                  />
-                ))}
+              <p className="text-lg text-gray-700 mb-4">
+                The elimination game has ended. The prize pool of <span className="font-bold text-yellow-600">{results.gameStats.prizePool} CELO</span> has been awarded to the winner.
+              </p>
+              <div className="text-sm text-gray-600">
+                <p>Final Round: {results.round}</p>
+                <p>Total Players: {results.gameStats.totalPlayers}</p>
               </div>
-            </div>
-          )}
 
-          {/* Winner (if game complete) */}
-          {results.gameStats.isGameComplete && results.gameStats.winner && (
-            <div>
-              <h2 className="text-xl font-bold text-yellow-600 mb-4 flex items-center gap-2">
-                <Crown className="w-5 h-5" />
-                Champion
-              </h2>
-              <div className="max-w-md mx-auto">
-                <PlayerResultCard 
-                  player={results.gameStats.winner}
-                  isWinner={true}
-                  isEliminated={false}
-                  showDelay={3000}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Eliminated Players */}
-          {results.eliminatedPlayers.length > 0 && (
-            <div>
-              <h2 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
-                <TrendingDown className="w-5 h-5" />
-                Eliminated This Round ({results.eliminatedPlayers.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.eliminatedPlayers.map((player, index) => (
-                  <PlayerResultCard 
-                    key={player.id}
-                    player={player}
-                    isWinner={false}
-                    isEliminated={true}
-                    showDelay={3500 + (index * 200)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Continue Button */}
-        {showContinueButton && (
-          <div className="text-center">
-            <Button
-              onClick={handleContinue}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-8 py-4 text-lg"
-              size="lg"
-            >
-              {results.gameStats.isGameComplete ? (
-                <>
-                  <Trophy className="w-5 h-5 mr-2" />
-                  View Final Results
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="w-5 h-5 mr-2" />
-                  Continue to Round {results.round + 1}
-                </>
+              {results.gameStats.winner && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center">
+                      <Crown className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-green-900 text-lg">
+                        🏆 Winner: {results.gameStats.winner.address.slice(0, 6)}...{results.gameStats.winner.address.slice(-4)}
+                      </p>
+                      <p className="text-green-700">
+                        Won {formatEther(results.gameStats.winner.prizeAmount)} CELO
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
-            </Button>
+            </Card>
           </div>
         )}
+
+        {/* Round Summary for Active Games */}
+        {!results.gameStats.isGameComplete && results.hasRoundData && (
+          <div className="mb-8">
+            <Card className="p-6 text-center">
+              <h2 className="text-xl font-bold text-purple-600 mb-4">
+                Round {results.round} Summary
+              </h2>
+              <p className="text-gray-700">
+                The minority choice <span className="font-bold text-green-600">{results.winningChoice}</span> wins!
+                {results.gameStats.remainingPlayers} player{results.gameStats.remainingPlayers !== 1 ? 's' : ''} survive{results.gameStats.remainingPlayers === 1 ? 's' : ''} to the next round.
+              </p>
+            </Card>
+          </div>
+        )}
+
+        {/* Player Results - Show detailed breakdown when we have round data */}
+        {results.hasRoundData && (
+          <div className="space-y-6 mb-8">
+            {/* Survivors */}
+            {!results.gameStats.isGameComplete && (results.choices as any)[results.winningChoice]?.players.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-green-600 mb-4 flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  Survivors ({(results.choices as any)[results.winningChoice].players.length})
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(results.choices as any)[results.winningChoice].players.map((player: any, index: number) => (
+                    <PlayerResultCard
+                      key={player.address}
+                      player={player}
+                      isWinner={false}
+                      isEliminated={false}
+                      showDelay={1000 + (index * 200)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Winner (if game complete) */}
+            {results.gameStats.isGameComplete && results.gameStats.winner && (
+              <div>
+                <h2 className="text-xl font-bold text-yellow-600 mb-4 flex items-center gap-2">
+                  <Crown className="w-5 h-5" />
+                  Champion
+                </h2>
+                <div className="max-w-md mx-auto">
+                  <PlayerResultCard
+                    player={{
+                      address: results.gameStats.winner.address,
+                      choice: results.winningChoice,
+                      prizeAmount: results.gameStats.winner.prizeAmount
+                    }}
+                    isWinner={true}
+                    isEliminated={false}
+                    showDelay={1000}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Eliminated Players */}
+            {(results.choices as any)[results.winningChoice === 'HEADS' ? 'TAILS' : 'HEADS']?.players.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
+                  <TrendingDown className="w-5 h-5" />
+                  Eliminated This Round ({(results.choices as any)[results.winningChoice === 'HEADS' ? 'TAILS' : 'HEADS'].players.length})
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(results.choices as any)[results.winningChoice === 'HEADS' ? 'TAILS' : 'HEADS'].players.map((player: any, index: number) => (
+                    <PlayerResultCard
+                      key={player.address}
+                      player={player}
+                      isWinner={false}
+                      isEliminated={true}
+                      showDelay={1500 + (index * 200)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-center gap-4">
+          <Button
+            onClick={() => router.push('/pools')}
+            variant="outline"
+            className="px-6 py-3"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Pools
+          </Button>
+
+          {!results.gameStats.isGameComplete && (
+            <Button
+              onClick={() => router.push(`/game/${poolId}`)}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-6 py-3"
+            >
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Continue Game
+            </Button>
+          )}
+
+          {results.gameStats.isGameComplete && (
+            <Button
+              onClick={() => router.push('/dashboard')}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3"
+            >
+              <Trophy className="w-4 h-4 mr-2" />
+              View Dashboard
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -351,3 +351,188 @@ export function useGameEventWatchers(poolId: number) {
 
   return gameEvents;
 }
+
+/**
+ * Hook to get detailed game results and round history
+ */
+export function useGameResults(poolId: number) {
+  const [gameResults, setGameResults] = useState<{
+    rounds: any[];
+    playerChoices: any[];
+    winner: any;
+    isLoading: boolean;
+    error: Error | null;
+  }>({
+    rounds: [],
+    playerChoices: [],
+    winner: null,
+    isLoading: true,
+    error: null
+  });
+
+  const publicClient = usePublicClient();
+  const contractAddress = useContractAddress();
+
+  useEffect(() => {
+    if (!publicClient || !contractAddress || poolId <= 0) return;
+
+    const fetchGameResults = async () => {
+      setGameResults(prev => ({ ...prev, isLoading: true, error: null }));
+
+      try {
+        // Fetch all relevant events for this pool
+        const [roundResolvedLogs, playerChoiceLogs, gameCompletedLogs] = await Promise.all([
+          // Round resolved events
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'RoundResolved',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'round', type: 'uint256', indexed: false },
+                { name: 'winningChoice', type: 'uint8', indexed: false },
+                { name: 'eliminatedCount', type: 'uint256', indexed: false },
+                { name: 'remainingCount', type: 'uint256', indexed: false }
+              ]
+            },
+            args: { poolId: BigInt(poolId) },
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          }),
+          // Player choice events
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'PlayerMadeChoice',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'player', type: 'address', indexed: true },
+                { name: 'choice', type: 'uint8', indexed: false },
+                { name: 'round', type: 'uint256', indexed: false }
+              ]
+            },
+            args: { poolId: BigInt(poolId) },
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          }),
+          // Game completed events
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'GameCompleted',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'winner', type: 'address', indexed: true },
+                { name: 'prizeAmount', type: 'uint256', indexed: false }
+              ]
+            },
+            args: { poolId: BigInt(poolId) },
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          })
+        ]);
+
+        // Process round resolved events
+        const rounds = roundResolvedLogs.map(log => ({
+          round: Number(log.args.round),
+          winningChoice: log.args.winningChoice,
+          eliminatedCount: Number(log.args.eliminatedCount),
+          remainingCount: Number(log.args.remainingCount),
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash
+        })).sort((a, b) => a.round - b.round);
+
+        // Process player choice events
+        const playerChoices = playerChoiceLogs.map(log => ({
+          player: log.args.player,
+          choice: Number(log.args.choice),
+          round: Number(log.args.round),
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash
+        }));
+
+        // Process winner
+        const winner = gameCompletedLogs.length > 0 ? {
+          address: gameCompletedLogs[0].args.winner,
+          prizeAmount: gameCompletedLogs[0].args.prizeAmount,
+          blockNumber: gameCompletedLogs[0].blockNumber,
+          transactionHash: gameCompletedLogs[0].transactionHash
+        } : null;
+
+        setGameResults({
+          rounds,
+          playerChoices,
+          winner,
+          isLoading: false,
+          error: null
+        });
+
+      } catch (error) {
+        console.error('Error fetching game results:', error);
+        setGameResults(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error as Error
+        }));
+      }
+    };
+
+    fetchGameResults();
+  }, [publicClient, contractAddress, poolId]);
+
+  return gameResults;
+}
+
+/**
+ * Hook to get the latest round results for display
+ */
+export function useLatestRoundResult(poolId: number) {
+  const gameResults = useGameResults(poolId);
+
+  if (gameResults.isLoading || gameResults.rounds.length === 0) {
+    return {
+      isLoading: gameResults.isLoading,
+      data: null,
+      error: gameResults.error
+    };
+  }
+
+  const latestRound = gameResults.rounds[gameResults.rounds.length - 1];
+  const roundChoices = gameResults.playerChoices.filter(choice => choice.round === latestRound.round);
+
+  // Group choices by selection
+  const choiceDistribution = {
+    HEADS: roundChoices.filter(c => c.choice === 1), // PlayerChoice.HEADS = 1
+    TAILS: roundChoices.filter(c => c.choice === 2)  // PlayerChoice.TAILS = 2
+  };
+
+  return {
+    isLoading: false,
+    data: {
+      round: latestRound.round,
+      winningChoice: latestRound.winningChoice === 1 ? 'HEADS' : 'TAILS',
+      eliminatedCount: latestRound.eliminatedCount,
+      remainingCount: latestRound.remainingCount,
+      choices: {
+        HEADS: {
+          count: choiceDistribution.HEADS.length,
+          players: choiceDistribution.HEADS.map(c => ({
+            address: c.player,
+            choice: 'HEADS'
+          }))
+        },
+        TAILS: {
+          count: choiceDistribution.TAILS.length,
+          players: choiceDistribution.TAILS.map(c => ({
+            address: c.player,
+            choice: 'TAILS'
+          }))
+        }
+      }
+    },
+    error: null
+  };
+}
