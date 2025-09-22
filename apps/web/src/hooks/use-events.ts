@@ -237,7 +237,7 @@ export function usePoolEvents(poolId: number, fromBlock?: bigint) {
 
         setEvents(formattedEvents);
       } catch (error) {
-        console.error('Error fetching pool events:', error);
+        // Error handled silently
       } finally {
         setIsLoading(false);
       }
@@ -471,7 +471,7 @@ export function useGameResults(poolId: number) {
         });
 
       } catch (error) {
-        console.error('Error fetching game results:', error);
+        // Error handled silently
         setGameResults(prev => ({
           ...prev,
           isLoading: false,

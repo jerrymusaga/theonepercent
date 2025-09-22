@@ -78,7 +78,6 @@ export function useJoinedPlayers(poolId: number) {
 
         return remainingPlayers || [];
       } catch (error) {
-        console.error('Error fetching joined players:', error);
         return [];
       }
     },

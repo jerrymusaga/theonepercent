@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt, useWriteContract, usePublicClient } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract, usePublicClient, useChainId } from 'wagmi';
 import { formatEther } from 'viem';
 import { useCoinTossRead, useContractAddress } from './use-contract';
 import { PoolInfo, PoolStatus, CONTRACT_CONFIG } from '@/lib/contract';
@@ -58,6 +58,10 @@ export function usePlayerJoinedPools(address?: `0x${string}`) {
   const targetAddress = address || connectedAddress;
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   return useQuery({
     queryKey: ['playerJoinedPools', targetAddress],
@@ -67,37 +71,54 @@ export function usePlayerJoinedPools(address?: `0x${string}`) {
       }
 
       try {
-        // Get PlayerJoined events for this player
-        const logs = await publicClient.getLogs({
-          address: contractAddress,
-          event: {
-            type: 'event',
-            name: 'PlayerJoined',
-            inputs: [
-              { name: 'poolId', type: 'uint256', indexed: true },
-              { name: 'player', type: 'address', indexed: true },
-              { name: 'currentPlayers', type: 'uint256', indexed: false },
-              { name: 'maxPlayers', type: 'uint256', indexed: false }
-            ]
-          },
-          args: {
-            player: targetAddress
-          },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        });
+        // Get current block for reasonable range calculation
+        const currentBlock = await publicClient.getBlockNumber();
+
+        // Use last 100k blocks for mainnet, earliest for testnet
+        const fromBlock = isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const;
+
+        // First try to get events with timeout for faster fallback
+        const logs = await Promise.race([
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'PlayerJoined',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'player', type: 'address', indexed: true },
+                { name: 'currentPlayers', type: 'uint256', indexed: false },
+                { name: 'maxPlayers', type: 'uint256', indexed: false }
+              ]
+            },
+            args: {
+              player: targetAddress
+            },
+            fromBlock,
+            toBlock: 'latest',
+          }),
+          // Timeout after 8 seconds to quickly fallback on mainnet
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+          )
+        ]) as any[];
 
         // Extract unique pool IDs
         const poolIds = [...new Set(logs.map(log => Number(log.args.poolId)))];
 
         return poolIds;
       } catch (error) {
-        console.error('Error fetching player joined pools:', error);
+        // Return empty array for timeout or other errors
         return [];
       }
     },
     enabled: !!targetAddress && !!publicClient && !!contractAddress,
-    staleTime: 30000, // 30 seconds
+    staleTime: isMainnet ? 10000 : 30000, // 10s on mainnet, 30s on testnet
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: isMainnet ? 15000 : false, // Auto-refetch every 15s on mainnet
+    refetchOnWindowFocus: true, // Always refetch when window gains focus
   });
 }
 
@@ -110,6 +131,10 @@ export function useHasClaimedPrize(poolId: number, address?: `0x${string}`) {
   const targetAddress = address || connectedAddress;
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   return useQuery({
     queryKey: ['hasClaimedPrize', poolId, targetAddress],
@@ -119,25 +144,39 @@ export function useHasClaimedPrize(poolId: number, address?: `0x${string}`) {
       }
 
       try {
+        // Get current block for reasonable range calculation
+        const currentBlock = await publicClient.getBlockNumber();
+
+        // Use last 100k blocks for mainnet, earliest for testnet
+        const fromBlock = isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const;
+
         // First check if there's a GameCompleted event for this pool with this winner
-        const gameCompletedLogs = await publicClient.getLogs({
-          address: contractAddress,
-          event: {
-            type: 'event',
-            name: 'GameCompleted',
-            inputs: [
-              { name: 'poolId', type: 'uint256', indexed: true },
-              { name: 'winner', type: 'address', indexed: true },
-              { name: 'prizeAmount', type: 'uint256', indexed: false }
-            ]
-          },
-          args: {
-            poolId: BigInt(poolId),
-            winner: targetAddress
-          },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        });
+        const gameCompletedLogs = await Promise.race([
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'GameCompleted',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'winner', type: 'address', indexed: true },
+                { name: 'prizeAmount', type: 'uint256', indexed: false }
+              ]
+            },
+            args: {
+              poolId: BigInt(poolId),
+              winner: targetAddress
+            },
+            fromBlock,
+            toBlock: 'latest',
+          }),
+          // Timeout after 8 seconds to quickly fallback on mainnet
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+          )
+        ]) as any[];
 
         // If no GameCompleted event with this winner, they didn't win
         if (gameCompletedLogs.length === 0) {
@@ -157,12 +196,15 @@ export function useHasClaimedPrize(poolId: number, address?: `0x${string}`) {
         return prizePool === BigInt(0);
 
       } catch (error) {
-        console.error('Error checking prize claimed status:', error);
+        // Return false for timeout or other errors
         return false;
       }
     },
     enabled: !!targetAddress && !!publicClient && !!contractAddress && poolId > 0,
-    staleTime: 30000, // 30 seconds
+    staleTime: isMainnet ? 10000 : 30000, // 10s on mainnet, 30s on testnet
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: isMainnet ? 15000 : false, // Auto-refetch every 15s on mainnet
+    refetchOnWindowFocus: true, // Always refetch when window gains focus
   });
 }
 
@@ -175,6 +217,10 @@ export function usePlayerPoolsDetails(address?: `0x${string}`) {
   const targetAddress = address || connectedAddress;
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   const { data: joinedPools = [], isLoading: isPoolsLoading } = useQuery({
     queryKey: ['playerPoolsDetails', targetAddress, poolIds],
@@ -207,30 +253,41 @@ export function usePlayerPoolsDetails(address?: `0x${string}`) {
         }));
 
         // Check if player won any of these pools by looking for GameCompleted events
+        const currentBlock = await publicClient.getBlockNumber();
+        const fromBlock = isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const;
+
         const gameCompletedChecks = await Promise.all(
           poolIds.map(async (poolId) => {
             try {
-              const logs = await publicClient.getLogs({
-                address: contractAddress,
-                event: {
-                  type: 'event',
-                  name: 'GameCompleted',
-                  inputs: [
-                    { name: 'poolId', type: 'uint256', indexed: true },
-                    { name: 'winner', type: 'address', indexed: true },
-                    { name: 'prizeAmount', type: 'uint256', indexed: false }
-                  ]
-                },
-                args: {
-                  poolId: BigInt(poolId),
-                  winner: targetAddress
-                },
-                fromBlock: 'earliest',
-                toBlock: 'latest',
-              });
+              const logs = await Promise.race([
+                publicClient.getLogs({
+                  address: contractAddress,
+                  event: {
+                    type: 'event',
+                    name: 'GameCompleted',
+                    inputs: [
+                      { name: 'poolId', type: 'uint256', indexed: true },
+                      { name: 'winner', type: 'address', indexed: true },
+                      { name: 'prizeAmount', type: 'uint256', indexed: false }
+                    ]
+                  },
+                  args: {
+                    poolId: BigInt(poolId),
+                    winner: targetAddress
+                  },
+                  fromBlock,
+                  toBlock: 'latest',
+                }),
+                // Timeout after 8 seconds to quickly fallback on mainnet
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+                )
+              ]) as any[];
               return logs.length > 0;
             } catch (error) {
-              console.error(`Error checking winner status for pool ${poolId}:`, error);
+              // Return false for timeout or other errors
               return false;
             }
           })
@@ -320,12 +377,15 @@ export function usePlayerPoolsDetails(address?: `0x${string}`) {
         return joinedPools;
 
       } catch (error) {
-        console.error('Error fetching player pool details:', error);
+        // Return empty array for timeout or other errors
         return [];
       }
     },
     enabled: !!targetAddress && poolIds.length > 0 && !isLoadingIds && !!publicClient && !!contractAddress,
-    staleTime: 30000,
+    staleTime: isMainnet ? 10000 : 30000, // 10s on mainnet, 30s on testnet
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: isMainnet ? 15000 : false, // Auto-refetch every 15s on mainnet
+    refetchOnWindowFocus: true, // Always refetch when window gains focus
   });
 
   return {
@@ -380,7 +440,7 @@ export function useHasJoinedPools(address?: `0x${string}`) {
  */
 export function usePlayerStats(address?: `0x${string}`) {
   const { pools, isLoading } = usePlayerPoolsDetails(address);
-  const { totalClaimable, totalClaimableFormatted } = usePlayerPrizes(address);
+  const { totalClaimableFormatted } = usePlayerPrizes(address);
 
   const stats: PlayerStats = {
     totalPoolsJoined: pools.length,
@@ -459,6 +519,10 @@ export function useCreatedPools(address?: `0x${string}`) {
   const targetAddress = address || connectedAddress;
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   return useQuery({
     queryKey: ['createdPools', targetAddress],
@@ -468,25 +532,39 @@ export function useCreatedPools(address?: `0x${string}`) {
       }
 
       try {
-        // Get PoolCreated events for this creator
-        const logs = await publicClient.getLogs({
-          address: contractAddress,
-          event: {
-            type: 'event',
-            name: 'PoolCreated',
-            inputs: [
-              { name: 'poolId', type: 'uint256', indexed: true },
-              { name: 'creator', type: 'address', indexed: true },
-              { name: 'entryFee', type: 'uint256', indexed: false },
-              { name: 'maxPlayers', type: 'uint256', indexed: false }
-            ]
-          },
-          args: {
-            creator: targetAddress
-          },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        });
+        // Get current block for reasonable range calculation
+        const currentBlock = await publicClient.getBlockNumber();
+
+        // Use last 100k blocks for mainnet, earliest for testnet
+        const fromBlock = isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const;
+
+        // Get PoolCreated events for this creator with timeout
+        const logs = await Promise.race([
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'PoolCreated',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'creator', type: 'address', indexed: true },
+                { name: 'entryFee', type: 'uint256', indexed: false },
+                { name: 'maxPlayers', type: 'uint256', indexed: false }
+              ]
+            },
+            args: {
+              creator: targetAddress
+            },
+            fromBlock,
+            toBlock: 'latest',
+          }),
+          // Timeout after 8 seconds to quickly fallback on mainnet
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+          )
+        ]) as any[];
 
         // Extract pool IDs and sort by most recent first
         const poolIds = logs
@@ -495,12 +573,15 @@ export function useCreatedPools(address?: `0x${string}`) {
 
         return poolIds;
       } catch (error) {
-        console.error('Error fetching created pools:', error);
+        // Return empty array for timeout or other errors
         return [];
       }
     },
     enabled: !!targetAddress && !!publicClient && !!contractAddress,
-    staleTime: 30000, // 30 seconds
+    staleTime: isMainnet ? 10000 : 30000, // 10s on mainnet, 30s on testnet
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: isMainnet ? 15000 : false, // Auto-refetch every 15s on mainnet
+    refetchOnWindowFocus: true, // Always refetch when window gains focus
   });
 }
 
