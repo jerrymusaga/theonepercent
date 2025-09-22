@@ -320,21 +320,8 @@ export default function PoolDetailPage() {
   const canJoin = pool.status === PoolStatus.OPENED && pool.currentPlayers < pool.maxPlayers && isConnected && !isCreator && !hasJoined && hasEnoughBalance;
 
   // Debug logs to understand the issue
-  console.log('Pool Debug Info:', {
-    poolId,
-    poolStatus: pool.status,
-    currentPlayers: pool.currentPlayers,
-    maxPlayers: pool.maxPlayers,
-    playerAddresses,
-    playerAddressesLength: playerAddresses?.length,
-    isLoadingPlayers,
-    joinedPlayers,
-    joinedPlayersCount,
-    isLoadingJoinedPlayers,
-    hasJoined,
-    canJoin,
-    isCreator
-  });
+  // CRITICAL DEBUG: Mainnet issue where joined pools don't show as joined
+  
   const canActivate = pool.currentPlayers >= Math.ceil(pool.maxPlayers / 2);
   const fillPercentage = (pool.currentPlayers / pool.maxPlayers) * 100;
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { usePublicClient } from 'wagmi';
+import { usePublicClient, useChainId } from 'wagmi';
 import { CONTRACT_CONFIG } from '@/lib/contract';
 import { useContractAddress } from './use-contract';
 
@@ -9,6 +9,10 @@ import { useContractAddress } from './use-contract';
 export function useJoinedPlayers(poolId: number) {
   const publicClient = usePublicClient();
   const contractAddress = useContractAddress();
+  const chainId = useChainId();
+
+  // Use more aggressive refresh strategy on mainnet due to indexing delays
+  const isMainnet = chainId === 42220; // Celo mainnet
 
   const {
     data: joinedPlayers = [],
@@ -22,39 +26,67 @@ export function useJoinedPlayers(poolId: number) {
       }
 
       try {
-        // Get all PlayerJoined events for this pool
-        const logs = await publicClient.getLogs({
-          address: contractAddress,
-          event: {
-            type: 'event',
-            name: 'PlayerJoined',
-            inputs: [
-              { name: 'poolId', type: 'uint256', indexed: true },
-              { name: 'player', type: 'address', indexed: true },
-              { name: 'currentPlayers', type: 'uint256', indexed: false },
-              { name: 'maxPlayers', type: 'uint256', indexed: false }
-            ]
-          },
-          args: { poolId: BigInt(poolId) },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        });
+        // Get current block for reasonable range calculation
+        const currentBlock = await publicClient.getBlockNumber();
 
-        // Extract unique player addresses
-        const players = logs
+        // Use last 100k blocks for mainnet (about 1-2 weeks), earliest for testnet
+        const fromBlock = isMainnet
+          ? currentBlock - BigInt(100000)
+          : 'earliest' as const;
+
+        // First try to get events with timeout for faster fallback
+        const logs = await Promise.race([
+          publicClient.getLogs({
+            address: contractAddress,
+            event: {
+              type: 'event',
+              name: 'PlayerJoined',
+              inputs: [
+                { name: 'poolId', type: 'uint256', indexed: true },
+                { name: 'player', type: 'address', indexed: true },
+                { name: 'currentPlayers', type: 'uint256', indexed: false },
+                { name: 'maxPlayers', type: 'uint256', indexed: false }
+              ]
+            },
+            args: { poolId: BigInt(poolId) },
+            fromBlock,
+            toBlock: 'latest',
+          }),
+          // Timeout after 8 seconds to quickly fallback on mainnet
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+          )
+        ]) as any[];
+
+        const playersFromEvents = logs
           .map(log => log.args?.player)
           .filter((player): player is `0x${string}` => !!player)
-          .filter((player, index, array) => array.indexOf(player) === index); // Remove duplicates
+          .filter((player, index, array) => array.indexOf(player) === index);
 
-        return players;
+        // If events work, return them
+        if (playersFromEvents.length > 0) {
+          return playersFromEvents;
+        }
+
+        // Get current remaining players (this works reliably)
+        const remainingPlayers = await publicClient.readContract({
+          address: contractAddress,
+          abi: CONTRACT_CONFIG.abi,
+          functionName: 'getRemainingPlayers',
+          args: [BigInt(poolId)]
+        }) as `0x${string}`[];
+
+        return remainingPlayers || [];
       } catch (error) {
         console.error('Error fetching joined players:', error);
         return [];
       }
     },
     enabled: !!publicClient && !!contractAddress && poolId > 0,
-    staleTime: 30000, // 30 seconds
+    staleTime: isMainnet ? 10000 : 30000, // 10s on mainnet, 30s on testnet
     gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: isMainnet ? 15000 : false, // Auto-refetch every 15s on mainnet
+    refetchOnWindowFocus: true, // Always refetch when window gains focus
   });
 
   return {
