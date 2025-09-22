@@ -275,6 +275,19 @@ const CreatorStatsOverview = ({ creatorInfo, totalEarnings, activePools, stats, 
   );
 };
 
+const PoolCardWithActivation = ({ pool, onActivate, onViewPool }: { pool: any; onActivate: (poolId: number) => void; onViewPool?: (poolId: number, status: number) => void }) => {
+  const { data: canActivate = false } = useCanActivatePool(pool.id);
+
+  return (
+    <PoolCard
+      pool={pool}
+      canActivate={canActivate}
+      onActivate={() => onActivate(pool.id)}
+      onViewPool={onViewPool}
+    />
+  );
+};
+
 const PlayerPoolCard = ({
   pool,
   onClaimPrize,
@@ -1326,10 +1339,10 @@ export default function UniversalDashboard() {
                 </div>
               ) : activePools.length > 0 ? (
                 activePools.map((pool) => (
-                  <PoolCard
+                  <PoolCardWithActivation
                     key={pool.id}
                     pool={pool}
-                    onActivate={() => handleActivatePool(Number(pool.id))}
+                    onActivate={handleActivatePool}
                     onViewPool={handleViewPool}
                   />
                 ))
