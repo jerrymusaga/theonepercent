@@ -155,62 +155,10 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="relative z-10 min-h-screen flex flex-col">
+      <div className="relative z-10 h-screen flex flex-col">
         {/* Hero Section */}
-        <section className="flex-1 flex items-center justify-center px-4 py-8">
+        <section className="flex-1 flex items-center justify-center px-4 ">
           <div className="w-full max-w-md mx-auto space-y-8">
-            {/* Logo/Brand Section */}
-            <div className="text-center space-y-4">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-2xl">
-                <Crown className="w-10 h-10 text-yellow-400" />
-              </div>
-
-              <div>
-                <h1 className="text-4xl font-black text-white leading-tight">
-                  THE ONE
-                  <span className="block bg-gradient-to-r from-yellow-400 to-red-500 bg-clip-text text-transparent">
-                    PERCENT
-                  </span>
-                </h1>
-                <p className="text-gray-400 text-sm mt-2 font-medium">
-                  WHERE MINORITY WINS
-                </p>
-              </div>
-            </div>
-
-            {/* Player Status */}
-            {isConnected && (
-              <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-red-500 rounded-xl p-0.5">
-                    <div className="w-full h-full rounded-xl bg-gray-900 flex items-center justify-center overflow-hidden">
-                      {pfpUrl ? (
-                        <img
-                          src={pfpUrl}
-                          alt="Profile"
-                          className="w-full h-full object-cover rounded-xl"
-                        />
-                      ) : (
-                        <Gamepad2 className="w-5 h-5 text-yellow-400" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm truncate">
-                      {displayName}
-                    </p>
-                    <p className="text-gray-400 text-xs">{username}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                      <span className="text-gray-300 text-xs font-mono">
-                        {formatAddress(walletAddress)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-
             {/* Game Stats */}
             <div className="grid grid-cols-3 gap-3">
               <Card className="bg-gray-900/50 border-gray-800 p-3 text-center">
@@ -290,7 +238,7 @@ export default function Home() {
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-4 text-base rounded-xl shadow-lg shadow-red-600/25 transition-all duration-300 hover:scale-[1.02]"
               >
                 <Play className="w-5 h-5 mr-2" />
-                ENTER GAME
+                START GAME
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
 
@@ -315,20 +263,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* Bottom Info Bar */}
-        <div className="border-t border-gray-800 bg-gray-900/50 backdrop-blur-sm p-4">
-          <div className="flex items-center justify-between text-xs text-gray-400 max-w-md mx-auto">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>BLOCKCHAIN SECURED</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Zap className="w-3 h-3" />
-              <span>INSTANT PAYOUTS</span>
-            </div>
-          </div>
-        </div>
       </div>
     </main>
   );
