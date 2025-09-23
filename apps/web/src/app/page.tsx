@@ -1,243 +1,335 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Crown, Users, Coins, ArrowRight, Target, Zap, TrendingUp, Shield } from "lucide-react";
+import {
+  Crown,
+  Users,
+  Coins,
+  ArrowRight,
+  Target,
+  Zap,
+  TrendingUp,
+  Shield,
+  Play,
+  Trophy,
+  Skull,
+  Gamepad2,
+} from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
   const { context, isMiniAppReady } = useMiniApp();
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
-  
+
   // Auto-connect wallet when miniapp is ready
   useEffect(() => {
-    if (isMiniAppReady && !isConnected && !isConnecting && connectors.length > 0) {
-      const farcasterConnector = connectors.find(c => c.id === 'farcaster');
+    if (
+      isMiniAppReady &&
+      !isConnected &&
+      !isConnecting &&
+      connectors.length > 0
+    ) {
+      const farcasterConnector = connectors.find((c) => c.id === "farcaster");
       if (farcasterConnector) {
         connect({ connector: farcasterConnector });
       }
     }
   }, [isMiniAppReady, isConnected, isConnecting, connectors, connect]);
-  
+
+  // Loading progress animation
+  useEffect(() => {
+    if (!isMiniAppReady) {
+      const interval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 100) return 100;
+          return prev + Math.random() * 15;
+        });
+      }, 150);
+      return () => clearInterval(interval);
+    }
+  }, [isMiniAppReady]);
+
   // Extract user data from context
   const user = context?.user;
-  // Use connected wallet address if available, otherwise fall back to user custody/verification
-  const walletAddress = address || user?.custody || user?.verifications?.[0] || "0x1e4B...605B";
-  const displayName = user?.displayName || user?.username || "User";
-  const username = user?.username || "@user";
+  const walletAddress =
+    address || user?.custody || user?.verifications?.[0] || "0x1e4B...605B";
+  const displayName = user?.displayName || user?.username || "Player";
+  const username = user?.username || "@player";
   const pfpUrl = user?.pfpUrl;
-  
-  // Format wallet address to show first 6 and last 4 characters
+
+  // Format wallet address
   const formatAddress = (address: string) => {
     if (!address || address.length < 10) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
-  
+
   if (!isMiniAppReady) {
     return (
-      <main className="flex-1">
-        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-          <div className="w-full max-w-md mx-auto p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-            <p className="text-gray-300">Loading The One Percent...</p>
+      <main className="flex-1 relative overflow-hidden">
+        <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-red-950">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
+            <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
           </div>
-        </section>
+
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="text-center space-y-8 max-w-sm mx-auto">
+              {/* Skull Icon */}
+              <div className="relative">
+                <div className="w-24 h-24 mx-auto relative">
+                  <Skull className="w-full h-full text-red-500 drop-shadow-2xl animate-pulse" />
+                  <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full"></div>
+                </div>
+              </div>
+
+              {/* App Title */}
+              <div>
+                <h1 className="text-2xl font-bold text-white mb-2">
+                  THE ONE PERCENT
+                </h1>
+                <p className="text-red-400 text-sm font-medium">
+                  MINORITY WINS
+                </p>
+              </div>
+
+              {/* Loading Progress */}
+              <div className="space-y-4">
+                <div className="text-right">
+                  <span className="text-red-500 text-4xl font-bold">
+                    {Math.min(Math.round(loadingProgress), 100)}%
+                  </span>
+                  <span className="text-white text-lg ml-2">LOADING</span>
+                </div>
+
+                <div className="w-full bg-gray-800 rounded-full h-1 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min(loadingProgress, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="text-gray-400 text-xs">
+                Initializing gaming protocol...
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     );
   }
-  
+
   return (
-    <main className="flex-1">
-      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-        <div className="w-full max-w-lg mx-auto p-8 text-center">
-          {/* Welcome Header */}
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-full px-4 py-2 mb-6">
-              <Crown className="w-4 h-4 text-yellow-500" />
-              <span className="text-yellow-500 text-sm font-medium">Elite Gaming</span>
-            </div>
-
-            <h1 className="text-5xl font-bold text-white mb-4">
-              The One
-              <span className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent">
-                {" "}Percent
-              </span>
-            </h1>
-
-            <p className="text-gray-300 text-lg mb-2">
-              Where the minority wins
-            </p>
-            <p className="text-gray-400 mb-6">
-              Elite prediction elimination game
-            </p>
-
-            <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-6 mb-6">
-              <p className="text-yellow-400 font-bold text-xl mb-3 text-center">
-                💰 Real Money Elimination Game
-              </p>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</span>
-                  <p className="text-white text-sm"><strong>Join pools</strong> with real CELO entry fees (0.1 to 50 CELO)</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</span>
-                  <p className="text-white text-sm"><strong>Choose HEADS or TAILS</strong> - minority choice survives each round</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</span>
-                  <p className="text-white text-sm"><strong>Win 95% of the prize pool</strong> as the last player standing</p>
-                </div>
-              </div>
-              <div className="mt-4 p-3 bg-red-600/20 border border-red-500/30 rounded-lg text-center">
-                <p className="text-red-400 font-bold text-sm">
-                  Example: 10 players × 5 CELO = 47.5 CELO to winner (95%) + 2.5 CELO creator reward! 💎
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* User Profile Card */}
-          {isConnected && (
-            <Card className="bg-gray-800/50 backdrop-blur-xl border-gray-700 p-6 mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full p-0.5">
-                  <div className="w-full h-full rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
-                    {pfpUrl ? (
-                      <img src={pfpUrl} alt="Profile" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      <Crown className="w-6 h-6 text-yellow-500" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold text-lg">{displayName}</h3>
-                  <p className="text-gray-400 text-sm">{username}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className={`w-2 h-2 rounded-full ${
-                      isConnected ? 'bg-green-500' : 'bg-red-500'
-                    }`}></div>
-                    <span className="text-gray-300 text-xs font-mono">{formatAddress(walletAddress)}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          )}
-          
-          {/* Platform Benefits */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <Card className="bg-gradient-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <Crown className="w-8 h-8 text-yellow-400" />
-                <h3 className="text-white font-bold text-lg">For Pool Creators</h3>
-              </div>
-              <div className="space-y-2">
-                <p className="text-gray-300 text-sm">• <strong>Stake 5-50 CELO</strong> to create pools</p>
-                <p className="text-gray-300 text-sm">• <strong>Earn 5% reward</strong> from completed pools</p>
-                <p className="text-gray-300 text-sm">• <strong>+1 bonus pool</strong> when verified</p>
-                <p className="text-yellow-400 text-sm font-semibold">• Example: 10 CELO stake = 2 pools + verification bonus</p>
-              </div>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-600/20 to-teal-600/20 border-green-500/30 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <Users className="w-8 h-8 text-green-400" />
-                <h3 className="text-white font-bold text-lg">For Players</h3>
-              </div>
-              <div className="space-y-2">
-                <p className="text-gray-300 text-sm">• <strong>No staking required</strong> - just join and play</p>
-                <p className="text-gray-300 text-sm">• <strong>Instant CELO payouts</strong> when you win</p>
-                <p className="text-gray-300 text-sm">• <strong>Transparent blockchain</strong> - no cheating possible</p>
-                <p className="text-green-400 text-sm font-semibold">• Win 95% of prize pool in minutes!</p>
-              </div>
-            </Card>
-          </div>
-
-          {/* Verification Benefits */}
-          <Card className="bg-gradient-to-r from-emerald-900/50 to-teal-900/50 border-emerald-500/30 p-6 mb-8">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <Shield className="w-8 h-8 text-emerald-400" />
-                <h3 className="text-xl font-bold text-white">Get Verified = More Rewards</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-red-400 text-2xl">🚫</span>
-                  </div>
-                  <p className="text-white font-semibold">Unverified</p>
-                  <p className="text-gray-400 text-sm">5 CELO = 1 pool</p>
-                  <p className="text-gray-400 text-sm">No bonus rewards</p>
-                </div>
-
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-emerald-400 text-2xl">✅</span>
-                  </div>
-                  <p className="text-emerald-400 font-semibold">Verified Player</p>
-                  <p className="text-white text-sm">5 CELO = 1 pool + 1 bonus</p>
-                  <p className="text-emerald-400 text-sm">100% more pools!</p>
-                </div>
-
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-yellow-600/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-yellow-400 text-2xl">👑</span>
-                  </div>
-                  <p className="text-yellow-400 font-semibold">Verified Creator</p>
-                  <p className="text-white text-sm">10 CELO = 2 pools + 1 bonus</p>
-                  <p className="text-yellow-400 text-sm">+ 5% creator rewards</p>
-                </div>
-              </div>
-              <div className="mt-4 p-3 bg-emerald-600/20 border border-emerald-500/30 rounded-lg">
-                <p className="text-emerald-400 font-bold text-sm">
-                  💡 Verification via Self Protocol takes 2 minutes and doubles your pool creation power!
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Quick Actions */}
-          <div className="flex flex-col gap-4 mb-8">
-            <Button
-              onClick={() => router.push('/pools')}
-              className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold py-6 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-yellow-500/25"
-            >
-              <Users className="w-5 h-5 mr-2" />
-              Join a Game Now
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                onClick={() => router.push('/dashboard')}
-                variant="outline"
-                className="border-2 border-gray-600 hover:border-yellow-500 text-gray-300 hover:text-yellow-500 py-4 px-6 rounded-lg transition-all duration-300"
-              >
-                <Coins className="w-4 h-4 mr-2" />
-                Dashboard
-              </Button>
-
-              <Button
-                onClick={() => router.push('/verify')}
-                variant="outline"
-                className="border-2 border-gray-600 hover:border-green-500 text-gray-300 hover:text-green-500 py-4 px-6 rounded-lg transition-all duration-300"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Get Verified
-              </Button>
-            </div>
-          </div>
-          
-
+    <main className="flex-1 relative overflow-hidden">
+      {/* Background with gaming aesthetic */}
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900">
+        {/* Animated grid pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+              backgroundSize: "20px 20px",
+            }}
+          ></div>
         </div>
-      </section>
+
+        {/* Floating particles */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-yellow-500 rounded-full animate-ping"></div>
+          <div className="absolute top-3/4 right-1/3 w-1 h-1 bg-red-500 rounded-full animate-pulse"></div>
+          <div className="absolute top-1/2 left-3/4 w-1 h-1 bg-blue-500 rounded-full animate-bounce"></div>
+        </div>
+      </div>
+
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Hero Section */}
+        <section className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md mx-auto space-y-8">
+            {/* Logo/Brand Section */}
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-2xl">
+                <Crown className="w-10 h-10 text-yellow-400" />
+              </div>
+
+              <div>
+                <h1 className="text-4xl font-black text-white leading-tight">
+                  THE ONE
+                  <span className="block bg-gradient-to-r from-yellow-400 to-red-500 bg-clip-text text-transparent">
+                    PERCENT
+                  </span>
+                </h1>
+                <p className="text-gray-400 text-sm mt-2 font-medium">
+                  WHERE MINORITY WINS
+                </p>
+              </div>
+            </div>
+
+            {/* Player Status */}
+            {isConnected && (
+              <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-red-500 rounded-xl p-0.5">
+                    <div className="w-full h-full rounded-xl bg-gray-900 flex items-center justify-center overflow-hidden">
+                      {pfpUrl ? (
+                        <img
+                          src={pfpUrl}
+                          alt="Profile"
+                          className="w-full h-full object-cover rounded-xl"
+                        />
+                      ) : (
+                        <Gamepad2 className="w-5 h-5 text-yellow-400" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-sm truncate">
+                      {displayName}
+                    </p>
+                    <p className="text-gray-400 text-xs">{username}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-300 text-xs font-mono">
+                        {formatAddress(walletAddress)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Game Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <Card className="bg-gray-900/50 border-gray-800 p-3 text-center">
+                <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+                <p className="text-white text-xs font-bold">95%</p>
+                <p className="text-gray-400 text-xs">WIN RATE</p>
+              </Card>
+              <Card className="bg-gray-900/50 border-gray-800 p-3 text-center">
+                <Target className="w-5 h-5 text-red-400 mx-auto mb-1" />
+                <p className="text-white text-xs font-bold">LIVE</p>
+                <p className="text-gray-400 text-xs">GAMES</p>
+              </Card>
+              <Card className="bg-gray-900/50 border-gray-800 p-3 text-center">
+                <Coins className="w-5 h-5 text-green-400 mx-auto mb-1" />
+                <p className="text-white text-xs font-bold">CELO</p>
+                <p className="text-gray-400 text-xs">REWARDS</p>
+              </Card>
+            </div>
+
+            {/* Game Description */}
+            <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800 p-4">
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h3 className="text-white font-bold text-sm uppercase tracking-wider">
+                    ELIMINATION PROTOCOL
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">1</span>
+                    </div>
+                    <p className="text-gray-200 text-xs font-medium">
+                      Enter with{" "}
+                      <span className="text-yellow-400 font-bold">CELO</span>{" "}
+                      (0.1-50)
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">2</span>
+                    </div>
+                    <p className="text-gray-200 text-xs font-medium">
+                      Choose{" "}
+                      <span className="text-red-400 font-bold">HEADS</span> or{" "}
+                      <span className="text-red-400 font-bold">TAILS</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">3</span>
+                    </div>
+                    <p className="text-gray-200 text-xs font-medium">
+                      <span className="text-green-400 font-bold">Minority</span>{" "}
+                      survives, majority eliminated
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700 pt-3">
+                  <div className="text-center bg-gray-800/50 rounded-lg p-3">
+                    <p className="text-yellow-400 text-xs font-bold">
+                      WINNER TAKES 95% OF THE POT
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push("/pools")}
+                className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-4 text-base rounded-xl shadow-lg shadow-red-600/25 transition-all duration-300 hover:scale-[1.02]"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                ENTER GAME
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => router.push("/dashboard")}
+                  variant="outline"
+                  className="border-2 border-gray-700 hover:border-yellow-500 bg-gray-900/50 text-gray-300 hover:text-yellow-400 py-3 rounded-lg transition-all duration-300"
+                >
+                  <Trophy className="w-4 h-4 mr-1" />
+                  Stats
+                </Button>
+                <Button
+                  onClick={() => router.push("/verify")}
+                  variant="outline"
+                  className="border-2 border-gray-700 hover:border-green-500 bg-gray-900/50 text-gray-300 hover:text-green-400 py-3 rounded-lg transition-all duration-300"
+                >
+                  <Shield className="w-4 h-4 mr-1" />
+                  Verify
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom Info Bar */}
+        <div className="border-t border-gray-800 bg-gray-900/50 backdrop-blur-sm p-4">
+          <div className="flex items-center justify-between text-xs text-gray-400 max-w-md mx-auto">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>BLOCKCHAIN SECURED</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              <span>INSTANT PAYOUTS</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
