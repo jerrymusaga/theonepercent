@@ -18,10 +18,10 @@ export function useEnvioPlayer(address: string | undefined) {
     queryKey: ['envio-player', address],
     queryFn: async () => {
       if (!address) return null;
-      const response = await request<PlayerResponse>(GET_PLAYER, {
+      const response = await request<any>(GET_PLAYER, {
         id: address.toLowerCase()
       });
-      return response.player;
+      return response.Player_by_pk;
     },
     enabled: !!address,
     staleTime: 30000, // 30 seconds

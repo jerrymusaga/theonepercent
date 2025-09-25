@@ -29,14 +29,10 @@ export function useEnvioPools(
   return useQuery({
     queryKey: ['envio-pools', chainId, filter, orderBy, first, skip],
     queryFn: async () => {
-      const response = await request<PoolsResponse>(GET_POOLS, {
-        first,
-        skip,
-        where: { ...filter, chainId },
-        orderBy: orderBy?.field || 'createdAt',
-        orderDirection: orderBy?.direction || 'desc',
+      const response = await request<any>(GET_POOLS, {
+        limit: first,
       });
-      return response.pools;
+      return response.Pool;
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute
@@ -49,8 +45,8 @@ export function useEnvioPool(poolId: string | undefined) {
     queryKey: ['envio-pool', poolId],
     queryFn: async () => {
       if (!poolId) return null;
-      const response = await request<PoolResponse>(GET_POOL, { id: poolId });
-      return response.pool;
+      const response = await request<any>(GET_POOL, { id: poolId });
+      return response.Pool_by_pk;
     },
     enabled: !!poolId,
     staleTime: 15000, // 15 seconds
@@ -68,7 +64,7 @@ export function useEnvioActivePools() {
       const response = await request<PoolsResponse>(GET_ACTIVE_POOLS, {
         chainId,
       });
-      return response.pools;
+      return response.Pool;
     },
     staleTime: 15000, // 15 seconds
     refetchInterval: 30000, // 30 seconds
@@ -85,7 +81,7 @@ export function useEnvioOpenPools() {
       const response = await request<PoolsResponse>(GET_OPEN_POOLS, {
         chainId,
       });
-      return response.pools;
+      return response.Pool;
     },
     staleTime: 15000, // 15 seconds
     refetchInterval: 30000, // 30 seconds
@@ -110,7 +106,7 @@ export function useEnvioSearchPools(
         chainId,
         first,
       });
-      return response.pools;
+      return response.Pool;
     },
     enabled: !!searchText.trim(),
     staleTime: 30000, // 30 seconds
@@ -125,14 +121,10 @@ export function useAllPools() {
   const poolsQuery = useQuery({
     queryKey: ['envio-all-pools', chainId],
     queryFn: async () => {
-      const response = await request<PoolsResponse>(GET_POOLS, {
-        first: 100, // Get more pools for the main view
-        skip: 0,
-        where: { chainId },
-        orderBy: 'createdAt',
-        orderDirection: 'desc',
+      const response = await request<any>(GET_POOLS, {
+        limit: 100,
       });
-      return response.pools;
+      return response.Pool;
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute
@@ -160,14 +152,14 @@ export function usePoolsByStatus(status: PoolStatus) {
   return useQuery({
     queryKey: ['envio-pools-by-status', status, chainId],
     queryFn: async () => {
-      const response = await request<PoolsResponse>(GET_POOLS, {
+      const response = await request<any>(GET_POOLS, {
         first: 50,
         skip: 0,
         where: { status, chainId },
         orderBy: 'createdAt',
         orderDirection: 'desc',
       });
-      return response.pools;
+      return response.Pool;
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute
