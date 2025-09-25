@@ -1,6 +1,282 @@
-type User {
-  id: ID!
-  greetings: [String!]!
-  latestGreeting: String!
-  numberOfGreetings: Int!
+# Core Pool entity - represents a game pool
+type Pool {
+  id: ID!                           # Pool ID from contract
+  creator: Creator!                 # Creator who made this pool
+  status: PoolStatus!               # Current pool status
+  entryFee: BigInt!                 # Entry fee in wei
+  maxPlayers: Int!                  # Maximum players allowed
+  currentPlayers: Int!              # Current number of players
+  prizePool: BigInt!                # Total prize pool in wei
+  currentRound: Int!                # Current game round (0 = not started)
+  winner: Player                    # Winner if game completed
+  prizeAmount: BigInt               # Final prize amount for winner
+
+  # Timestamps
+  createdAt: BigInt!                # Block timestamp when created
+  activatedAt: BigInt               # Block timestamp when activated
+  completedAt: BigInt               # Block timestamp when completed
+
+  # Block information
+  createdAtBlock: BigInt!           # Block number when created
+  activatedAtBlock: BigInt          # Block number when activated
+  completedAtBlock: BigInt          # Block number when completed
+
+  # Network information
+  chainId: Int!                     # Chain ID (42220 for mainnet, 44787 for testnet)
+
+  # Relationships
+  players: [PlayerPool!]! @derivedFrom(field: "pool")
+  rounds: [GameRound!]! @derivedFrom(field: "pool")
+  playerChoices: [PlayerChoice!]! @derivedFrom(field: "pool")
+  events: [Event!]! @derivedFrom(field: "pool")
+}
+
+# Player entity - represents a game participant
+type Player {
+  id: ID!                           # Player address
+  address: String!                  # Player address as string
+
+  # Statistics
+  totalPoolsJoined: Int!            # Total number of pools joined
+  totalPoolsWon: Int!               # Total number of pools won
+  totalPoolsEliminated: Int!        # Total number of pools eliminated from
+  totalEarnings: BigInt!            # Total winnings in wei
+  totalSpent: BigInt!               # Total entry fees spent in wei
+
+  # Timestamps
+  firstJoinedAt: BigInt!            # First time player joined any pool
+  lastActiveAt: BigInt!             # Last time player was active
+
+  # Relationships
+  poolsJoined: [PlayerPool!]! @derivedFrom(field: "player")
+  choices: [PlayerChoice!]! @derivedFrom(field: "player")
+  wonPools: [Pool!]! @derivedFrom(field: "winner")
+}
+
+# Creator entity - represents a pool creator
+type Creator {
+  id: ID!                           # Creator address
+  address: String!                  # Creator address as string
+
+  # Staking information
+  totalStaked: BigInt!              # Current staked amount in wei
+  totalEarned: BigInt!              # Total creator rewards earned in wei
+  totalPoolsEligible: Int!          # Total pools eligible to create
+  totalPoolsCreated: Int!           # Total pools actually created
+
+  # Verification status
+  isVerified: Boolean!              # Whether creator is verified via Self Protocol
+  verifiedAt: BigInt                # When creator was verified
+  attestationId: String             # Self Protocol attestation ID
+  verificationBonusPools: Int!      # Bonus pools from verification
+
+  # Statistics
+  completedPools: Int!              # Pools that completed successfully
+  abandonedPools: Int!              # Pools that were abandoned
+
+  # Timestamps
+  firstStakedAt: BigInt!            # First time creator staked
+  lastActiveAt: BigInt!             # Last time creator was active
+
+  # Network information
+  chainId: Int!                     # Primary chain ID
+
+  # Relationships
+  pools: [Pool!]! @derivedFrom(field: "creator")
+  stakes: [StakeEvent!]! @derivedFrom(field: "creator")
+}
+
+# Junction table for Player-Pool relationship
+type PlayerPool {
+  id: ID!                           # Unique ID (player-pool combination)
+  player: Player!                   # Player reference
+  pool: Pool!                       # Pool reference
+
+  # Player status in this pool
+  isEliminated: Boolean!            # Whether player is eliminated
+  hasWon: Boolean!                  # Whether player won this pool
+  eliminatedInRound: Int            # Round in which player was eliminated
+
+  # Entry information
+  joinedAt: BigInt!                 # Block timestamp when joined
+  joinedAtBlock: BigInt!            # Block number when joined
+  entryFeePaid: BigInt!             # Entry fee paid in wei
+
+  # Prize information (if won)
+  prizeAmount: BigInt               # Prize amount if won
+  prizeClaimed: Boolean!            # Whether prize has been claimed
+  prizeClaimedAt: BigInt            # When prize was claimed
+}
+
+# Game round entity - represents a single round in a pool
+type GameRound {
+  id: ID!                           # Unique ID (pool-round combination)
+  pool: Pool!                       # Pool reference
+  roundNumber: Int!                 # Round number (1-based)
+
+  # Round results
+  winningChoice: PlayerChoiceType!  # Winning choice (HEADS or TAILS)
+  eliminatedCount: Int!             # Number of players eliminated
+  remainingCount: Int!              # Number of players remaining
+
+  # Timestamps
+  resolvedAt: BigInt!               # Block timestamp when round resolved
+  resolvedAtBlock: BigInt!          # Block number when round resolved
+
+  # Statistics
+  headsCount: Int!                  # Number of players who chose HEADS
+  tailsCount: Int!                  # Number of players who chose TAILS
+
+  # Relationships
+  playerChoices: [PlayerChoice!]! @derivedFrom(field: "round")
+}
+
+# Player choice in a specific round
+type PlayerChoice {
+  id: ID!                           # Unique ID (player-pool-round combination)
+  player: Player!                   # Player who made the choice
+  pool: Pool!                       # Pool reference
+  round: GameRound!                 # Round reference
+
+  # Choice details
+  choice: PlayerChoiceType!         # Choice made (HEADS or TAILS)
+  wasWinningChoice: Boolean!        # Whether this choice won the round
+
+  # Timestamps
+  madeAt: BigInt!                   # Block timestamp when choice was made
+  madeAtBlock: BigInt!              # Block number when choice was made
+}
+
+# Stake event - tracks all staking/unstaking events
+type StakeEvent {
+  id: ID!                           # Unique transaction ID
+  creator: Creator!                 # Creator reference
+  type: StakeEventType!             # DEPOSIT or WITHDRAW
+
+  # Amount details
+  amount: BigInt!                   # Amount staked/withdrawn in wei
+  penalty: BigInt                   # Penalty amount for early withdrawal
+  poolsEligible: Int               # Pools eligible after this stake event
+
+  # Timestamps
+  timestamp: BigInt!                # Block timestamp
+  blockNumber: BigInt!              # Block number
+  transactionHash: String!          # Transaction hash
+
+  # Network information
+  chainId: Int!                     # Chain ID
+}
+
+# Generic event entity for all blockchain events
+type Event {
+  id: ID!                           # Unique event ID (tx-hash-log-index)
+  type: EventType!                  # Event type
+
+  # Transaction details
+  transactionHash: String!          # Transaction hash
+  blockNumber: BigInt!              # Block number
+  blockTimestamp: BigInt!           # Block timestamp
+  logIndex: Int!                    # Log index in transaction
+
+  # Network information
+  chainId: Int!                     # Chain ID
+
+  # Related entities (optional)
+  pool: Pool                        # Pool if event is pool-related
+  player: Player                    # Player if event is player-related
+  creator: Creator                  # Creator if event is creator-related
+
+  # Raw event data (JSON)
+  rawData: String!                  # Raw event data as JSON string
+}
+
+# System statistics entity
+type SystemStats {
+  id: ID!                           # Always "system"
+
+  # Pool statistics
+  totalPoolsCreated: Int!           # Total pools created across all chains
+  totalPoolsActive: Int!            # Total pools currently active
+  totalPoolsCompleted: Int!         # Total pools completed
+  totalPoolsAbandoned: Int!         # Total pools abandoned
+
+  # Player statistics
+  totalPlayers: Int!                # Total unique players
+  totalPlayerJoins: Int!            # Total player-pool joins
+
+  # Financial statistics
+  totalVolumeProcessed: BigInt!     # Total volume processed in wei
+  totalPrizesAwarded: BigInt!       # Total prizes awarded in wei
+  totalCreatorRewards: BigInt!      # Total creator rewards paid in wei
+  totalStaked: BigInt!              # Total amount currently staked
+  totalProjectPool: BigInt!         # Total project pool amount
+
+  # Network statistics
+  mainnetStats: NetworkStats        # Mainnet specific stats
+  testnetStats: NetworkStats        # Testnet specific stats
+
+  # Last update
+  lastUpdatedAt: BigInt!            # Last time stats were updated
+}
+
+# Network-specific statistics
+type NetworkStats {
+  id: ID!                           # Network ID (chain ID)
+  chainId: Int!                     # Chain ID
+
+  # Pool statistics
+  totalPools: Int!                  # Total pools on this network
+  activePools: Int!                 # Active pools on this network
+  completedPools: Int!              # Completed pools on this network
+
+  # Financial statistics
+  totalVolume: BigInt!              # Total volume on this network
+  totalPrizes: BigInt!              # Total prizes on this network
+  totalStaked: BigInt!              # Total staked on this network
+
+  # Last update
+  lastUpdatedAt: BigInt!            # Last update timestamp
+}
+
+# Enums
+enum PoolStatus {
+  OPENED                            # Pool is open for players to join
+  ACTIVE                            # Pool is active, game in progress
+  COMPLETED                         # Pool completed with winner
+  ABANDONED                         # Pool abandoned by creator
+}
+
+enum PlayerChoiceType {
+  HEADS                             # Player chose heads
+  TAILS                             # Player chose tails
+}
+
+enum StakeEventType {
+  DEPOSIT                           # Stake deposit event
+  WITHDRAW                          # Stake withdrawal event
+}
+
+enum EventType {
+  # Pool events
+  POOL_CREATED
+  PLAYER_JOINED
+  POOL_ACTIVATED
+  POOL_ABANDONED
+  GAME_COMPLETED
+
+  # Game events
+  PLAYER_MADE_CHOICE
+  ROUND_RESOLVED
+
+  # Creator events
+  STAKE_DEPOSITED
+  STAKE_WITHDRAWN
+  CREATOR_REWARD_CLAIMED
+  CREATOR_VERIFIED
+  VERIFICATION_BONUS_APPLIED
+
+  # System events
+  PROJECT_POOL_UPDATED
+  SCOPE_UPDATED
+  OWNERSHIP_TRANSFERRED
 }
