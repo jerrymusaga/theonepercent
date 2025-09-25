@@ -30,9 +30,12 @@ export function useCoinTossRead(
     args: args as any,
     query: {
       enabled: !!contractAddress && options?.enabled !== false,
-      staleTime: isMainnet ? 5000 : 10000, // 5s on mainnet, 10s on testnet
-      gcTime: 2 * 60 * 1000, // 2 minutes cache
-      refetchOnWindowFocus: true, // Refetch when window gains focus
+      staleTime: isMainnet ? 45000 : 10000, // 45s on mainnet (9x block time), 10s on testnet
+      gcTime: isMainnet ? 15 * 60 * 1000 : 5 * 60 * 1000, // 15min on mainnet, 5min on testnet
+      refetchOnWindowFocus: true,
+      refetchInterval: isMainnet ? 60000 : false, // Auto-refetch every 60s on mainnet (slower)
+      retry: isMainnet ? 5 : 3, // More retries on mainnet
+      retryDelay: attemptIndex => Math.min(3000 * 2 ** attemptIndex, 20000), // Longer exponential backoff
     },
   });
 }
