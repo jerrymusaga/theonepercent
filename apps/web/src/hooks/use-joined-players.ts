@@ -29,9 +29,9 @@ export function useJoinedPlayers(poolId: number) {
         // Get current block for reasonable range calculation
         const currentBlock = await publicClient.getBlockNumber();
 
-        // Use last 100k blocks for mainnet (about 1-2 weeks), earliest for testnet
+        // Use last 150k blocks for mainnet (about 3-4 weeks), earliest for testnet
         const fromBlock = isMainnet
-          ? currentBlock - BigInt(100000)
+          ? currentBlock - BigInt(150000)
           : 'earliest' as const;
 
         // First try to get events with timeout for faster fallback
@@ -52,9 +52,9 @@ export function useJoinedPlayers(poolId: number) {
             fromBlock,
             toBlock: 'latest',
           }),
-          // Timeout after 8 seconds to quickly fallback on mainnet
+          // Much longer timeout on mainnet to account for slower block times and indexing delays
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 8000 : 30000)
+            setTimeout(() => reject(new Error('Event fetch timeout')), isMainnet ? 60000 : 30000)
           )
         ]) as any[];
 
@@ -68,7 +68,7 @@ export function useJoinedPlayers(poolId: number) {
           return playersFromEvents;
         }
 
-        // Get current remaining players (this works reliably)
+        // Fallback 1: Get current remaining players (fast and reliable)
         const remainingPlayers = await publicClient.readContract({
           address: contractAddress,
           abi: CONTRACT_CONFIG.abi,
@@ -76,16 +76,42 @@ export function useJoinedPlayers(poolId: number) {
           args: [BigInt(poolId)]
         }) as `0x${string}`[];
 
-        return remainingPlayers || [];
+        // Fallback 2: If we have remaining players, return them
+        if (remainingPlayers && remainingPlayers.length > 0) {
+          return remainingPlayers;
+        }
+
+        // Fallback 3: Check pool status to see if anyone has joined
+        const poolInfo = await publicClient.readContract({
+          address: contractAddress,
+          abi: CONTRACT_CONFIG.abi,
+          functionName: 'getPoolInfo',
+          args: [BigInt(poolId)]
+        }) as readonly [`0x${string}`, bigint, bigint, bigint, bigint, number];
+
+        const currentPlayersCount = Number(poolInfo[3]); // currentPlayers is index 3
+
+        // If pool shows players joined but no remaining (game completed/abandoned),
+        // we can't determine specific players but we know someone joined
+        if (currentPlayersCount > 0) {
+          console.warn(`Pool ${poolId} has ${currentPlayersCount} players but events/remaining players failed to load`);
+
+          // Return empty array but log the issue - the UI will handle this differently
+          return [];
+        }
+
+        return [];
       } catch (error) {
         return [];
       }
     },
     enabled: !!publicClient && !!contractAddress && poolId > 0,
-    staleTime: isMainnet ? 10000 : 30000, // 10s on mainnet, 30s on testnet
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: isMainnet ? 15000 : false, // Auto-refetch every 15s on mainnet
-    refetchOnWindowFocus: true, // Always refetch when window gains focus
+    staleTime: isMainnet ? 90000 : 30000, // 90s on mainnet (18x block time), 30s on testnet
+    gcTime: isMainnet ? 20 * 60 * 1000 : 10 * 60 * 1000, // 20min on mainnet, 10min on testnet
+    refetchInterval: isMainnet ? 120000 : false, // Auto-refetch every 2min on mainnet (very slow)
+    refetchOnWindowFocus: true,
+    retry: isMainnet ? 8 : 5, // Many more retries on mainnet
+    retryDelay: attemptIndex => Math.min(5000 * 2 ** attemptIndex, 60000), // Much longer retry delays
   });
 
   return {

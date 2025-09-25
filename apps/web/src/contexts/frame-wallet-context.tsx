@@ -23,8 +23,8 @@ const config = createConfig({
     metaMask(),
   ],
   transports: {
-    [celo.id]: http(),
-    [celoAlfajores.id]: http(),
+    [celo.id]: http(process.env.NEXT_PUBLIC_CELO_MAINNET_RPC),
+    [celoAlfajores.id]: http(process.env.NEXT_PUBLIC_CELO_TESTNET_RPC),
   },
 });
 

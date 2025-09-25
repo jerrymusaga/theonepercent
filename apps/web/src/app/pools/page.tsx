@@ -27,6 +27,7 @@ import {
   useWatchGameCompleted,
   usePoolInfo,
   useJoinedPlayers,
+  useHasPlayerJoined,
   useCurrentRound,
   useRemainingPlayers,
 } from "@/hooks";
@@ -502,28 +503,33 @@ const PoolCardWithJoinedStatus = ({
   balance?: bigint;
   currentUser?: any;
 }) => {
-  // Get joined players for this specific pool
+  // Get joined players for this specific pool (for display purposes)
   const { joinedPlayers } = useJoinedPlayers(pool.id);
 
-  // Check if current user has joined this pool
-  const hasJoined =
-    joinedPlayers && joinedPlayers.length > 0
-      ? (() => {
-          const userAddresses = [
-            currentUser?.custody,
-            ...(currentUser?.verifications || []),
-            address,
-          ]
-            .filter(Boolean)
-            .map((addr) => addr?.toLowerCase());
+  // Use more reliable method to check if current user has joined
+  const { hasJoined: directHasJoined, isLoading: joinedLoading } = useHasPlayerJoined(pool.id);
 
-          return joinedPlayers.some((playerAddress) =>
-            userAddresses.some(
-              (userAddr) => userAddr === playerAddress.toLowerCase()
-            )
-          );
-        })()
-      : false;
+  // Fallback to old method if new method is loading
+  const fallbackHasJoined = joinedPlayers && joinedPlayers.length > 0
+    ? (() => {
+        const userAddresses = [
+          currentUser?.custody,
+          ...(currentUser?.verifications || []),
+          address,
+        ]
+          .filter(Boolean)
+          .map((addr) => addr?.toLowerCase());
+
+        return joinedPlayers.some((playerAddress) =>
+          userAddresses.some(
+            (userAddr) => userAddr === playerAddress.toLowerCase()
+          )
+        );
+      })()
+    : false;
+
+  // Use direct method if available, fallback to old method
+  const hasJoined = joinedLoading ? fallbackHasJoined : directHasJoined;
 
   return (
     <PoolCard

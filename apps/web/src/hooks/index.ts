@@ -69,6 +69,7 @@ export {
 } from './use-player';
 
 export { useJoinedPlayers } from './use-joined-players';
+export { useHasPlayerJoined } from './use-player-joined';
 
 export {
   useIsVerified,
