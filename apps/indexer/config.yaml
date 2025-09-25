@@ -1,32 +1,60 @@
 # yaml-language-server: $schema=./node_modules/envio/evm.schema.json
-name: Greeter
-description: Greeter indexer
-#Global contract definitions that must contain all definitions except
-#addresses. Now you can share a single handler/abi/event definitions
-#for contracts across multiple chains
+name: CoinTossIndexer
+description: Real-time indexer for TheOnePercent CoinToss gaming protocol
+
+# Global contract definitions
 contracts:
-  - name: Greeter
-    abi_file_path: ./abis/greeter-abi.json
+  - name: CoinToss
+    abi_file_path: ./abis/cointoss-abi.json
     handler: ./src/EventHandlers.ts
     events:
-      - event: NewGreeting
-      - event: ClearGreeting
+      # Pool Lifecycle Events
+      - event: PoolCreated
+      - event: PlayerJoined
+      - event: PoolActivated
+      - event: PoolAbandoned
+      - event: GameCompleted
+
+      # Game Mechanics Events
+      - event: PlayerMadeChoice
+      - event: RoundResolved
+
+      # Creator/Staking Events
+      - event: StakeDeposited
+      - event: StakeWithdrawn
+      - event: CreatorRewardClaimed
+      - event: CreatorVerified
+      - event: VerificationBonusApplied
+
+      # System Events
+      - event: ProjectPoolUpdated
+      - event: ScopeUpdated
+      - event: OwnershipTransferred
+
 networks:
-  - id: 137 # Polygon
-    start_block: 45336336
+  # Celo Alfajores Testnet
+  - id: 44787
+    start_block: 25000000  # Recent block for faster initial sync
     contracts:
-      - name: Greeter #A reference to the global contract definition
-        address: 0x9D02A17dE4E68545d3a58D3a20BbBE0399E05c9c
-  - id: 59144 # Linea
-    start_block: 367801
+      - name: CoinToss
+        address: 0x3331C7DF7Ae57F18B5948eE6F3bfd2Eb1fbc2B20
+
+  # Celo Mainnet
+  - id: 42220
+    start_block: 25000000  # Recent block for faster initial sync
     contracts:
-      - name: Greeter #A reference to the global contract definition
-        address: 0xdEe21B97AB77a16B4b236F952e586cf8408CF32A
-# Unordered multichain mode allows you to index events from multiple chains
-# in realtime but doesn't guarentee ordering between chains
-# https://docs.envio.dev/docs/HyperIndex/multichain-indexing#unordered-multichain-mode
+      - name: CoinToss
+        address: 0xe5273E84634D9A81C09BEf46aA8980F1270b606A
+
+# Enable unordered multichain mode for real-time indexing across both networks
 unordered_multichain_mode: true
-# Preload optimisation makes your indexer much faster.
-# But be aware that your handlers will run twice,
-# so make sure to use Effect API for external calls.
+
+# Enable preload optimization for faster indexing
+# Note: Handlers will run twice, so we'll use Effect API for external calls
 preload_handlers: true
+
+# Optional: Configure rollback handling for chain reorganizations
+rollback_on_reorg: true
+
+# Optional: Set sync interval for real-time updates (default: 1000ms)
+sync_interval_ms: 500
