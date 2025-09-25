@@ -8,7 +8,6 @@ import {
 import type {
   Player,
   PlayerResponse,
-  PlayersResponse,
   PlayerPool,
 } from '@/lib/graphql/types';
 
@@ -38,40 +37,23 @@ export function useEnvioPlayerPools(playerAddress: string | undefined) {
 
       const query = `
         query GetPlayerPools($playerAddress: String!) {
-          playerPools(where: { player: $playerAddress }) {
+          PlayerPool(where: { player_id: { _eq: $playerAddress } }) {
             id
-            pool {
-              id
-              status
-              entryFee
-              maxPlayers
-              currentPlayers
-              prizePool
-              currentRound
-              winner {
-                id
-                address
-              }
-              prizeAmount
-              createdAt
-              completedAt
-              chainId
-            }
-            isEliminated
-            hasWon
-            eliminatedInRound
+            pool_id
+            player_id
+            status
             joinedAt
-            entryFeePaid
-            prizeAmount
-            prizeClaimed
+            eliminatedAt
+            eliminatedInRound
+            chainId
           }
         }
       `;
 
-      const response = await request<{ playerPools: PlayerPool[] }>(query, {
+      const response = await request<{ PlayerPool: any[] }>(query, {
         playerAddress: playerAddress.toLowerCase()
       });
-      return response.playerPools;
+      return response.PlayerPool;
     },
     enabled: !!playerAddress,
     staleTime: 30000, // 30 seconds
@@ -80,15 +62,14 @@ export function useEnvioPlayerPools(playerAddress: string | undefined) {
 }
 
 // Get top players leaderboard
-export function useEnvioTopPlayers(first = 10, chainId?: number) {
+export function useEnvioTopPlayers(limit = 10, chainId?: number) {
   return useQuery({
-    queryKey: ['envio-top-players', first, chainId],
+    queryKey: ['envio-top-players', limit, chainId],
     queryFn: async () => {
-      const response = await request<PlayersResponse>(GET_TOP_PLAYERS, {
-        first,
-        chainId,
+      const response = await request<any>(GET_TOP_PLAYERS, {
+        limit,
       });
-      return response.players;
+      return response.Player;
     },
     staleTime: 60000, // 1 minute
     refetchInterval: 300000, // 5 minutes
@@ -104,24 +85,24 @@ export function useEnvioHasPlayerJoined(poolId: string | undefined, playerAddres
 
       const query = `
         query HasPlayerJoined($poolId: String!, $playerAddress: String!) {
-          playerPools(
+          PlayerPool(
             where: {
-              pool: $poolId,
-              player: $playerAddress
+              pool_id: { _eq: $poolId },
+              player_id: { _eq: $playerAddress }
             }
-            first: 1
+            limit: 1
           ) {
             id
           }
         }
       `;
 
-      const response = await request<{ playerPools: { id: string }[] }>(query, {
+      const response = await request<{ PlayerPool: { id: string }[] }>(query, {
         poolId,
         playerAddress: playerAddress.toLowerCase(),
       });
 
-      return response.playerPools.length > 0;
+      return response.PlayerPool.length > 0;
     },
     enabled: !!(poolId && playerAddress),
     staleTime: 15000, // 15 seconds
@@ -186,28 +167,24 @@ export function useEnvioJoinedPlayers(poolId: string | undefined) {
 
       const query = `
         query GetJoinedPlayers($poolId: String!) {
-          playerPools(where: { pool: $poolId }) {
+          PlayerPool(where: { pool_id: { _eq: $poolId } }) {
             id
-            player {
-              id
-              address
-              totalPoolsJoined
-              totalPoolsWon
-              totalEarnings
-            }
-            isEliminated
-            hasWon
+            player_id
+            pool_id
+            status
             joinedAt
-            entryFeePaid
+            eliminatedAt
+            eliminatedInRound
+            chainId
           }
         }
       `;
 
-      const response = await request<{ playerPools: PlayerPool[] }>(query, {
+      const response = await request<{ PlayerPool: any[] }>(query, {
         poolId,
       });
 
-      return response.playerPools;
+      return response.PlayerPool;
     },
     enabled: !!poolId,
     staleTime: 15000, // 15 seconds

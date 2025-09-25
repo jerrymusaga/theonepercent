@@ -9,7 +9,6 @@ import {
 import type {
   Creator,
   CreatorResponse,
-  CreatorsResponse,
 } from '@/lib/graphql/types';
 
 // Get a specific creator by address
@@ -18,10 +17,10 @@ export function useEnvioCreator(address: string | undefined) {
     queryKey: ['envio-creator', address],
     queryFn: async () => {
       if (!address) return null;
-      const response = await request<CreatorResponse>(GET_CREATOR, {
+      const response = await request<any>(GET_CREATOR, {
         id: address.toLowerCase()
       });
-      return response.creator;
+      return response.Creator_by_pk;
     },
     enabled: !!address,
     staleTime: 30000, // 30 seconds
@@ -35,10 +34,10 @@ export function useEnvioCreatorStats(address: string | undefined) {
     queryKey: ['envio-creator-stats', address],
     queryFn: async () => {
       if (!address) return null;
-      const response = await request<CreatorResponse>(GET_CREATOR_STATS, {
+      const response = await request<any>(GET_CREATOR_STATS, {
         address: address.toLowerCase()
       });
-      return response.creator;
+      return response.Creator_by_pk;
     },
     enabled: !!address,
     staleTime: 30000, // 30 seconds
@@ -57,13 +56,12 @@ export function useEnvioCreatorPools(creatorAddress: string | undefined) {
 
       const query = `
         query GetCreatorPools($creatorAddress: String!, $chainId: Int) {
-          pools(
+          Pool(
             where: {
-              creator: $creatorAddress,
-              chainId: $chainId
+              creator_id: { _eq: $creatorAddress },
+              chainId: { _eq: $chainId }
             }
-            orderBy: createdAt
-            orderDirection: desc
+            order_by: { createdAt: desc }
           ) {
             id
             status
@@ -72,10 +70,7 @@ export function useEnvioCreatorPools(creatorAddress: string | undefined) {
             currentPlayers
             prizePool
             currentRound
-            winner {
-              id
-              address
-            }
+            winner_id
             prizeAmount
             createdAt
             activatedAt
@@ -85,11 +80,11 @@ export function useEnvioCreatorPools(creatorAddress: string | undefined) {
         }
       `;
 
-      const response = await request<{ pools: any[] }>(query, {
+      const response = await request<{ Pool: any[] }>(query, {
         creatorAddress: creatorAddress.toLowerCase(),
         chainId,
       });
-      return response.pools;
+      return response.Pool;
     },
     enabled: !!creatorAddress,
     staleTime: 30000, // 30 seconds
@@ -98,17 +93,17 @@ export function useEnvioCreatorPools(creatorAddress: string | undefined) {
 }
 
 // Get top creators leaderboard
-export function useEnvioTopCreators(first = 10) {
+export function useEnvioTopCreators(limit = 10) {
   const chainId = useChainId();
 
   return useQuery({
-    queryKey: ['envio-top-creators', first, chainId],
+    queryKey: ['envio-top-creators', limit, chainId],
     queryFn: async () => {
-      const response = await request<CreatorsResponse>(GET_TOP_CREATORS, {
-        first,
+      const response = await request<any>(GET_TOP_CREATORS, {
+        limit,
         chainId,
       });
-      return response.creators;
+      return response.Creator;
     },
     staleTime: 60000, // 1 minute
     refetchInterval: 300000, // 5 minutes
@@ -124,7 +119,7 @@ export function useEnvioIsCreator(address: string | undefined) {
 
       const query = `
         query IsCreator($address: String!) {
-          creator(id: $address) {
+          Creator_by_pk(id: $address) {
             id
             totalStaked
             totalPoolsEligible
@@ -132,11 +127,11 @@ export function useEnvioIsCreator(address: string | undefined) {
         }
       `;
 
-      const response = await request<{ creator: Creator | null }>(query, {
+      const response = await request<{ Creator_by_pk: Creator | null }>(query, {
         address: address.toLowerCase(),
       });
 
-      return !!(response.creator && BigInt(response.creator.totalStaked) > 0n);
+      return !!(response.Creator_by_pk && BigInt(response.Creator_by_pk.totalStaked) > 0n);
     },
     enabled: !!address,
     staleTime: 30000, // 30 seconds
@@ -153,36 +148,20 @@ export function useEnvioCreatorEarnings(address: string | undefined) {
 
       const query = `
         query GetCreatorEarnings($address: String!) {
-          creator(id: $address) {
+          Creator_by_pk(id: $address) {
             id
             totalEarned
             totalStaked
             completedPools
-            pools(where: { status: COMPLETED }) {
-              id
-              prizeAmount
-              completedAt
-              winner {
-                id
-                address
-              }
-            }
-            stakes: stakeEvents {
-              id
-              stakeType
-              amount
-              penalty
-              timestamp
-            }
           }
         }
       `;
 
-      const response = await request<{ creator: any }>(query, {
+      const response = await request<{ Creator_by_pk: any }>(query, {
         address: address.toLowerCase(),
       });
 
-      return response.creator;
+      return response.Creator_by_pk;
     },
     enabled: !!address,
     staleTime: 60000, // 1 minute
@@ -199,7 +178,7 @@ export function useEnvioCreatorVerification(address: string | undefined) {
 
       const query = `
         query GetCreatorVerification($address: String!) {
-          creator(id: $address) {
+          Creator_by_pk(id: $address) {
             id
             isVerified
             verifiedAt
@@ -209,11 +188,11 @@ export function useEnvioCreatorVerification(address: string | undefined) {
         }
       `;
 
-      const response = await request<{ creator: any }>(query, {
+      const response = await request<{ Creator_by_pk: any }>(query, {
         address: address.toLowerCase(),
       });
 
-      return response.creator;
+      return response.Creator_by_pk;
     },
     enabled: !!address,
     staleTime: 60000, // 1 minute
@@ -232,11 +211,11 @@ export function useEnvioCreatorActivePools(address: string | undefined) {
 
       const query = `
         query GetCreatorActivePools($address: String!, $chainId: Int) {
-          pools(
+          Pool(
             where: {
-              creator: $address,
-              status_in: [OPENED, ACTIVE],
-              chainId: $chainId
+              creator_id: { _eq: $address },
+              status: { _in: ["WAITING_FOR_PLAYERS", "ACTIVE"] },
+              chainId: { _eq: $chainId }
             }
           ) {
             id
@@ -244,12 +223,12 @@ export function useEnvioCreatorActivePools(address: string | undefined) {
         }
       `;
 
-      const response = await request<{ pools: { id: string }[] }>(query, {
+      const response = await request<{ Pool: { id: string }[] }>(query, {
         address: address.toLowerCase(),
         chainId,
       });
 
-      return response.pools.length;
+      return response.Pool.length;
     },
     enabled: !!address,
     staleTime: 30000, // 30 seconds
