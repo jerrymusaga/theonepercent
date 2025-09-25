@@ -151,7 +151,7 @@ type PlayerChoice {
 type StakeEvent {
   id: ID!                           # Unique transaction ID
   creator: Creator!                 # Creator reference
-  type: StakeEventType!             # DEPOSIT or WITHDRAW
+  stakeType: StakeEventType!        # DEPOSIT or WITHDRAW
 
   # Amount details
   amount: BigInt!                   # Amount staked/withdrawn in wei
@@ -170,7 +170,7 @@ type StakeEvent {
 # Generic event entity for all blockchain events
 type Event {
   id: ID!                           # Unique event ID (tx-hash-log-index)
-  type: EventType!                  # Event type
+  eventType: EventType!             # Event type
 
   # Transaction details
   transactionHash: String!          # Transaction hash

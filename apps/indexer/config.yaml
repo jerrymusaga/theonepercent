@@ -35,6 +35,8 @@ networks:
   # Celo Alfajores Testnet
   - id: 44787
     start_block: 25000000  # Recent block for faster initial sync
+    rpc_config:
+      url: https://alfajores-forno.celo-testnet.org
     contracts:
       - name: CoinToss
         address: 0x3331C7DF7Ae57F18B5948eE6F3bfd2Eb1fbc2B20
@@ -42,6 +44,8 @@ networks:
   # Celo Mainnet
   - id: 42220
     start_block: 25000000  # Recent block for faster initial sync
+    rpc_config:
+      url: https://forno.celo.org
     contracts:
       - name: CoinToss
         address: 0xe5273E84634D9A81C09BEf46aA8980F1270b606A
@@ -55,6 +59,3 @@ preload_handlers: true
 
 # Optional: Configure rollback handling for chain reorganizations
 rollback_on_reorg: true
-
-# Optional: Set sync interval for real-time updates (default: 1000ms)
-sync_interval_ms: 500
