@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Coins,
   Target,
-  CheckCircle,
   Star,
   Shield,
   Info,
@@ -23,8 +22,8 @@ import { formatEther } from "viem";
 
 export default function Home() {
   const router = useRouter();
-  const { context, isMiniAppReady } = useMiniApp();
-  const { address, isConnected, isConnecting } = useAccount();
+  const { isMiniAppReady } = useMiniApp();
+  const { isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
   const [demoStep, setDemoStep] = useState(0);
   const [showDemo, setShowDemo] = useState(false);
@@ -67,7 +66,12 @@ export default function Home() {
 
   // Calculate total value locked from active pools
   const totalValueLocked = activePools.reduce((sum, pool) => {
-    return sum + Number(formatEther(pool.prizePool || 0n));
+    const prizePool = pool.prizePool;
+    if (!prizePool) return sum;
+
+    // Handle both string and bigint types
+    const poolValue = typeof prizePool === 'string' ? BigInt(prizePool) : prizePool;
+    return sum + Number(formatEther(poolValue));
   }, 0);
 
   const recentWinners = [
