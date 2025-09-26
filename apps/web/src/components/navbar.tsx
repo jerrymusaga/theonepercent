@@ -8,7 +8,6 @@ import {
   Users,
   Trophy,
   Zap,
-  TestTube,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 
@@ -21,9 +20,6 @@ const navLinks = [
   { name: "Pools", href: "/pools" },
   { name: "Dashboard", href: "/dashboard" },
   { name: "Verify", href: "/verify" },
-  ...(process.env.NODE_ENV === 'development' ? [
-    { name: "Test Envio", href: "/test-envio" },
-  ] : []),
 ];
 
 export function Navbar() {
@@ -83,7 +79,6 @@ export function Navbar() {
                       <Trophy className="h-4 w-4" />
                     )}
                     {link.name === "Verify" && <Users className="h-4 w-4" />}
-                    {link.name === "Test Envio" && <TestTube className="h-4 w-4" />}
                     {link.name}
                   </Link>
                 ))}
@@ -127,7 +122,6 @@ export function Navbar() {
               {link.name === "Battles" && <Zap className="h-3 w-3" />}
               {link.name === "Dashboard" && <Trophy className="h-3 w-3" />}
               {link.name === "Verify" && <Users className="h-3 w-3" />}
-              {link.name === "Test Envio" && <TestTube className="h-3 w-3" />}
               {link.name}
             </Link>
           ))}
