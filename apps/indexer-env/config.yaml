@@ -2,7 +2,7 @@
 name: indexer-env
 networks:
 - id: 42220
-  start_block: 0
+  start_block: 28000000
   contracts:
   - name: CoinToss
     address:

@@ -1,6 +1,6 @@
 /*
  * CoinToss Event Handlers - Minimal Working Version
- * Creates basic Pool, Player, Creator entities
+ * Only handles basic events to get the indexer running
  */
 import {
   CoinToss,
@@ -36,7 +36,7 @@ CoinToss.PoolCreated.handler(async ({ event, context }) => {
     };
     context.Creator.set(creatorEntity);
   } else {
-    // Update existing creator
+    // Update existing creator - create new object
     const updatedCreator = {
       ...creatorEntity,
       totalPoolsCreated: creatorEntity.totalPoolsCreated + 1,
@@ -67,9 +67,9 @@ CoinToss.PoolCreated.handler(async ({ event, context }) => {
   };
   context.Pool.set(poolEntity);
 
-  // Create Event record
+  // Create Event entity (use transactionHash string directly)
   const eventEntity = {
-    id: `${chainId}_${event.block.number}_${event.logIndex}`,
+    id: `${poolId.toString()}-created`,
     eventType: "POOL_CREATED" as const,
     pool_id: poolId.toString(),
     creator_id: creatorId,
@@ -77,10 +77,32 @@ CoinToss.PoolCreated.handler(async ({ event, context }) => {
     timestamp: timestamp,
     blockNumber: blockNumber,
     chainId: chainId,
-    transactionHash: "unknown",
+    transactionHash: `${event.block.number}-${event.logIndex}`,
     logIndex: event.logIndex,
   };
   context.Event.set(eventEntity);
+
+  // Update NetworkStats
+  const networkStatsId = `network-${chainId}`;
+  let networkStats = await context.NetworkStats.get(networkStatsId);
+  if (!networkStats) {
+    networkStats = {
+      id: networkStatsId,
+      chainId: chainId,
+      totalPools: 1,
+      activePools: 0,
+      completedPools: 0,
+      totalVolume: 0n,
+      lastUpdated: timestamp,
+    };
+  } else {
+    networkStats = {
+      ...networkStats,
+      totalPools: networkStats.totalPools + 1,
+      lastUpdated: timestamp,
+    };
+  }
+  context.NetworkStats.set(networkStats);
 });
 
 // PlayerJoined Event Handler
@@ -90,9 +112,20 @@ CoinToss.PlayerJoined.handler(async ({ event, context }) => {
   const timestamp = BigInt(event.block.timestamp);
   const blockNumber = BigInt(event.block.number);
 
-  const playerId = player.toLowerCase();
+  // Get pool entity - it should exist
+  const poolEntity = await context.Pool.get(poolId.toString());
+  if (poolEntity) {
+    // Update pool with new player count
+    const updatedPool = {
+      ...poolEntity,
+      currentPlayers: Number(currentPlayers),
+      prizePool: poolEntity.prizePool + poolEntity.entryFee,
+    };
+    context.Pool.set(updatedPool);
+  }
 
   // Create Player entity if it doesn't exist
+  const playerId = player.toLowerCase();
   let playerEntity = await context.Player.get(playerId);
   if (!playerEntity) {
     playerEntity = {
@@ -102,7 +135,7 @@ CoinToss.PlayerJoined.handler(async ({ event, context }) => {
       totalPoolsWon: 0,
       totalPoolsEliminated: 0,
       totalEarnings: 0n,
-      totalSpent: 0n,
+      totalSpent: poolEntity?.entryFee || 0n,
       firstJoinedAt: timestamp,
       lastActiveAt: timestamp,
     };
@@ -112,20 +145,10 @@ CoinToss.PlayerJoined.handler(async ({ event, context }) => {
     const updatedPlayer = {
       ...playerEntity,
       totalPoolsJoined: playerEntity.totalPoolsJoined + 1,
+      totalSpent: playerEntity.totalSpent + (poolEntity?.entryFee || 0n),
       lastActiveAt: timestamp,
     };
     context.Player.set(updatedPlayer);
-  }
-
-  // Update Pool entity
-  const poolEntity = await context.Pool.get(poolId.toString());
-  if (poolEntity) {
-    const updatedPool = {
-      ...poolEntity,
-      currentPlayers: Number(currentPlayers),
-      prizePool: BigInt(currentPlayers) * poolEntity.entryFee,
-    };
-    context.Pool.set(updatedPool);
   }
 
   // Create PlayerPool relationship
@@ -143,9 +166,9 @@ CoinToss.PlayerJoined.handler(async ({ event, context }) => {
   };
   context.PlayerPool.set(playerPoolEntity);
 
-  // Create Event record
+  // Create Event entity
   const eventEntity = {
-    id: `${chainId}_${event.block.number}_${event.logIndex}`,
+    id: `${poolId.toString()}-${playerId}-joined`,
     eventType: "PLAYER_JOINED" as const,
     pool_id: poolId.toString(),
     player_id: playerId,
@@ -153,20 +176,32 @@ CoinToss.PlayerJoined.handler(async ({ event, context }) => {
     timestamp: timestamp,
     blockNumber: blockNumber,
     chainId: chainId,
-    transactionHash: "unknown",
+    transactionHash: `${event.block.number}-${event.logIndex}`,
     logIndex: event.logIndex,
   };
   context.Event.set(eventEntity);
+
+  // Update NetworkStats volume
+  const networkStatsId = `network-${chainId}`;
+  let networkStats = await context.NetworkStats.get(networkStatsId);
+  if (networkStats) {
+    const updatedStats = {
+      ...networkStats,
+      totalVolume: networkStats.totalVolume + (poolEntity?.entryFee || 0n),
+      lastUpdated: timestamp,
+    };
+    context.NetworkStats.set(updatedStats);
+  }
 });
 
 // PoolActivated Event Handler
 CoinToss.PoolActivated.handler(async ({ event, context }) => {
-  const { poolId, prizePool } = event.params;
-  const chainId = event.chainId;
+  const { poolId } = event.params;
   const timestamp = BigInt(event.block.timestamp);
   const blockNumber = BigInt(event.block.number);
+  const chainId = event.chainId;
 
-  // Update Pool entity
+  // Update pool status
   const poolEntity = await context.Pool.get(poolId.toString());
   if (poolEntity) {
     const updatedPool = {
@@ -175,46 +210,87 @@ CoinToss.PoolActivated.handler(async ({ event, context }) => {
       currentRound: 1,
       activatedAt: timestamp,
       activatedAtBlock: blockNumber,
-      prizePool: prizePool,
+      prizePool: poolEntity.entryFee * BigInt(poolEntity.currentPlayers),
     };
     context.Pool.set(updatedPool);
   }
+
+  // Create Event entity
+  const eventEntity = {
+    id: `${poolId.toString()}-activated`,
+    eventType: "POOL_ACTIVATED" as const,
+    pool_id: poolId.toString(),
+    player_id: undefined,
+    creator_id: undefined,
+    timestamp: timestamp,
+    blockNumber: blockNumber,
+    chainId: chainId,
+    transactionHash: `${event.block.number}-${event.logIndex}`,
+    logIndex: event.logIndex,
+  };
+  context.Event.set(eventEntity);
+
+  // Update NetworkStats
+  const networkStatsId = `network-${chainId}`;
+  let networkStats = await context.NetworkStats.get(networkStatsId);
+  if (networkStats) {
+    const updatedStats = {
+      ...networkStats,
+      activePools: networkStats.activePools + 1,
+      lastUpdated: timestamp,
+    };
+    context.NetworkStats.set(updatedStats);
+  }
 });
 
-// GameCompleted Event Handler
+// GameCompleted Event Handler (correct name)
 CoinToss.GameCompleted.handler(async ({ event, context }) => {
   const { poolId, winner, prizeAmount } = event.params;
-  const chainId = event.chainId;
   const timestamp = BigInt(event.block.timestamp);
   const blockNumber = BigInt(event.block.number);
+  const chainId = event.chainId;
 
-  const winnerId = winner.toLowerCase();
-
-  // Update Pool entity
+  // Update pool with winner
   const poolEntity = await context.Pool.get(poolId.toString());
   if (poolEntity) {
     const updatedPool = {
       ...poolEntity,
       status: "COMPLETED" as const,
-      winner_id: winnerId,
+      winner_id: winner.toLowerCase(),
       prizeAmount: prizeAmount,
       completedAt: timestamp,
       completedAtBlock: blockNumber,
     };
     context.Pool.set(updatedPool);
+
+    // Update winner PlayerPool status
+    const winnerPlayerPool = await context.PlayerPool.get(`${poolId.toString()}-${winner.toLowerCase()}`);
+    if (winnerPlayerPool) {
+      const updatedWinnerPool = {
+        ...winnerPlayerPool,
+        status: "WON" as const,
+      };
+      context.PlayerPool.set(updatedWinnerPool);
+    }
   }
 
-  // Update winner's PlayerPool status
-  const playerPoolEntity = await context.PlayerPool.get(`${poolId.toString()}-${winnerId}`);
-  if (playerPoolEntity) {
-    const updatedPlayerPool = {
-      ...playerPoolEntity,
-      status: "WON" as const,
-    };
-    context.PlayerPool.set(updatedPlayerPool);
-  }
+  // Create Event entity
+  const eventEntity = {
+    id: `${poolId.toString()}-completed`,
+    eventType: "POOL_COMPLETED" as const,
+    pool_id: poolId.toString(),
+    player_id: winner.toLowerCase(),
+    creator_id: undefined,
+    timestamp: timestamp,
+    blockNumber: blockNumber,
+    chainId: chainId,
+    transactionHash: `${event.block.number}-${event.logIndex}`,
+    logIndex: event.logIndex,
+  };
+  context.Event.set(eventEntity);
 
-  // Update winner statistics
+  // Update winner's stats
+  const winnerId = winner.toLowerCase();
   const playerEntity = await context.Player.get(winnerId);
   if (playerEntity) {
     const updatedPlayer = {
@@ -226,7 +302,7 @@ CoinToss.GameCompleted.handler(async ({ event, context }) => {
     context.Player.set(updatedPlayer);
   }
 
-  // Update creator statistics
+  // Update creator stats
   if (poolEntity) {
     const creatorEntity = await context.Creator.get(poolEntity.creator_id);
     if (creatorEntity) {
@@ -238,163 +314,17 @@ CoinToss.GameCompleted.handler(async ({ event, context }) => {
       context.Creator.set(updatedCreator);
     }
   }
-});
 
-// PlayerMadeChoice Event Handler
-CoinToss.PlayerMadeChoice.handler(async ({ event, context }) => {
-  const { poolId, player, choice, round } = event.params;
-  const chainId = event.chainId;
-  const timestamp = BigInt(event.block.timestamp);
-  const blockNumber = BigInt(event.block.number);
-
-  const playerId = player.toLowerCase();
-  const roundId = `${poolId.toString()}-${round.toString()}`;
-
-  // Create GameRound if it doesn't exist
-  let gameRound = await context.GameRound.get(roundId);
-  if (!gameRound) {
-    gameRound = {
-      id: roundId,
-      pool_id: poolId.toString(),
-      roundNumber: Number(round),
-      eliminatedPlayers: 0,
-      remainingPlayers: 0,
-      roundWinners: 0,
-      createdAt: timestamp,
-      createdAtBlock: blockNumber,
-      chainId: chainId,
+  // Update NetworkStats
+  const networkStatsId = `network-${chainId}`;
+  let networkStats = await context.NetworkStats.get(networkStatsId);
+  if (networkStats) {
+    const updatedStats = {
+      ...networkStats,
+      activePools: networkStats.activePools - 1,
+      completedPools: networkStats.completedPools + 1,
+      lastUpdated: timestamp,
     };
-    context.GameRound.set(gameRound);
+    context.NetworkStats.set(updatedStats);
   }
-
-  // Create PlayerChoice
-  const choiceEntity = {
-    id: `${poolId.toString()}-${playerId}-${round.toString()}`,
-    player_id: playerId,
-    pool_id: poolId.toString(),
-    round_id: roundId,
-    choice: (Number(choice) === 0 ? "HEADS" : "TAILS") as "HEADS" | "TAILS",
-    timestamp: timestamp,
-    blockNumber: blockNumber,
-    chainId: chainId,
-  };
-  context.PlayerChoice.set(choiceEntity);
-});
-
-// StakeDeposited Event Handler
-CoinToss.StakeDeposited.handler(async ({ event, context }) => {
-  const { creator, amount, poolsEligible } = event.params;
-  const chainId = event.chainId;
-  const timestamp = BigInt(event.block.timestamp);
-  const blockNumber = BigInt(event.block.number);
-
-  const creatorId = creator.toLowerCase();
-
-  // Create StakeEvent
-  const stakeEventEntity = {
-    id: `${chainId}_${event.block.number}_${event.logIndex}`,
-    eventType: "STAKE" as const,
-    creator_id: creatorId,
-    amount: amount,
-    timestamp: timestamp,
-    blockNumber: blockNumber,
-    chainId: chainId,
-    transactionHash: "unknown",
-  };
-  context.StakeEvent.set(stakeEventEntity);
-
-  // Update creator statistics
-  const creatorEntity = await context.Creator.get(creatorId);
-  if (creatorEntity) {
-    const updatedCreator = {
-      ...creatorEntity,
-      totalStaked: creatorEntity.totalStaked + amount,
-      totalPoolsEligible: Number(poolsEligible),
-      lastActiveAt: timestamp,
-    };
-    context.Creator.set(updatedCreator);
-  }
-});
-
-// CreatorVerified Event Handler
-CoinToss.CreatorVerified.handler(async ({ event, context }) => {
-  const { creator, attestationId } = event.params;
-  const chainId = event.chainId;
-  const timestamp = BigInt(event.block.timestamp);
-
-  const creatorId = creator.toLowerCase();
-
-  // Update creator verification status
-  const creatorEntity = await context.Creator.get(creatorId);
-  if (creatorEntity) {
-    const updatedCreator = {
-      ...creatorEntity,
-      isVerified: true,
-      verifiedAt: timestamp,
-      attestationId: attestationId,
-      lastActiveAt: timestamp,
-    };
-    context.Creator.set(updatedCreator);
-  }
-});
-
-// PoolAbandoned Event Handler
-CoinToss.PoolAbandoned.handler(async ({ event, context }) => {
-  const { poolId } = event.params;
-  const timestamp = BigInt(event.block.timestamp);
-  const blockNumber = BigInt(event.block.number);
-
-  const poolEntity = await context.Pool.get(poolId.toString());
-  if (poolEntity) {
-    const updatedPool = {
-      ...poolEntity,
-      status: "ABANDONED" as const,
-      completedAt: timestamp,
-      completedAtBlock: blockNumber,
-    };
-    context.Pool.set(updatedPool);
-
-    // Update creator stats
-    const creatorEntity = await context.Creator.get(poolEntity.creator_id);
-    if (creatorEntity) {
-      const updatedCreator = {
-        ...creatorEntity,
-        abandonedPools: creatorEntity.abandonedPools + 1,
-      };
-      context.Creator.set(updatedCreator);
-    }
-  }
-});
-
-// Placeholder handlers for remaining events
-CoinToss.RoundResolved.handler(async ({ event, context }) => {
-  // Basic logging only
-});
-
-CoinToss.StakeWithdrawn.handler(async ({ event, context }) => {
-  // TODO: Update Creator stake amount and create StakeEvent
-});
-
-CoinToss.CreatorRewardClaimed.handler(async ({ event, context }) => {
-  // TODO: Update Creator totalEarned
-});
-
-CoinToss.OwnershipTransferred.handler(async ({ event, context }) => {
-  // System event - minimal logging
-});
-
-CoinToss.ProjectPoolUpdated.handler(async ({ event, context }) => {
-  // System event - minimal logging
-});
-
-CoinToss.ScopeUpdated.handler(async ({ event, context }) => {
-  // System event - minimal logging
-});
-
-CoinToss.VerificationBonusApplied.handler(async ({ event, context }) => {
-  // TODO: Update Creator verificationBonusPools
-});
-
-CoinToss.RoundRepeated.handler(async ({ event, context }) => {
-  // TODO: Handle round repetition logic
 });
