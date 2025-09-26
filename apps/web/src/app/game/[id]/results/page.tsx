@@ -17,13 +17,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  usePoolInfo,
-  useGameProgress,
-  useCurrentRound,
-  useRemainingPlayers,
-  useGameResults,
-  useLatestRoundResult
-} from "@/hooks";
+  useEnvioPoolInfo,
+  useEnvioGameProgress,
+  useEnvioRemainingPlayersForPool,
+  useEnvioGameResults,
+  useEnvioLatestRoundResult,
+} from "@/hooks/use-envio-players";
 import { PoolStatus } from "@/lib/contract";
 
 
@@ -229,15 +228,18 @@ export default function RoundResultsPage() {
   const params = useParams();
   const router = useRouter();
 
-  const poolId = Number(params?.id);
+  const poolId = params?.id as string;
 
-  // Get pool and game data from blockchain
-  const { data: poolInfo, isLoading: isLoadingPool } = usePoolInfo(poolId);
-  const { data: gameProgress, isLoading: isLoadingGame } = useGameProgress(poolId);
-  const { data: currentRound } = useCurrentRound(poolId);
-  const { data: remainingPlayers } = useRemainingPlayers(poolId);
-  const gameResults = useGameResults(poolId);
-  const latestRoundResult = useLatestRoundResult(poolId);
+  // Get pool and game data from Envio
+  const { data: poolInfo, isLoading: isLoadingPool } = useEnvioPoolInfo(poolId);
+  const { data: gameProgress, isLoading: isLoadingGame } = useEnvioGameProgress(poolId);
+  const { data: remainingPlayersData } = useEnvioRemainingPlayersForPool(poolId);
+  const gameResults = useEnvioGameResults(poolId);
+  const latestRoundResult = useEnvioLatestRoundResult(poolId);
+
+  // Extract player addresses and current round from Envio data
+  const remainingPlayers = remainingPlayersData?.map((player: any) => player.player_id) || [];
+  const currentRound = gameProgress?.currentRound;
 
   const isLoading = isLoadingPool || isLoadingGame || gameResults.isLoading;
 
@@ -268,28 +270,46 @@ export default function RoundResultsPage() {
     );
   }
 
-  // Transform blockchain data to match UI expectations
+  // Helper function to map Envio string status to PoolStatus enum
+  const mapEnvioStatusToPoolStatus = (envioStatus: string): PoolStatus => {
+    switch (envioStatus) {
+      case "WAITING_FOR_PLAYERS":
+        return PoolStatus.OPENED;
+      case "ACTIVE":
+        return PoolStatus.ACTIVE;
+      case "COMPLETED":
+        return PoolStatus.COMPLETED;
+      case "ABANDONED":
+        return PoolStatus.ABANDONED;
+      default:
+        return PoolStatus.OPENED;
+    }
+  };
+
+  // Transform Envio data to match UI expectations
+  const poolStatus = poolInfo ? mapEnvioStatusToPoolStatus(poolInfo.status) : PoolStatus.OPENED;
+
   // For prize pool: use winner's prize amount if game is completed and pool shows 0 (claimed)
-  const actualPrizePool = poolInfo.status === PoolStatus.COMPLETED && poolInfo.prizePool === BigInt(0) && gameResults.winner
-    ? gameResults.winner.prizeAmount
+  const actualPrizePool = poolStatus === PoolStatus.COMPLETED && poolInfo.prizePool === BigInt(0) && gameResults.data?.winner
+    ? gameResults.data.winner.prizeAmount
     : poolInfo.prizePool;
 
   const results = {
     round: Number(currentRound || 0),
     gameStats: {
-      prizePool: formatEther(actualPrizePool),
-      remainingPlayers: Array.isArray(remainingPlayers) ? remainingPlayers.length : 0,
-      totalPlayers: gameProgress?.totalPlayersCount ? Number(gameProgress.totalPlayersCount) : Number(poolInfo.currentPlayers || 0),
-      isGameComplete: poolInfo.status === PoolStatus.COMPLETED,
-      winner: gameResults.winner
+      prizePool: formatEther(actualPrizePool || 0n),
+      remainingPlayers: remainingPlayers.length,
+      totalPlayers: gameProgress?.totalPlayersCount ? Number(gameProgress.totalPlayersCount) : Number(poolInfo?.currentPlayers || 0),
+      isGameComplete: poolStatus === PoolStatus.COMPLETED,
+      winner: gameResults.data?.winner
     },
-    winningChoice: latestRoundResult.data?.winningChoice || "HEADS",
-    choices: latestRoundResult.data?.choices || {
+    winningChoice: latestRoundResult.data?.data?.winningChoice || "HEADS",
+    choices: latestRoundResult.data?.data?.choices || {
       HEADS: { count: 0, players: [] },
       TAILS: { count: 0, players: [] }
     },
-    rounds: gameResults.rounds,
-    hasRoundData: gameResults.rounds.length > 0
+    rounds: gameResults.data?.rounds || [],
+    hasRoundData: (gameResults.data?.rounds || []).length > 0
   };
 
 

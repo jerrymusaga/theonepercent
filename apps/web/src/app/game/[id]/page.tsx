@@ -18,17 +18,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  usePoolInfo,
-  useGameProgress,
   useMakeSelection,
-  usePlayerChoice,
-  useHasPlayerChosen,
-  useIsPlayerEliminated,
-  useRemainingPlayers,
   useWatchPlayerMadeChoice,
   useWatchRoundResolved,
   useWatchGameCompleted
 } from "@/hooks";
+import {
+  useEnvioPoolInfo,
+  useEnvioGameProgress,
+  useEnvioPlayerChoice,
+  useEnvioHasPlayerChosen,
+  useEnvioIsPlayerEliminated,
+  useEnvioRemainingPlayersForPool,
+} from "@/hooks/use-envio-players";
 import { useToast } from "@/hooks/use-toast";
 import { PlayerChoice, PoolStatus } from "@/lib/contract";
 
@@ -278,37 +280,40 @@ export default function GameArenaPage() {
     isLoading: isLoadingPool,
     error: poolError,
     refetch: refetchPool
-  } = usePoolInfo(poolId ? parseInt(poolId) : 0);
+  } = useEnvioPoolInfo(poolId);
 
   const {
     data: gameProgress,
     isLoading: isLoadingProgress,
     refetch: refetchProgress
-  } = useGameProgress(poolId ? parseInt(poolId) : 0);
+  } = useEnvioGameProgress(poolId);
 
   const {
-    data: remainingPlayers,
+    data: remainingPlayersData,
     isLoading: isLoadingPlayers,
     refetch: refetchPlayers
-  } = useRemainingPlayers(poolId ? parseInt(poolId) : 0);
+  } = useEnvioRemainingPlayersForPool(poolId);
 
   const {
     data: hasPlayerChosen,
     isLoading: isLoadingHasChosen,
     error: hasChosenError
-  } = useHasPlayerChosen(poolId ? parseInt(poolId) : 0, address);
+  } = useEnvioHasPlayerChosen(poolId, address);
 
   const {
     data: playerChoice,
     isLoading: isLoadingPlayerChoice,
     error: playerChoiceError
-  } = usePlayerChoice(poolId ? parseInt(poolId) : 0, address);
+  } = useEnvioPlayerChoice(poolId, address);
 
   const {
     data: isPlayerEliminated,
     isLoading: isLoadingEliminated,
     error: eliminatedError
-  } = useIsPlayerEliminated(poolId ? parseInt(poolId) : 0, address);
+  } = useEnvioIsPlayerEliminated(poolId, address);
+
+  // Extract player addresses from Envio data to match existing format
+  const remainingPlayers = remainingPlayersData?.map((player: any) => player.player_id) || [];
 
   const {
     makeSelection,
@@ -415,11 +420,30 @@ export default function GameArenaPage() {
     return <GameNotFound poolId={poolId} />;
   }
 
+  // Helper function to map Envio string status to PoolStatus enum
+  const mapEnvioStatusToPoolStatus = (envioStatus: string): PoolStatus => {
+    switch (envioStatus) {
+      case "WAITING_FOR_PLAYERS":
+        return PoolStatus.OPENED;
+      case "ACTIVE":
+        return PoolStatus.ACTIVE;
+      case "COMPLETED":
+        return PoolStatus.COMPLETED;
+      case "ABANDONED":
+        return PoolStatus.ABANDONED;
+      default:
+        return PoolStatus.OPENED;
+    }
+  };
+
+  // Map Envio pool status to enum
+  const poolStatus = poolInfo ? mapEnvioStatusToPoolStatus(poolInfo.status) : PoolStatus.OPENED;
+
   // Check if pool is accessible
-  const isAccessible = poolInfo.status === PoolStatus.ACTIVE ||
-                      poolInfo.status === PoolStatus.COMPLETED ||
-                      poolInfo.status === PoolStatus.OPENED ||
-                      poolInfo.status === PoolStatus.ABANDONED;
+  const isAccessible = poolStatus === PoolStatus.ACTIVE ||
+                      poolStatus === PoolStatus.COMPLETED ||
+                      poolStatus === PoolStatus.OPENED ||
+                      poolStatus === PoolStatus.ABANDONED;
 
   if (!isAccessible) {
     return <GameNotFound poolId={poolId} />;
@@ -510,7 +534,7 @@ export default function GameArenaPage() {
           {/* Main Game Area */}
           <div className="lg:col-span-2">
             {/* Status-based content */}
-            {poolInfo.status === PoolStatus.ACTIVE && (
+            {poolStatus === PoolStatus.ACTIVE && (
               <Card className="p-8 mb-6 text-center">
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -635,7 +659,7 @@ export default function GameArenaPage() {
             )}
 
             {/* Completed Pool */}
-            {poolInfo.status === PoolStatus.COMPLETED && (
+            {poolStatus === PoolStatus.COMPLETED && (
               <Card className="p-8 mb-6 text-center">
                 <div className="mb-6">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -670,7 +694,7 @@ export default function GameArenaPage() {
             )}
 
             {/* Opened Pool */}
-            {poolInfo.status === PoolStatus.OPENED && (
+            {poolStatus === PoolStatus.OPENED && (
               <Card className="p-8 mb-6 text-center">
                 <div className="mb-6">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -705,7 +729,7 @@ export default function GameArenaPage() {
             )}
 
             {/* Abandoned Pool */}
-            {poolInfo.status === PoolStatus.ABANDONED && (
+            {poolStatus === PoolStatus.ABANDONED && (
               <Card className="p-8 mb-6 text-center">
                 <div className="mb-6">
                   <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
