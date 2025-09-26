@@ -1214,11 +1214,11 @@ export default function UniversalDashboard() {
 
   const handleViewPool = (poolId: number, status: number) => {
     if (status === PoolStatus.OPENED) {
-      window.location.href = `/pools?highlight=${poolId}`;
+      router.push(`/pools?highlight=${poolId}`);
     } else if (status === PoolStatus.ACTIVE) {
-      window.location.href = `/game/${poolId}`;
+      router.push(`/game/${poolId}`);
     } else if (status === PoolStatus.COMPLETED) {
-      window.location.href = `/game/${poolId}`;
+      router.push(`/game/${poolId}`);
     }
   };
 
@@ -1341,17 +1341,6 @@ export default function UniversalDashboard() {
     (isCreatorWithPools && (creatorLoading || earningsLoading || poolsLoading)) ||
     (isPlayerWithPools && (joinedPoolsLoading || prizesLoading));
 
-  // Debug loading state
-  console.log('🔄 Dashboard loading state debug:');
-  console.log('  - participationLoading:', participationLoading);
-  console.log('  - isCreator (original):', isCreator);
-  console.log('  - isCreator (fixed):', isCreatorWithPools);
-  console.log('  - isPlayer (original):', isPlayer);
-  console.log('  - isPlayer (fixed):', isPlayerWithPools);
-  console.log('  - joinedPoolsLoading:', joinedPoolsLoading);
-  console.log('  - prizesLoading:', prizesLoading);
-  console.log('  - FINAL isLoading:', isLoading);
-  console.log('  - activePools:', activePools);
 
   // Calculate basic stats from pool IDs (simplified for now)
   const stats = {
@@ -1446,7 +1435,7 @@ export default function UniversalDashboard() {
                 {!isCreator && (
                   <Button
                     className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 h-9"
-                    onClick={() => (window.location.href = "/stake")}
+                    onClick={() => router.push("/stake")}
                   >
                     <Crown className="w-4 h-4 mr-2" />
                     Become Creator
@@ -1456,7 +1445,7 @@ export default function UniversalDashboard() {
                 {isPlayerWithPools && (
                   <Button
                     variant="outline"
-                    onClick={() => (window.location.href = "/pools")}
+                    onClick={() => router.push("/pools")}
                     className="border-gray-700 text-gray-300 hover:bg-gray-800 px-4 py-2 h-9"
                   >
                     <Play className="w-4 h-4 mr-2" />
@@ -1560,7 +1549,7 @@ export default function UniversalDashboard() {
                 <Button
                   size="sm"
                   className="bg-purple-600 hover:bg-purple-700 text-white flex-1"
-                  onClick={() => (window.location.href = "/stake")}
+                  onClick={() => router.push("/stake")}
                 >
                   <Crown className="w-4 h-4 mr-1" />
                   Creator
@@ -1571,7 +1560,7 @@ export default function UniversalDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => (window.location.href = "/pools")}
+                  onClick={() => router.push("/pools")}
                   className="border-gray-700 text-gray-300 hover:bg-gray-800 flex-1"
                 >
                   <Play className="w-4 h-4 mr-1" />
@@ -1949,7 +1938,7 @@ export default function UniversalDashboard() {
                     </p>
                     <Button
                       variant="outline"
-                      onClick={() => (window.location.href = "/pools")}
+                      onClick={() => router.push("/pools")}
                       className="border-gray-600 text-gray-300 hover:bg-gray-800"
                     >
                       Browse Available Pools
