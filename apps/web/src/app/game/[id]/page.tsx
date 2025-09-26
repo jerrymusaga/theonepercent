@@ -30,6 +30,8 @@ import {
   useEnvioHasPlayerChosen,
   useEnvioIsPlayerEliminated,
   useEnvioRemainingPlayersForPool,
+  useEnvioCurrentRoundTieStatus,
+  useEnvioLatestGameRound,
 } from "@/hooks/use-envio-players";
 import { useToast } from "@/hooks/use-toast";
 import { PlayerChoice, PoolStatus } from "@/lib/contract";
@@ -53,6 +55,27 @@ const ErrorBanner = ({ message, onRetry }: { message: string; onRetry?: () => vo
           Retry
         </Button>
       )}
+    </div>
+  </Card>
+);
+
+// Tie notification component
+const TieNotification = ({ roundNumber, playerCount }: { roundNumber: number; playerCount: number }) => (
+  <Card className="p-4 bg-amber-50 border-amber-200 animate-pulse">
+    <div className="flex items-center gap-3">
+      <div className="flex items-center justify-center w-8 h-8 bg-amber-100 rounded-full">
+        <CircleDot className="w-4 h-4 text-amber-600" />
+      </div>
+      <div className="flex-1">
+        <p className="font-medium text-amber-800">Round Tied!</p>
+        <p className="text-sm text-amber-700">
+          All {playerCount} players chose the same option in Round {roundNumber}. The round will be replayed.
+        </p>
+      </div>
+      <div className="flex items-center gap-2 text-amber-600">
+        <Zap className="w-4 h-4" />
+        <span className="text-xs font-medium">REPLAY</span>
+      </div>
     </div>
   </Card>
 );
@@ -312,6 +335,17 @@ export default function GameArenaPage() {
     error: eliminatedError
   } = useEnvioIsPlayerEliminated(poolId, address);
 
+  // Tie scenario detection hooks
+  const {
+    data: tieStatus,
+    isLoading: isLoadingTieStatus
+  } = useEnvioCurrentRoundTieStatus(poolId, gameProgress?.currentRound ? Number(gameProgress.currentRound) : 0);
+
+  const {
+    data: latestGameRound,
+    isLoading: isLoadingLatestRound
+  } = useEnvioLatestGameRound(poolId);
+
   // Extract player addresses from Envio data to match existing format
   const remainingPlayers = remainingPlayersData?.map((player: any) => player.player_id) || [];
 
@@ -529,6 +563,16 @@ export default function GameArenaPage() {
             )}
           </div>
         </Card>
+
+        {/* Tie Notification - Show when current round has a tie */}
+        {latestGameRound?.isTie && (
+          <div className="mb-6">
+            <TieNotification
+              roundNumber={latestGameRound.roundNumber}
+              playerCount={latestGameRound.remainingPlayers}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Game Area */}

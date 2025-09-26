@@ -863,6 +863,175 @@ export function useEnvioLatestRoundResult(poolId: string | undefined) {
   });
 }
 
+// Get tie scenarios for a pool (rounds where all players chose the same option)
+export function useEnvioTieScenarios(poolId: string | undefined) {
+  return useQuery({
+    queryKey: ['envio-tie-scenarios', poolId],
+    queryFn: async () => {
+      if (!poolId) return [];
+
+      const query = `
+        query GetTieScenarios($poolId: String!) {
+          GameRound(
+            where: {
+              pool_id: { _eq: $poolId },
+              eliminatedPlayers: { _eq: 0 }
+            }
+            order_by: { roundNumber: desc }
+          ) {
+            id
+            roundNumber
+            eliminatedPlayers
+            remainingPlayers
+            roundWinners
+            createdAt
+            createdAtBlock
+            chainId
+          }
+        }
+      `;
+
+      const response = await request<{ GameRound: any[] }>(query, { poolId });
+      return response.GameRound.map(round => ({
+        roundNumber: round.roundNumber,
+        playerCount: round.remainingPlayers,
+        timestamp: new Date(Number(round.createdAt) * 1000),
+        blockNumber: round.createdAtBlock
+      }));
+    },
+    enabled: !!poolId,
+    refetchInterval: 2000,
+  });
+}
+
+// Get round repeated events (tie rounds where the round needs to be replayed)
+export function useEnvioRoundRepeatedEvents(poolId: string | undefined) {
+  return useQuery({
+    queryKey: ['envio-round-repeated-events', poolId],
+    queryFn: async () => {
+      if (!poolId) return [];
+
+      const query = `
+        query GetRoundRepeatedEvents($poolId: String!) {
+          GameRound(
+            where: {
+              pool_id: { _eq: $poolId },
+              id: { _like: "%-tie" }
+            }
+            order_by: { roundNumber: desc }
+          ) {
+            id
+            roundNumber
+            remainingPlayers
+            createdAt
+            createdAtBlock
+          }
+        }
+      `;
+
+      const response = await request<{ GameRound: any[] }>(query, { poolId });
+
+      return response.GameRound.map(round => ({
+        roundNumber: round.roundNumber,
+        playerCount: round.remainingPlayers,
+        timestamp: new Date(Number(round.createdAt) * 1000),
+        blockNumber: round.createdAtBlock,
+        isTie: true
+      }));
+    },
+    enabled: !!poolId,
+    refetchInterval: 1000, // More frequent polling for real-time tie detection
+  });
+}
+
+// Check if the current round has a tie (all players chose the same option)
+export function useEnvioCurrentRoundTieStatus(poolId: string | undefined, currentRound: number) {
+  return useQuery({
+    queryKey: ['envio-current-round-tie-status', poolId, currentRound],
+    queryFn: async () => {
+      if (!poolId) return { hasTie: false, tieCount: 0 };
+
+      const query = `
+        query GetCurrentRoundTieStatus($poolId: String!, $roundNumber: Int!) {
+          GameRound(
+            where: {
+              pool_id: { _eq: $poolId },
+              roundNumber: { _eq: $roundNumber },
+              eliminatedPlayers: { _eq: 0 }
+            }
+          ) {
+            id
+            roundNumber
+            remainingPlayers
+            eliminatedPlayers
+          }
+        }
+      `;
+
+      const response = await request<{ GameRound: any[] }>(query, {
+        poolId,
+        roundNumber: currentRound
+      });
+
+      const tieRounds = response.GameRound.filter(round => round.eliminatedPlayers === 0);
+
+      return {
+        hasTie: tieRounds.length > 0,
+        tieCount: tieRounds.length,
+        latestTieRound: tieRounds[0] || null
+      };
+    },
+    enabled: !!poolId && currentRound > 0,
+    refetchInterval: 1000,
+  });
+}
+
+// Get the latest GameRound result for real-time updates
+export function useEnvioLatestGameRound(poolId: string | undefined) {
+  return useQuery({
+    queryKey: ['envio-latest-game-round', poolId],
+    queryFn: async () => {
+      if (!poolId) return null;
+
+      const query = `
+        query GetLatestGameRound($poolId: String!) {
+          GameRound(
+            where: { pool_id: { _eq: $poolId } }
+            order_by: { roundNumber: desc }
+            limit: 1
+          ) {
+            id
+            roundNumber
+            eliminatedPlayers
+            remainingPlayers
+            roundWinners
+            createdAt
+            createdAtBlock
+            chainId
+          }
+        }
+      `;
+
+      const response = await request<{ GameRound: any[] }>(query, { poolId });
+      const gameRound = response.GameRound[0];
+
+      if (!gameRound) return null;
+
+      return {
+        roundNumber: gameRound.roundNumber,
+        eliminatedPlayers: gameRound.eliminatedPlayers,
+        remainingPlayers: gameRound.remainingPlayers,
+        roundWinners: gameRound.roundWinners,
+        timestamp: new Date(Number(gameRound.createdAt) * 1000),
+        blockNumber: gameRound.createdAtBlock,
+        isTie: gameRound.eliminatedPlayers === 0 && gameRound.id.endsWith('-tie')
+      };
+    },
+    enabled: !!poolId,
+    refetchInterval: 2000, // Poll every 2 seconds for real-time updates
+  });
+}
+
 // Hook to invalidate all player-related queries
 export function useInvalidatePlayers() {
   const queryClient = useQueryClient();

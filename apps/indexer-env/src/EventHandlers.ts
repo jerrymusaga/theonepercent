@@ -328,3 +328,97 @@ CoinToss.GameCompleted.handler(async ({ event, context }) => {
     context.NetworkStats.set(updatedStats);
   }
 });
+
+// RoundRepeated Event Handler (for tie scenarios)
+CoinToss.RoundRepeated.handler(async ({ event, context }) => {
+  const { poolId, round, unanimousChoice, playerCount } = event.params;
+  const timestamp = BigInt(event.block.timestamp);
+  const blockNumber = BigInt(event.block.number);
+  const chainId = event.chainId;
+
+  console.log(`🔄 Round ${round} repeated for pool ${poolId}: all ${playerCount} players chose ${unanimousChoice}`);
+
+  // Create Event entity for tie scenario
+  const eventEntity = {
+    id: `${poolId.toString()}-round-${round}-repeated`,
+    eventType: "ROUND_RESOLVED" as const, // Using existing enum value for now
+    pool_id: poolId.toString(),
+    player_id: undefined,
+    creator_id: undefined,
+    timestamp: timestamp,
+    blockNumber: blockNumber,
+    chainId: chainId,
+    transactionHash: `${event.block.number}-${event.logIndex}`,
+    logIndex: event.logIndex,
+  };
+  context.Event.set(eventEntity);
+
+  // Create a special GameRound entry for tie rounds
+  const gameRoundEntity = {
+    id: `${poolId.toString()}-${round}-tie`,
+    pool_id: poolId.toString(),
+    roundNumber: Number(round),
+    eliminatedPlayers: 0, // No eliminations in tie
+    remainingPlayers: Number(playerCount),
+    roundWinners: 0, // No winners in tie
+    createdAt: timestamp,
+    createdAtBlock: blockNumber,
+    chainId: chainId,
+  };
+  context.GameRound.set(gameRoundEntity);
+});
+
+// RoundResolved Event Handler (for normal elimination rounds)
+CoinToss.RoundResolved.handler(async ({ event, context }) => {
+  const { poolId, round, winningChoice, eliminatedCount, remainingCount } = event.params;
+  const timestamp = BigInt(event.block.timestamp);
+  const blockNumber = BigInt(event.block.number);
+  const chainId = event.chainId;
+
+  console.log(`✅ Round ${round} resolved for pool ${poolId}: ${winningChoice} won, ${eliminatedCount} eliminated, ${remainingCount} remaining`);
+
+  // Update pool current round and player count
+  const poolEntity = await context.Pool.get(poolId.toString());
+  if (poolEntity) {
+    const updatedPool = {
+      ...poolEntity,
+      currentRound: Number(round) + 1, // Advance to next round
+      currentPlayers: Number(remainingCount),
+    };
+    context.Pool.set(updatedPool);
+  }
+
+  // Create GameRound entity for historical tracking
+  const gameRoundEntity = {
+    id: `${poolId.toString()}-${round}`,
+    pool_id: poolId.toString(),
+    roundNumber: Number(round),
+    eliminatedPlayers: Number(eliminatedCount),
+    remainingPlayers: Number(remainingCount),
+    roundWinners: Number(remainingCount), // Survivors are winners of this round
+    createdAt: timestamp,
+    createdAtBlock: blockNumber,
+    chainId: chainId,
+  };
+  context.GameRound.set(gameRoundEntity);
+
+  // Create Event entity for UI notifications
+  const eventEntity = {
+    id: `${poolId.toString()}-round-${round}-resolved`,
+    eventType: "ROUND_RESOLVED" as const,
+    pool_id: poolId.toString(),
+    player_id: undefined,
+    creator_id: undefined,
+    timestamp: timestamp,
+    blockNumber: blockNumber,
+    chainId: chainId,
+    transactionHash: `${event.block.number}-${event.logIndex}`,
+    logIndex: event.logIndex,
+  };
+  context.Event.set(eventEntity);
+
+  // TODO: Update eliminated players' PlayerPool status to "ELIMINATED"
+  // This would require knowing which players made the losing choice
+  // For now, we track elimination counts but individual player elimination
+  // status can be determined by checking if they're still in remaining players
+});
