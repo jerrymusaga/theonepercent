@@ -13,7 +13,6 @@ export const graphqlClient = new GraphQLClient(ENVIO_ENDPOINT, {
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 second timeout
 });
 
 // Helper function for making GraphQL requests
