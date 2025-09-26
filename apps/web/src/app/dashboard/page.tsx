@@ -1892,15 +1892,18 @@ export default function UniversalDashboard() {
 
               <div className="space-y-4">
                 {/* DEBUG: Render condition logging */}
-                {console.log('🎯 RENDER DEBUG:')}
-                {console.log('  - isLoading:', isLoading)}
-                {console.log('  - joinedPools.length:', joinedPools.length)}
-                {console.log('  - joinedPools.length > 0:', joinedPools.length > 0)}
-                {console.log('  - Will render:',
-                  isLoading ? 'LOADING SKELETON' :
-                  joinedPools.length > 0 ? 'JOINED POOLS' :
-                  'EMPTY STATE'
-                )}
+                {(() => {
+                  console.log('🎯 RENDER DEBUG:');
+                  console.log('  - isLoading:', isLoading);
+                  console.log('  - joinedPools.length:', joinedPools.length);
+                  console.log('  - joinedPools.length > 0:', joinedPools.length > 0);
+                  console.log('  - Will render:',
+                    isLoading ? 'LOADING SKELETON' :
+                    joinedPools.length > 0 ? 'JOINED POOLS' :
+                    'EMPTY STATE'
+                  );
+                  return null;
+                })()}
                 {isLoading ? (
                   <div className="space-y-4">
                     {[...Array(3)].map((_, i) => (

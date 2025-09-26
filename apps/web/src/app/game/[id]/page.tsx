@@ -30,7 +30,6 @@ import {
   useEnvioHasPlayerChosen,
   useEnvioIsPlayerEliminated,
   useEnvioRemainingPlayersForPool,
-  useEnvioCurrentRoundTieStatus,
   useEnvioLatestGameRound,
 } from "@/hooks/use-envio-players";
 import { useToast } from "@/hooks/use-toast";
@@ -200,8 +199,8 @@ interface PlayerCardProps {
 
 
 const PlayerCard = ({ address, isEliminated, isCurrentUser, poolId }: PlayerCardProps) => {
-  const { data: hasChosen } = useHasPlayerChosen(poolId, address);
-  const { data: choice } = usePlayerChoice(poolId, address);
+  const { data: hasChosen } = useEnvioHasPlayerChosen(poolId.toString(), address);
+  const { data: choice } = useEnvioPlayerChoice(poolId.toString(), address);
   const getStatusColor = () => {
     if (isEliminated) return "bg-red-100 border-red-200 text-red-800";
     if (hasChosen) return "bg-green-100 border-green-200 text-green-800";
@@ -318,32 +317,20 @@ export default function GameArenaPage() {
   } = useEnvioRemainingPlayersForPool(poolId);
 
   const {
-    data: hasPlayerChosen,
-    isLoading: isLoadingHasChosen,
-    error: hasChosenError
+    data: hasPlayerChosen
   } = useEnvioHasPlayerChosen(poolId, address);
 
   const {
-    data: playerChoice,
-    isLoading: isLoadingPlayerChoice,
-    error: playerChoiceError
+    data: playerChoice
   } = useEnvioPlayerChoice(poolId, address);
 
   const {
-    data: isPlayerEliminated,
-    isLoading: isLoadingEliminated,
-    error: eliminatedError
+    data: isPlayerEliminated
   } = useEnvioIsPlayerEliminated(poolId, address);
 
   // Tie scenario detection hooks
   const {
-    data: tieStatus,
-    isLoading: isLoadingTieStatus
-  } = useEnvioCurrentRoundTieStatus(poolId, gameProgress?.currentRound ? Number(gameProgress.currentRound) : 0);
-
-  const {
-    data: latestGameRound,
-    isLoading: isLoadingLatestRound
+    data: latestGameRound
   } = useEnvioLatestGameRound(poolId);
 
   // Extract player addresses from Envio data to match existing format

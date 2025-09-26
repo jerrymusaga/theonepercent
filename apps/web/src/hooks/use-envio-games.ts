@@ -295,7 +295,7 @@ export function useEnvioGameResults(poolId: string | undefined) {
 
   return {
     rounds: roundsQuery.data || [],
-    playerChoices: roundsQuery.data?.flatMap(round => round.playerChoices || []) || [],
+    playerChoices: [], // Player choices should be fetched separately with useEnvioPlayerChoices
     winner: null, // Would need to fetch from pool data
     isLoading: roundsQuery.isLoading,
     error: roundsQuery.error,

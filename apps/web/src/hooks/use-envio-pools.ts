@@ -32,7 +32,7 @@ export function useEnvioPools(
       const response = await request<any>(GET_POOLS, {
         limit: first,
       });
-      return response.Pool || [];
+      return response.pools || [];
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute
@@ -64,7 +64,7 @@ export function useEnvioActivePools() {
       const response = await request<PoolsResponse>(GET_ACTIVE_POOLS, {
         chainId,
       });
-      return response.Pool || [];
+      return response.pools || [];
     },
     staleTime: 15000, // 15 seconds
     refetchInterval: 30000, // 30 seconds
@@ -81,7 +81,7 @@ export function useEnvioOpenPools() {
       const response = await request<PoolsResponse>(GET_OPEN_POOLS, {
         chainId,
       });
-      return response.Pool || [];
+      return response.pools || [];
     },
     staleTime: 15000, // 15 seconds
     refetchInterval: 30000, // 30 seconds
@@ -106,7 +106,7 @@ export function useEnvioSearchPools(
         chainId,
         first,
       });
-      return response.Pool || [];
+      return response.pools || [];
     },
     enabled: !!searchText.trim(),
     staleTime: 30000, // 30 seconds
@@ -124,7 +124,7 @@ export function useAllPools() {
       const response = await request<any>(GET_POOLS, {
         limit: 100,
       });
-      return response.Pool || [];
+      return response.pools || [];
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute
@@ -159,7 +159,7 @@ export function usePoolsByStatus(status: PoolStatus) {
         orderBy: 'createdAt',
         orderDirection: 'desc',
       });
-      return response.Pool || [];
+      return response.pools || [];
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // 1 minute

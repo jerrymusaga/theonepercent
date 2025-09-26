@@ -1,36 +1,54 @@
 import assert from "assert";
-import { 
-  TestHelpers,
-  CoinToss_CreatorRewardClaimed
-} from "generated";
+import { TestHelpers } from "generated";
 const { MockDb, CoinToss } = TestHelpers;
 
-describe("CoinToss contract CreatorRewardClaimed event tests", () => {
+describe("CoinToss contract PoolCreated event tests", () => {
   // Create mock db
   const mockDb = MockDb.createMockDb();
 
-  // Creating mock for CoinToss contract CreatorRewardClaimed event
-  const event = CoinToss.CreatorRewardClaimed.createMockEvent({/* It mocks event fields with default values. You can overwrite them if you need */});
+  // Creating mock for CoinToss contract PoolCreated event
+  const event = CoinToss.PoolCreated.createMockEvent({
+    poolId: 1n,
+    creator: "0x1234567890123456789012345678901234567890",
+    entryFee: 1000000000000000000n, // 1 ETH in wei
+    maxPlayers: 10n
+  });
 
-  it("CoinToss_CreatorRewardClaimed is created correctly", async () => {
+  it("PoolCreated event creates correct entities", async () => {
     // Processing the event
-    const mockDbUpdated = await CoinToss.CreatorRewardClaimed.processEvent({
+    const mockDbUpdated = await CoinToss.PoolCreated.processEvent({
       event,
       mockDb,
     });
 
-    // Getting the actual entity from the mock database
-    let actualCoinTossCreatorRewardClaimed = mockDbUpdated.entities.CoinToss_CreatorRewardClaimed.get(
-      `${event.chainId}_${event.block.number}_${event.logIndex}`
-    );
+    // Getting the actual entities from the mock database
+    const poolId = event.params.poolId.toString();
+    const creatorId = event.params.creator.toLowerCase();
 
-    // Creating the expected entity
-    const expectedCoinTossCreatorRewardClaimed: CoinToss_CreatorRewardClaimed = {
-      id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
-      creator: event.params.creator,
-      amount: event.params.amount,
-    };
-    // Asserting that the entity in the mock database is the same as the expected entity
-    assert.deepEqual(actualCoinTossCreatorRewardClaimed, expectedCoinTossCreatorRewardClaimed, "Actual CoinTossCreatorRewardClaimed should be the same as the expectedCoinTossCreatorRewardClaimed");
+    const actualPool = mockDbUpdated.entities.Pool.get(poolId);
+    const actualCreator = mockDbUpdated.entities.Creator.get(creatorId);
+    const actualEvent = mockDbUpdated.entities.Event.get(`${poolId}-created`);
+
+    // Basic assertions
+    assert(actualPool !== undefined, "Pool entity should be created");
+    assert(actualCreator !== undefined, "Creator entity should be created");
+    assert(actualEvent !== undefined, "Event entity should be created");
+
+    // Pool assertions
+    assert.strictEqual(actualPool!.id, poolId);
+    assert.strictEqual(actualPool!.creator_id, creatorId);
+    assert.strictEqual(actualPool!.status, "WAITING_FOR_PLAYERS");
+    assert.strictEqual(actualPool!.entryFee, event.params.entryFee);
+    assert.strictEqual(actualPool!.maxPlayers, Number(event.params.maxPlayers));
+
+    // Creator assertions
+    assert.strictEqual(actualCreator!.id, creatorId);
+    assert.strictEqual(actualCreator!.address, event.params.creator);
+    assert.strictEqual(actualCreator!.totalPoolsCreated, 1);
+
+    // Event assertions
+    assert.strictEqual(actualEvent!.eventType, "POOL_CREATED");
+    assert.strictEqual(actualEvent!.pool_id, poolId);
+    assert.strictEqual(actualEvent!.creator_id, creatorId);
   });
 });
