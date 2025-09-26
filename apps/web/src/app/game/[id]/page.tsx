@@ -97,7 +97,7 @@ const WalletConnectionRequired = () => (
   </div>
 );
 
-const GameNotFound = ({ poolId }: { poolId: string }) => (
+const GameNotFound = ({ poolId, onBrowsePools }: { poolId: string, onBrowsePools: () => void }) => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
     <Card className="p-8 text-center max-w-md mx-4">
       <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -109,7 +109,7 @@ const GameNotFound = ({ poolId }: { poolId: string }) => (
       </p>
       <Button
         className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
-        onClick={() => window.location.href = '/pools'}
+        onClick={onBrowsePools}
       >
         Browse Pools
       </Button>
@@ -438,7 +438,7 @@ export default function GameArenaPage() {
 
   // Game not found
   if (!poolInfo) {
-    return <GameNotFound poolId={poolId} />;
+    return <GameNotFound poolId={poolId} onBrowsePools={() => router.push('/pools')} />;
   }
 
   // Helper function to map Envio string status to PoolStatus enum
@@ -467,7 +467,7 @@ export default function GameArenaPage() {
                       poolStatus === PoolStatus.ABANDONED;
 
   if (!isAccessible) {
-    return <GameNotFound poolId={poolId} />;
+    return <GameNotFound poolId={poolId} onBrowsePools={() => router.push('/pools')} />;
   }
 
   // Check if current user is actually part of the game
