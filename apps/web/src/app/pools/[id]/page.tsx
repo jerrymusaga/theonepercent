@@ -22,13 +22,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  usePoolInfo,
   useJoinPool,
   useCreatorInfo,
-  useRemainingPlayers,
-  useJoinedPlayers,
   useWatchPlayerJoined,
 } from "@/hooks";
+import {
+  useEnvioPoolInfo,
+  useEnvioJoinedPlayersForPool,
+  useEnvioRemainingPlayersForPool,
+} from "@/hooks/use-envio-players";
 import { useToast } from "@/hooks/use-toast";
 import { PoolStatus } from "@/lib/contract";
 
@@ -228,27 +230,26 @@ export default function PoolDetailPage() {
 
   const poolId = params?.id as string;
 
-  // Fetch pool data
+  // Fetch pool data (Envio-powered)
   const {
     data: poolData,
     isLoading: isLoadingPool,
     error: poolError,
     refetch: refetchPool,
-  } = usePoolInfo(poolId ? parseInt(poolId) : 0);
+  } = useEnvioPoolInfo(poolId);
 
   // Fetch creator info
   const { data: creatorInfo, isLoading: isLoadingCreator } = useCreatorInfo();
 
-  // Fetch current players (only if pool is active/opened)
-  const { data: playerAddresses, isLoading: isLoadingPlayers } =
-    useRemainingPlayers(poolId ? parseInt(poolId) : 0);
+  // Fetch current players (only if pool is active/opened) - Envio-powered
+  const { isLoading: isLoadingPlayers } = useEnvioRemainingPlayersForPool(poolId);
 
-  // Fetch joined players using events (works for all pool states)
-  const {
-    joinedPlayers,
-    isLoading: isLoadingJoinedPlayers,
-    count: joinedPlayersCount,
-  } = useJoinedPlayers(poolId ? parseInt(poolId) : 0);
+  // Fetch joined players using Envio (works for all pool states)
+  const { data: joinedPlayersData, isLoading: isLoadingJoinedPlayers } =
+    useEnvioJoinedPlayersForPool(poolId);
+
+  // Extract player addresses from Envio data to match existing format
+  const joinedPlayers = joinedPlayersData?.map((player: any) => player.player_id) || [];
 
   // Watch for new players joining to refresh the data
   useWatchPlayerJoined({
@@ -299,15 +300,31 @@ export default function PoolDetailPage() {
     );
   }
 
-  // Format pool data
+  // Helper function to map Envio string status to PoolStatus enum
+  const mapEnvioStatusToPoolStatus = (envioStatus: string): PoolStatus => {
+    switch (envioStatus) {
+      case "WAITING_FOR_PLAYERS":
+        return PoolStatus.OPENED;
+      case "ACTIVE":
+        return PoolStatus.ACTIVE;
+      case "COMPLETED":
+        return PoolStatus.COMPLETED;
+      case "ABANDONED":
+        return PoolStatus.ABANDONED;
+      default:
+        return PoolStatus.OPENED;
+    }
+  };
+
+  // Format pool data (adjusted for Envio field names)
   const pool = {
     id: poolId,
-    creator: poolData.creator,
+    creator: poolData.creator_id,
     entryFee: formatEther(poolData.entryFee),
     maxPlayers: Number(poolData.maxPlayers),
     currentPlayers: Number(poolData.currentPlayers),
     prizePool: formatEther(poolData.prizePool),
-    status: poolData.status,
+    status: mapEnvioStatusToPoolStatus(poolData.status),
   };
 
   const handleShare = async () => {

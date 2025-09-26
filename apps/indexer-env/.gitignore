@@ -27,9 +27,10 @@ lib/*
 /node_modules/
 benchmarks/
 artifacts
-cache
-build
+generated
+logs
 *.res.js
 *.res.mjs
-generated
+*.gen.ts
+build
 .env

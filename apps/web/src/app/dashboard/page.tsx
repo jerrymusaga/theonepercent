@@ -39,15 +39,18 @@ import {
   useUnstakeAndClaim,
   useStakingStats,
   useUserParticipation,
-  usePlayerPoolsDetails,
   useVerificationInfo,
-  usePlayerPrizes,
-  usePlayerStats,
   usePlayerClaimPrize,
   useClaimAbandonedPoolRefund,
   useCreatedPools,
   usePoolInfo,
 } from "@/hooks";
+// Use Envio hooks for better performance
+import {
+  useEnvioPlayer,
+  useEnvioJoinedPoolsDetailed,
+  useEnvioCreatedPools,
+} from "@/hooks/use-envio-players";
 import { useToast } from "@/hooks/use-toast";
 import {
   VerificationStatus,
@@ -909,9 +912,23 @@ export default function UniversalDashboard() {
     refetch: refetchPools,
   } = useCreatedPools(address);
 
+  // Player-specific hooks (Envio-powered)
+  const { data: joinedPools = [], isLoading: joinedPoolsLoading } =
+    useEnvioJoinedPoolsDetailed(address);
+  const { data: player, isLoading: playerDataLoading } =
+    useEnvioPlayer(address);
+
+  // Creator-specific hooks (Envio-powered)
+  const { data: envioCreatedPools = [], isLoading: envioCreatedPoolsLoading } =
+    useEnvioCreatedPools(address);
+
   // For creators, show ALL pools they've ever created (regardless of current stake status)
   // This ensures pool history persists even after unstaking
-  const activePools = createdPoolIds; // Just use the pool IDs - individual pool data will be fetched as needed
+  // Use Envio data when available, fallback to old manual indexing
+  const activePools = envioCreatedPools.length > 0 ?
+    envioCreatedPools.map(pool => pool.id) :
+    createdPoolIds;
+
   const {
     activatePool,
     isPending: isActivating,
@@ -920,16 +937,33 @@ export default function UniversalDashboard() {
     error: activateError,
   } = useActivatePool();
 
-  // Player-specific hooks
-  const { pools: joinedPools, isLoading: joinedPoolsLoading } =
-    usePlayerPoolsDetails(address);
-  const {
-    prizes: claimablePrizes,
-    totalClaimableFormatted,
-    isLoading: prizesLoading,
-  } = usePlayerPrizes(address);
-  const { stats: playerStats, isLoading: playerStatsLoading } =
-    usePlayerStats(address);
+  // Debug logging
+  console.log('🏠 Dashboard - address:', address);
+  console.log('🏠 Dashboard - joinedPools:', joinedPools);
+  console.log('🏠 Dashboard - joinedPoolsLoading:', joinedPoolsLoading);
+  console.log('🏠 Dashboard - player:', player);
+  console.log('🏠 Dashboard - playerDataLoading:', playerDataLoading);
+  console.log('🏠 Dashboard - envioCreatedPools:', envioCreatedPools);
+  console.log('🏠 Dashboard - envioCreatedPoolsLoading:', envioCreatedPoolsLoading);
+
+  // Compute player stats and prizes from Envio data
+  const playerStats = {
+    totalPoolsJoined: player?.totalPoolsJoined || 0,
+    totalPoolsWon: player?.totalPoolsWon || 0,
+    totalPoolsEliminated: player?.totalPoolsEliminated || 0,
+    totalEarnings: formatEther(player?.totalEarnings || '0'),
+    totalSpent: formatEther(player?.totalSpent || '0'),
+    winRate: player?.totalPoolsJoined ?
+      ((player.totalPoolsWon / player.totalPoolsJoined) * 100).toFixed(1) + '%' :
+      '0%',
+    totalGamesWon: player?.totalPoolsWon || 0, // Alias for totalPoolsWon
+    activePools: joinedPools.filter((pool: any) => pool.status === 'ACTIVE').length,
+  };
+
+  // TODO: Compute claimable prizes from player pools data
+  const claimablePrizes: any[] = []; // Will be computed from joinedPools
+  const totalClaimableFormatted = '0.00';
+  const prizesLoading = playerDataLoading;
   const {
     claimPrize,
     isPending: isClaimingPrize,
@@ -1295,11 +1329,29 @@ export default function UniversalDashboard() {
     }
   };
 
+  // Fix isPlayer based on Envio data - override the old hook logic
+  const isPlayerWithPools = isPlayer || joinedPools.length > 0;
+
+  // Fix isCreator based on Envio data - override the old hook logic
+  const isCreatorWithPools = isCreator || envioCreatedPools.length > 0;
+
   // Loading state
   const isLoading =
     participationLoading ||
-    (isCreator && (creatorLoading || earningsLoading || poolsLoading)) ||
-    (isPlayer && (joinedPoolsLoading || prizesLoading));
+    (isCreatorWithPools && (creatorLoading || earningsLoading || poolsLoading)) ||
+    (isPlayerWithPools && (joinedPoolsLoading || prizesLoading));
+
+  // Debug loading state
+  console.log('🔄 Dashboard loading state debug:');
+  console.log('  - participationLoading:', participationLoading);
+  console.log('  - isCreator (original):', isCreator);
+  console.log('  - isCreator (fixed):', isCreatorWithPools);
+  console.log('  - isPlayer (original):', isPlayer);
+  console.log('  - isPlayer (fixed):', isPlayerWithPools);
+  console.log('  - joinedPoolsLoading:', joinedPoolsLoading);
+  console.log('  - prizesLoading:', prizesLoading);
+  console.log('  - FINAL isLoading:', isLoading);
+  console.log('  - activePools:', activePools);
 
   // Calculate basic stats from pool IDs (simplified for now)
   const stats = {
@@ -1375,7 +1427,7 @@ export default function UniversalDashboard() {
                   <Wallet className="w-4 h-4" />
                   {parseFloat(celoBalance).toFixed(2)} CELO
                 </span>
-                {isCreator && (
+                {isCreatorWithPools && (
                   <span className="flex items-center gap-1">
                     <Crown className="w-4 h-4 text-yellow-400" />
                     {creatorInfo?.stakedAmount
@@ -1401,7 +1453,7 @@ export default function UniversalDashboard() {
                   </Button>
                 )}
 
-                {isPlayer && (
+                {isPlayerWithPools && (
                   <Button
                     variant="outline"
                     onClick={() => (window.location.href = "/pools")}
@@ -1412,7 +1464,7 @@ export default function UniversalDashboard() {
                   </Button>
                 )}
 
-                {isCreator && (
+                {isCreatorWithPools && (
                   <>
                     <Button
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 h-9"
@@ -1491,7 +1543,7 @@ export default function UniversalDashboard() {
                   <Wallet className="w-3 h-3" />
                   {parseFloat(celoBalance).toFixed(2)}
                 </span>
-                {isCreator && (
+                {isCreatorWithPools && (
                   <span className="flex items-center gap-1">
                     <Crown className="w-3 h-3 text-yellow-400" />
                     {creatorInfo?.stakedAmount
@@ -1515,7 +1567,7 @@ export default function UniversalDashboard() {
                 </Button>
               )}
 
-              {isPlayer && (
+              {isPlayerWithPools && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -1527,7 +1579,7 @@ export default function UniversalDashboard() {
                 </Button>
               )}
 
-              {isCreator && (
+              {isCreatorWithPools && (
                 <>
                   <Button
                     size="sm"
@@ -1762,7 +1814,7 @@ export default function UniversalDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Creator Pools - Show if user is a creator */}
-          {isCreator && (
+          {isCreatorWithPools && (
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1829,7 +1881,7 @@ export default function UniversalDashboard() {
           )}
 
           {/* Player Pools - Show if user is a player */}
-          {isPlayer && (
+          {isPlayerWithPools && (
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1839,6 +1891,16 @@ export default function UniversalDashboard() {
               </div>
 
               <div className="space-y-4">
+                {/* DEBUG: Render condition logging */}
+                {console.log('🎯 RENDER DEBUG:')}
+                {console.log('  - isLoading:', isLoading)}
+                {console.log('  - joinedPools.length:', joinedPools.length)}
+                {console.log('  - joinedPools.length > 0:', joinedPools.length > 0)}
+                {console.log('  - Will render:',
+                  isLoading ? 'LOADING SKELETON' :
+                  joinedPools.length > 0 ? 'JOINED POOLS' :
+                  'EMPTY STATE'
+                )}
                 {isLoading ? (
                   <div className="space-y-4">
                     {[...Array(3)].map((_, i) => (
@@ -1897,7 +1959,7 @@ export default function UniversalDashboard() {
 
           {/* Claimable Prizes or Recent Activity */}
           <div>
-            {isPlayer && claimablePrizes.length > 0 ? (
+            {isPlayerWithPools && claimablePrizes.length > 0 ? (
               // Show claimable prizes if user has any
               <>
                 <div className="flex items-center justify-between mb-6">

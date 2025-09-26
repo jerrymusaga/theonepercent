@@ -2,37 +2,17 @@ import { gql } from 'graphql-request';
 
 // Pool queries
 export const GET_POOLS = gql`
-  query GetPools(
-    $first: Int
-    $skip: Int
-    $where: Pool_filter
-    $orderBy: Pool_orderBy
-    $orderDirection: OrderDirection
-  ) {
-    pools(
-      first: $first
-      skip: $skip
-      where: $where
-      orderBy: $orderBy
-      orderDirection: $orderDirection
-    ) {
+  query GetPools($limit: Int) {
+    Pool(limit: $limit, order_by: { createdAt: desc }) {
       id
-      creator {
-        id
-        address
-        isVerified
-        verificationBonusPools
-      }
+      creator_id
       status
       entryFee
       maxPlayers
       currentPlayers
       prizePool
       currentRound
-      winner {
-        id
-        address
-      }
+      winner_id
       prizeAmount
       createdAt
       activatedAt
@@ -43,28 +23,17 @@ export const GET_POOLS = gql`
 `;
 
 export const GET_POOL = gql`
-  query GetPool($id: ID!) {
-    pool(id: $id) {
+  query GetPool($id: String!) {
+    Pool_by_pk(id: $id) {
       id
-      creator {
-        id
-        address
-        isVerified
-        totalPoolsCreated
-        completedPools
-      }
+      creator_id
       status
       entryFee
       maxPlayers
       currentPlayers
       prizePool
       currentRound
-      winner {
-        id
-        address
-        totalEarnings
-        totalPoolsWon
-      }
+      winner_id
       prizeAmount
       createdAt
       activatedAt
@@ -73,34 +42,13 @@ export const GET_POOL = gql`
       activatedAtBlock
       completedAtBlock
       chainId
-      players {
-        id
-        player {
-          id
-          address
-        }
-        isEliminated
-        hasWon
-        joinedAt
-        entryFeePaid
-      }
-      rounds {
-        id
-        roundNumber
-        winningChoice
-        eliminatedCount
-        remainingCount
-        resolvedAt
-        headsCount
-        tailsCount
-      }
     }
   }
 `;
 
 export const GET_ACTIVE_POOLS = gql`
   query GetActivePools($chainId: Int) {
-    pools(
+    Pool(
       where: {
         status: ACTIVE
         chainId: $chainId
@@ -128,7 +76,7 @@ export const GET_ACTIVE_POOLS = gql`
 
 export const GET_OPEN_POOLS = gql`
   query GetOpenPools($chainId: Int) {
-    pools(
+    Pool(
       where: {
         status: OPENED
         chainId: $chainId
@@ -155,8 +103,8 @@ export const GET_OPEN_POOLS = gql`
 
 // Player queries
 export const GET_PLAYER = gql`
-  query GetPlayer($id: ID!) {
-    player(id: $id) {
+  query GetPlayer($id: String!) {
+    Player_by_pk(id: $id) {
       id
       address
       totalPoolsJoined
@@ -166,22 +114,6 @@ export const GET_PLAYER = gql`
       totalSpent
       firstJoinedAt
       lastActiveAt
-      poolsJoined {
-        id
-        pool {
-          id
-          status
-          entryFee
-          prizeAmount
-          createdAt
-          completedAt
-        }
-        isEliminated
-        hasWon
-        joinedAt
-        entryFeePaid
-        prizeAmount
-      }
     }
   }
 `;
@@ -220,8 +152,8 @@ export const GET_PLAYER_POOLS = gql`
 
 // Creator queries
 export const GET_CREATOR = gql`
-  query GetCreator($id: ID!) {
-    creator(id: $id) {
+  query GetCreator($id: String!) {
+    Creator_by_pk(id: $id) {
       id
       address
       totalStaked
@@ -237,31 +169,13 @@ export const GET_CREATOR = gql`
       firstStakedAt
       lastActiveAt
       chainId
-      pools {
-        id
-        status
-        entryFee
-        maxPlayers
-        currentPlayers
-        prizePool
-        currentRound
-        winner {
-          id
-          address
-        }
-        prizeAmount
-        createdAt
-        activatedAt
-        completedAt
-        chainId
-      }
     }
   }
 `;
 
 export const GET_CREATOR_STATS = gql`
   query GetCreatorStats($address: String!) {
-    creator(id: $address) {
+    Creator_by_pk(id: $address) {
       id
       address
       totalStaked
@@ -405,27 +319,22 @@ export const SEARCH_POOLS = gql`
     $searchText: String!
     $status: PoolStatus
     $chainId: Int
-    $first: Int = 20
+    $limit: Int = 20
   ) {
-    pools(
+    Pool(
       where: {
-        or: [
-          { id_contains: $searchText }
-          { creator_contains: $searchText }
+        _or: [
+          { id: { _ilike: $searchText } }
+          { creator_id: { _ilike: $searchText } }
         ]
-        status: $status
-        chainId: $chainId
+        status: { _eq: $status }
+        chainId: { _eq: $chainId }
       }
-      first: $first
-      orderBy: createdAt
-      orderDirection: desc
+      limit: $limit
+      order_by: { createdAt: desc }
     ) {
       id
-      creator {
-        id
-        address
-        isVerified
-      }
+      creator_id
       status
       entryFee
       maxPlayers
@@ -439,15 +348,8 @@ export const SEARCH_POOLS = gql`
 `;
 
 export const GET_TOP_PLAYERS = gql`
-  query GetTopPlayers($first: Int = 10, $chainId: Int) {
-    players(
-      first: $first
-      orderBy: totalEarnings
-      orderDirection: desc
-      where: {
-        totalPoolsWon_gt: 0
-      }
-    ) {
+  query GetTopPlayers($limit: Int) {
+    Player(limit: $limit, order_by: { totalEarnings: desc }) {
       id
       address
       totalPoolsJoined
@@ -460,14 +362,13 @@ export const GET_TOP_PLAYERS = gql`
 `;
 
 export const GET_TOP_CREATORS = gql`
-  query GetTopCreators($first: Int = 10, $chainId: Int) {
-    creators(
-      first: $first
-      orderBy: totalEarned
-      orderDirection: desc
+  query GetTopCreators($limit: Int = 10, $chainId: Int) {
+    Creator(
+      limit: $limit
+      order_by: { totalEarned: desc }
       where: {
-        totalPoolsCreated_gt: 0
-        chainId: $chainId
+        totalPoolsCreated: { _gt: 0 }
+        chainId: { _eq: $chainId }
       }
     ) {
       id

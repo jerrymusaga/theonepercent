@@ -6,6 +6,11 @@ export * from './use-game';
 export * from './use-events';
 export * from './use-player';
 
+// Also export Envio hooks for migration
+export * from './use-envio-pools';
+export * from './use-envio-players';
+export * from './use-envio-creators';
+
 // Re-export commonly used hooks for convenience
 export { 
   useContractAddress,
