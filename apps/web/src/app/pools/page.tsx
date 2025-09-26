@@ -17,6 +17,7 @@ import {
   Trophy,
   Zap,
   Target,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -107,14 +108,14 @@ const getPoolStatusInfo = (
   switch (status) {
     case PoolStatus.OPENED:
       return {
-        text: "RECRUITING",
+        text: "OPEN TO JOIN",
         color: "bg-blue-500/20 text-blue-300 border-blue-500/50",
         icon: <Users className="w-3 h-3" />,
         borderColor: "border-blue-500",
       };
     case PoolStatus.ACTIVE:
       return {
-        text: `ROUND ${currentRound} • ${remainingPlayers} ALIVE`,
+        text: `ROUND ${currentRound} • ${remainingPlayers} PLAYERS LEFT`,
         color: "bg-green-500/20 text-green-300 border-green-500/50",
         icon: (
           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -259,7 +260,7 @@ const PoolCard = ({
 
   // Get time display
   const getTimeDisplay = () => {
-    return `BATTLE #${poolId.toString()}`;
+    return `POOL #${poolId.toString()}`;
   };
 
   return (
@@ -338,7 +339,7 @@ const PoolCard = ({
         <div className="mb-3 md:mb-4">
           <div className="flex items-center justify-between text-xs md:text-sm mb-2">
             <span className="text-gray-400 uppercase tracking-wide font-semibold truncate">
-              FIGHTERS: {currentPlayers.toString()}/{maxPlayers.toString()}
+              PLAYERS: {currentPlayers.toString()}/{maxPlayers.toString()}
             </span>
             <span className="text-gray-500 shrink-0 ml-2">
               {fillPercentage.toFixed(0)}% FULL
@@ -373,7 +374,7 @@ const PoolCard = ({
         {isCreator && status === PoolStatus.OPENED && (
           <div className="mb-4 p-2 bg-blue-500/10 border border-blue-500/30">
             <p className="text-xs text-blue-400 font-semibold uppercase tracking-wide">
-              👑 YOUR BATTLE - CREATORS CANNOT JOIN THEIR OWN BATTLES
+              👑 YOUR POOL - CREATORS CANNOT JOIN THEIR OWN POOLS
             </p>
           </div>
         )}
@@ -382,7 +383,7 @@ const PoolCard = ({
         {hasJoined && status === PoolStatus.OPENED && !isCreator && (
           <div className="mb-4 p-2 bg-green-500/10 border border-green-500/30">
             <p className="text-xs text-green-400 font-semibold uppercase tracking-wide">
-              ✅ ENLISTED - WAITING FOR BATTLE ACTIVATION
+              ✅ JOINED - WAITING FOR POOL ACTIVATION
             </p>
           </div>
         )}
@@ -436,12 +437,12 @@ const PoolCard = ({
                   </>
                 ) : isCreator ? (
                   <>
-                    <span className="hidden sm:inline">👑 YOUR BATTLE</span>
+                    <span className="hidden sm:inline">👑 YOUR POOL</span>
                     <span className="sm:hidden">👑 YOURS</span>
                   </>
                 ) : hasJoined ? (
                   <>
-                    <span className="hidden sm:inline">✅ ENLISTED</span>
+                    <span className="hidden sm:inline">✅ JOINED</span>
                     <span className="sm:hidden">✅ IN</span>
                   </>
                 ) : !hasEnoughBalance ? (
@@ -451,7 +452,7 @@ const PoolCard = ({
                   </>
                 ) : (
                   <>
-                    <span className="hidden sm:inline">JOIN BATTLE</span>
+                    <span className="hidden sm:inline">JOIN POOL</span>
                     <span className="sm:hidden">JOIN</span>
                   </>
                 )}
@@ -719,15 +720,33 @@ export default function PoolsPage() {
         {/* Wallet Connection Banner */}
         {!isConnected && <WalletConnectionBanner />}
 
+        {/* Game Explanation Banner */}
+        <div className="mb-6 p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-blue-500/20 border border-blue-500/50 rounded shrink-0">
+              <Info className="w-5 h-5 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-blue-200 mb-2">How The One Percent Works</h3>
+              <p className="text-blue-100 text-sm leading-relaxed">
+                <strong>The Goal:</strong> Be different to win! Join pools and make binary choices (Heads or Tails) each round.
+                Players who choose the <strong>minority option advance</strong>, while majority players are eliminated.
+                The last survivor wins the 95% prize pool. Pools can manually activate when 50%+ players join.
+                <p><strong>Create pools</strong> to earn 5% of every prize pool as creator rewards!</p>
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Page Header */}
         <div className="mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 uppercase tracking-wider">
-                BATTLE ARENA
+                AVAILABLE POOLS
               </h1>
               <p className="text-gray-400 uppercase tracking-wide font-semibold text-sm md:text-base">
-                Join battles or spectate the minority-wins challenge
+                Join pools and compete in the minority-wins challenge
               </p>
             </div>
             <Button
@@ -735,8 +754,8 @@ export default function PoolsPage() {
               onClick={() => router.push("/stake")}
             >
               <Target className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">CREATE BATTLE</span>
-              <span className="sm:hidden">CREATE</span>
+              <span className="hidden sm:inline">CREATE POOL</span>
+              <span className="sm:hidden">CREATE POOL</span>
             </Button>
           </div>
 
@@ -765,7 +784,7 @@ export default function PoolsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide font-semibold truncate">
-                    FIGHTERS
+                    PLAYERS
                   </p>
                   <p className="text-lg md:text-xl font-bold text-green-400">
                     {totalPlayers}
@@ -797,7 +816,7 @@ export default function PoolsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide font-semibold truncate">
-                    BATTLES
+                    TOTAL POOLS
                   </p>
                   <p className="text-lg md:text-xl font-bold text-purple-400">
                     {filteredPools.length}
@@ -827,10 +846,10 @@ export default function PoolsPage() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="ALL">ALL</option>
-              <option value="OPENED">RECRUITING</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="COMPLETED">COMPLETED</option>
+              <option value="ALL">ALL POOLS</option>
+              <option value="OPENED">OPEN TO JOIN</option>
+              <option value="ACTIVE">LIVE GAMES</option>
+              <option value="COMPLETED">FINISHED</option>
               <option value="ABANDONED">ABANDONED</option>
             </select>
 
