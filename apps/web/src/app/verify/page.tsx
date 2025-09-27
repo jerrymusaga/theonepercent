@@ -102,9 +102,9 @@ export default function VerifyPage() {
   const [verificationStep, setVerificationStep] = useState<"scan" | "processing" | "complete">("scan");
 
   const { address, isConnected } = useAccount();
-  const { context, isMiniAppReady } = useMiniApp();
+  const { isMiniAppReady } = useMiniApp();
   const { data: isVerified = false, refetch: refetchVerification } = useIsVerified(address);
-  const { submitVerification, isPending: isSubmittingVerification, isConfirmed: isVerificationConfirmed } = useSubmitVerification();
+  const { submitVerification, isConfirmed: isVerificationConfirmed } = useSubmitVerification();
   const { success, error } = useToast();
 
   // Initialize Self App configuration
@@ -115,7 +115,7 @@ export default function VerifyPage() {
           appName: "TheOnePercent Gaming",
           scope: "theonepercent-gaming",
           endpoint: process.env.NEXT_PUBLIC_COINTOSS_CONTRACT_ADDRESS || "0x...",
-          endpointType: "staging_celo", // Change to "celo" for mainnet
+          endpointType: "celo", // Mainnet configuration
           userId: address,
           userIdType: "hex",
           version: 2,
@@ -126,7 +126,7 @@ export default function VerifyPage() {
             ofac: true,              // Financial fraud prevention
             name: true,              // Optional: for leaderboards
           },
-          devMode: true, // Set to false for production
+          devMode: false, // Production mode
         } as Partial<SelfApp>).build();
 
         setSelfApp(app);
@@ -150,7 +150,7 @@ export default function VerifyPage() {
         const proofPayload = JSON.stringify(proofData);
         const userContextData = JSON.stringify({ userAddress: address, timestamp: Date.now() });
 
-        await submitVerification({
+        submitVerification({
           proofPayload: `0x${Buffer.from(proofPayload).toString('hex')}`,
           userContextData: `0x${Buffer.from(userContextData).toString('hex')}`
         });
@@ -224,10 +224,10 @@ export default function VerifyPage() {
   // Loading state
   if (isLoading || !isMiniAppReady) {
     return (
-      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <div className="w-full max-w-md mx-auto p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Initializing verification...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-300">Initializing verification...</p>
         </div>
       </section>
     );
@@ -236,19 +236,19 @@ export default function VerifyPage() {
   // Not connected state
   if (!isConnected || !address) {
     return (
-      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <div className="w-full max-w-md mx-auto p-8 text-center">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
             <AlertCircle className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-white mb-2">
             Connect Wallet to Verify
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-300 mb-6">
             Connect your wallet to start the identity verification process
           </p>
           <Link href="/">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white">
               <Home className="w-4 h-4 mr-2" />
               Back to Home
             </Button>
@@ -259,223 +259,232 @@ export default function VerifyPage() {
   }
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="w-full max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                <Home className="w-4 h-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      {/* Background Effects */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-red-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
+        <div className="absolute top-40 right-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
+      </div>
 
-            <span
-              className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${
-                isVerified
-                  ? "bg-green-50 text-green-700 border-green-200"
-                  : "bg-yellow-50 text-yellow-700 border-yellow-200"
-              }`}
-            >
-              {isVerified ? (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Verified Player
-                </>
+      <div className="relative z-10 py-8">
+        <div className="w-full max-w-4xl mx-auto px-4">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <Link href="/">
+                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white">
+                  <Home className="w-4 h-4 mr-2" />
+                  Back to Home
+                </Button>
+              </Link>
+
+              <span
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${
+                  isVerified
+                    ? "bg-green-900/50 text-green-400 border-green-700"
+                    : "bg-yellow-900/50 text-yellow-400 border-yellow-700"
+                }`}
+              >
+                {isVerified ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Verified Player
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Unverified
+                  </>
+                )}
+              </span>
+            </div>
+
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center relative border-2 border-red-500">
+              {verificationStep === "complete" ? (
+                <CheckCircle className="w-12 h-12 text-white" />
+              ) : verificationStep === "processing" ? (
+                <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  <AlertCircle className="w-4 h-4 mr-2" />
-                  Unverified
-                </>
+                <Shield className="w-12 h-12 text-white" />
               )}
-            </span>
+            </div>
+
+            <h1 className="text-4xl font-bold text-white mb-4">
+              {isVerified ? "🎮 Verified Player!" : "Identity Verification"}
+            </h1>
+            <p className="text-lg text-gray-300 mb-8">
+              {isVerified
+                ? "You're now a verified player with access to bonus pools and premium features"
+                : "Verify your identity to unlock bonus pools and exclusive gaming features"}
+            </p>
           </div>
 
-          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center relative">
-            {verificationStep === "complete" ? (
-              <CheckCircle className="w-12 h-12 text-white" />
-            ) : verificationStep === "processing" ? (
-              <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Shield className="w-12 h-12 text-white" />
-            )}
-          </div>
-
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {isVerified ? "🎮 Verified Player!" : "Identity Verification"}
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            {isVerified
-              ? "You're now a verified player with access to bonus pools and premium features"
-              : "Verify your identity to unlock bonus pools and exclusive gaming features"}
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Verification Card */}
-          <div className={`bg-white/70 backdrop-blur-sm border rounded-2xl overflow-hidden ${
-            isVerified ? "border-green-200" : "border-gray-200"
-          }`}>
-            {isVerified ? (
-              // Verified State
-              <div className="p-8 text-center">
-                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
-                  <Trophy className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                  Verification Complete! 🏆
-                </h3>
-                <p className="text-green-600 mb-6">
-                  You now get +1 bonus pool on every stake and access to verified-only gaming rooms
-                </p>
-                <div className="space-y-3">
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <Target className="w-6 h-6 text-green-600" />
-                      <div className="text-left">
-                        <p className="font-semibold text-gray-900">Bonus Pool Active</p>
-                        <p className="text-sm text-green-600">+1 extra pool per stake</p>
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Verification Card */}
+            <div className={`bg-gray-900/50 backdrop-blur-sm border rounded-2xl overflow-hidden ${
+              isVerified ? "border-green-700" : "border-gray-800"
+            }`}>
+              {isVerified ? (
+                // Verified State
+                <div className="p-8 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
+                    <Trophy className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white mb-3">
+                    Verification Complete! 🏆
+                  </h3>
+                  <p className="text-green-400 mb-6">
+                    You now get +1 bonus pool on every stake and access to verified-only gaming rooms
+                  </p>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-green-900/30 border border-green-700 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Target className="w-6 h-6 text-green-400" />
+                        <div className="text-left">
+                          <p className="font-semibold text-white">Bonus Pool Active</p>
+                          <p className="text-sm text-green-300">+1 extra pool per stake</p>
+                        </div>
                       </div>
                     </div>
+                    <Link href="/">
+                      <Button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white">
+                        <Target className="w-4 h-4 mr-2" />
+                        Start Gaming
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
                   </div>
-                  <Link href="/">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      <Target className="w-4 h-4 mr-2" />
-                      Start Gaming
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
                 </div>
-              </div>
-            ) : (
-              // Verification Process
-              <div className="p-8">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                    {verificationStep === "processing"
-                      ? "Processing Verification..."
-                      : "Verify with Self Protocol"
-                    }
-                  </h3>
-                  <p className="text-gray-600">
-                    {verificationStep === "processing"
-                      ? "Please wait while we verify your identity..."
-                      : "Scan the QR code below with the Self app to complete secure identity verification"}
-                  </p>
-                </div>
-
-                {verificationStep === "processing" ? (
-                  <div className="text-center">
-                    <div className="w-24 h-24 mx-auto mb-6 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-                    <p className="text-gray-500">
-                      Verifying your gaming eligibility...
+              ) : (
+                // Verification Process
+                <div className="p-8">
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-white mb-4">
+                      {verificationStep === "processing"
+                        ? "Processing Verification..."
+                        : "Verify with Self Protocol"
+                      }
+                    </h3>
+                    <p className="text-gray-300">
+                      {verificationStep === "processing"
+                        ? "Please wait while we verify your identity..."
+                        : "Scan the QR code below with the Self app to complete secure identity verification"}
                     </p>
                   </div>
-                ) : selfApp ? (
-                  <div className="text-center">
-                    <div className="inline-block p-6 bg-white rounded-2xl mb-6 shadow-lg border border-gray-200">
-                      <SelfQRcodeWrapper
-                        selfApp={selfApp}
-                        onSuccess={handleVerificationSuccess}
-                        onError={handleVerificationError}
-                        size={220}
-                      />
-                    </div>
 
-                    <div className="space-y-2 text-sm text-gray-500 mb-6">
-                      <p>
-                        Player: <UserDisplay address={address} className="text-blue-600 font-medium" />
+                  {verificationStep === "processing" ? (
+                    <div className="text-center">
+                      <div className="w-24 h-24 mx-auto mb-6 border-4 border-gray-700 border-t-red-500 rounded-full animate-spin" />
+                      <p className="text-gray-400">
+                        Verifying your gaming eligibility...
                       </p>
-                      <p>Network: Celo Testnet</p>
                     </div>
+                  ) : selfApp ? (
+                    <div className="text-center">
+                      <div className="inline-block p-6 bg-gray-800/80 rounded-2xl mb-6 shadow-lg border border-gray-700">
+                        <SelfQRcodeWrapper
+                          selfApp={selfApp}
+                          onSuccess={handleVerificationSuccess}
+                          onError={handleVerificationError}
+                          size={220}
+                        />
+                      </div>
 
-                    <button
-                      onClick={() => setShowBenefits(!showBenefits)}
-                      className="flex items-center justify-center gap-2 mx-auto text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                      <Gem className="w-4 h-4" />
-                      {showBenefits ? "Hide" : "See"} Gaming Benefits
-                      <ArrowRight className={`w-4 h-4 transform transition-transform ${showBenefits ? 'rotate-90' : ''}`} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center p-6">
-                    <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-                    <p className="text-gray-500">Initializing verification...</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                      <div className="space-y-2 text-sm text-gray-400 mb-6">
+                        <p>
+                          Player: <UserDisplay address={address} className="text-red-400 font-medium" />
+                        </p>
+                        <p>Network: Celo Mainnet</p>
+                      </div>
 
-          {/* Benefits & Security Section */}
-          <div className="space-y-6">
-            {/* Gaming Benefits */}
-            {(showBenefits || !isVerified) && (
-              <div className="bg-white/70 backdrop-blur-sm border border-gray-200 rounded-2xl p-6">
-                <h4 className="text-xl font-bold text-gray-900 mb-6 text-center flex items-center justify-center gap-2">
-                  <Crown className="w-6 h-6 text-yellow-600" />
-                  Verified Player Benefits
+                      <button
+                        onClick={() => setShowBenefits(!showBenefits)}
+                        className="flex items-center justify-center gap-2 mx-auto text-sm text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        <Gem className="w-4 h-4" />
+                        {showBenefits ? "Hide" : "See"} Gaming Benefits
+                        <ArrowRight className={`w-4 h-4 transform transition-transform ${showBenefits ? 'rotate-90' : ''}`} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center p-6">
+                      <div className="w-12 h-12 mx-auto mb-4 border-4 border-gray-700 border-t-red-500 rounded-full animate-spin" />
+                      <p className="text-gray-400">Initializing verification...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Benefits & Security Section */}
+            <div className="space-y-6">
+              {/* Gaming Benefits */}
+              {(showBenefits || !isVerified) && (
+                <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
+                  <h4 className="text-xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
+                    <Crown className="w-6 h-6 text-yellow-500" />
+                    Verified Player Benefits
+                  </h4>
+                  <div className="space-y-4">
+                    {gamingBenefits.map((benefit) => (
+                      <div
+                        key={benefit.title}
+                        className={`flex items-start gap-4 p-4 bg-gray-800/50 rounded-xl border ${
+                          benefit.highlight
+                            ? "border-yellow-700 bg-yellow-900/20"
+                            : "border-gray-700"
+                        }`}
+                      >
+                        <div className="p-2 rounded-lg bg-red-900/50 border border-red-700">
+                          <benefit.icon className="w-5 h-5 text-red-400" />
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-white mb-1 flex items-center gap-2">
+                            {benefit.title}
+                            {benefit.highlight && (
+                              <Star className="w-4 h-4 text-yellow-400" />
+                            )}
+                          </h5>
+                          <p className="text-sm text-gray-300">
+                            {benefit.description}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Security Features */}
+              <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
+                <h4 className="text-lg font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
+                  <Shield className="w-5 h-5 text-red-400" />
+                  Security & Privacy
                 </h4>
                 <div className="space-y-4">
-                  {gamingBenefits.map((benefit, index) => (
+                  {securityFeatures.map((feature) => (
                     <div
-                      key={benefit.title}
-                      className={`flex items-start gap-4 p-4 bg-white/50 rounded-xl border ${
-                        benefit.highlight
-                          ? "border-yellow-200 bg-yellow-50/50"
-                          : "border-gray-100"
-                      }`}
+                      key={feature.title}
+                      className="flex items-start gap-3 p-3 bg-gray-800/30 rounded-lg"
                     >
-                      <div className="p-2 rounded-lg bg-blue-100 border border-blue-200">
-                        <benefit.icon className="w-5 h-5 text-blue-600" />
-                      </div>
+                      <feature.icon className="w-5 h-5 text-red-400 mt-0.5" />
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                          {benefit.title}
-                          {benefit.highlight && (
-                            <Star className="w-4 h-4 text-yellow-500" />
-                          )}
+                        <h5 className="font-medium text-white text-sm mb-1">
+                          {feature.title}
                         </h5>
-                        <p className="text-sm text-gray-600">
-                          {benefit.description}
+                        <p className="text-xs text-gray-300">
+                          {feature.description}
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
-
-            {/* Security Features */}
-            <div className="bg-white/70 backdrop-blur-sm border border-gray-200 rounded-2xl p-6">
-              <h4 className="text-lg font-bold text-gray-900 mb-6 text-center flex items-center justify-center gap-2">
-                <Shield className="w-5 h-5 text-blue-600" />
-                Security & Privacy
-              </h4>
-              <div className="space-y-4">
-                {securityFeatures.map((feature, index) => (
-                  <div
-                    key={feature.title}
-                    className="flex items-start gap-3 p-3 bg-white/30 rounded-lg"
-                  >
-                    <feature.icon className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h5 className="font-medium text-gray-900 text-sm mb-1">
-                        {feature.title}
-                      </h5>
-                      <p className="text-xs text-gray-600">
-                        {feature.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </main>
   );
 }
