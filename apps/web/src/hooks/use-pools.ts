@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract, useChainId } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { useCoinTossRead, useContractAddress } from './use-contract';
 import { PoolInfo, PoolStatus, CONTRACT_CONFIG } from '@/lib/contract';
+import { useDivviIntegration } from './use-divvi-integration';
 
 /**
  * Hook to get pool information
@@ -78,20 +79,32 @@ export function useCreatePool() {
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const createPool = useMutation({
     mutationFn: async (params: { entryFee: string; maxPlayers: number }) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
-      
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('🎮 Creating pool with Divvi tracking:', { divviTag, params });
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'createPool',
         args: [parseEther(params.entryFee), BigInt(params.maxPlayers)],
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: () => {
@@ -122,14 +135,25 @@ export function useJoinPool() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const joinPool = useMutation({
     mutationFn: async (params: { poolId: number; entryFee: string }) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('🎮 Joining pool with Divvi tracking:', { divviTag, poolId: params.poolId });
 
       return writeContract({
         address: contractAddress,
@@ -137,6 +161,7 @@ export function useJoinPool() {
         functionName: 'joinPool',
         args: [BigInt(params.poolId)],
         value: parseEther(params.entryFee),
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: (_, { poolId }) => {
@@ -165,20 +190,32 @@ export function useActivatePool() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const activatePool = useMutation({
     mutationFn: async (poolId: number) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
-      
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('🚀 Activating pool with Divvi tracking:', { divviTag, poolId });
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'activatePool',
         args: [BigInt(poolId)],
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: (_, poolId) => {

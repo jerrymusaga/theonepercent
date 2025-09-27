@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract, useChainId } from 'wagmi';
 import { useCoinTossRead, useContractAddress } from './use-contract';
 import { PlayerChoice, GameProgress, CONTRACT_CONFIG } from '@/lib/contract';
+import { useDivviIntegration } from './use-divvi-integration';
 
 /**
  * Hook to get game progress for a pool
@@ -121,10 +122,17 @@ export function useMakeSelection() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
+
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
 
   const makeSelection = useMutation({
     mutationFn: async (params: { poolId: number; choice: PlayerChoice }) => {
@@ -132,12 +140,22 @@ export function useMakeSelection() {
       if (params.choice === PlayerChoice.NONE) {
         throw new Error('Invalid choice');
       }
-      
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      const choiceText = params.choice === PlayerChoice.HEADS ? 'HEADS' : 'TAILS';
+      console.log('🎯 Making selection with Divvi tracking:', {
+        divviTag,
+        poolId: params.poolId,
+        choice: choiceText
+      });
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'makeSelection',
         args: [BigInt(params.poolId), params.choice],
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: (_, { poolId }) => {
@@ -168,20 +186,32 @@ export function useClaimPrize() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const claimPrize = useMutation({
     mutationFn: async (poolId: number) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
-      
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('🏆 Claiming prize with Divvi tracking:', { divviTag, poolId });
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'claimPrize',
         args: [BigInt(poolId)],
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: (_, poolId) => {

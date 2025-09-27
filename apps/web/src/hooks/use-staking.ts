@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useWriteContract, useChainId } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { useCoinTossRead, useContractAddress } from './use-contract';
 import { CreatorInfo, CONTRACT_CONFIG } from '@/lib/contract';
+import { useDivviIntegration } from './use-divvi-integration';
 
 /**
  * Hook to get creator staking information
@@ -106,20 +107,32 @@ export function useStakeForPoolCreation() {
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const stake = useMutation({
     mutationFn: async (stakeAmount: string) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
-      
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('💰 Staking with Divvi tracking:', { divviTag, stakeAmount });
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'stakeForPoolCreation',
         value: parseEther(stakeAmount),
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: () => {
@@ -149,19 +162,31 @@ export function useUnstakeAndClaim() {
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const unstake = useMutation({
     mutationFn: async () => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
-      
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('🏦 Unstaking and claiming with Divvi tracking:', { divviTag });
+
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'unstakeAndClaim',
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: () => {

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAccount, usePublicClient, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { useCoinTossRead, useContractAddress } from './use-contract';
 import { CONTRACT_CONFIG } from '@/lib/contract';
+import { useDivviIntegration } from './use-divvi-integration';
 
 /**
  * Interface for verification information
@@ -113,20 +114,32 @@ export function useSubmitVerification() {
   const contractAddress = useContractAddress();
   const queryClient = useQueryClient();
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { generateDivviTag, trackTransaction } = useDivviIntegration();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
+  // Track transaction when confirmed
+  if (isConfirmed && hash) {
+    trackTransaction(hash, chainId);
+  }
+
   const submitVerification = useMutation({
     mutationFn: async (params: { proofPayload: string; userContextData: string }) => {
       if (!writeContract || !contractAddress) throw new Error('Contract not available');
+
+      // Generate Divvi referral tag
+      const divviTag = generateDivviTag();
+      console.log('🛡️ Submitting verification with Divvi tracking:', { divviTag });
 
       return writeContract({
         address: contractAddress,
         abi: CONTRACT_CONFIG.abi,
         functionName: 'verifySelfProof',
         args: [params.proofPayload as `0x${string}`, params.userContextData as `0x${string}`],
+        dataSuffix: divviTag as `0x${string}`,
       });
     },
     onSuccess: () => {
