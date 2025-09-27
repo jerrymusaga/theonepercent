@@ -646,7 +646,7 @@ export default function PoolsPage() {
               BATTLE ARENA
             </h1>
             <p className="text-gray-400 uppercase tracking-wide font-semibold">
-              LOADING AVAILABLE BATTLES...
+              LOADING AVAILABLE POOLS...
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -684,7 +684,7 @@ export default function PoolsPage() {
               BATTLE ARENA
             </h1>
             <p className="text-gray-400 uppercase tracking-wide font-semibold">
-              FAILED TO LOAD BATTLES
+              FAILED TO LOAD POOLS
             </p>
           </div>
           <ErrorBanner
