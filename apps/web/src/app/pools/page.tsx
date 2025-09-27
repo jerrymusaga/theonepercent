@@ -592,7 +592,7 @@ export default function PoolsPage() {
     onLogs: (logs) => {
       logs.forEach((log) => {
         success(
-          "Fighter joined!",
+          "Player joined!",
           `A player joined battle #${log.args.poolId}`
         );
         refetchPools(); // Refresh pools data
