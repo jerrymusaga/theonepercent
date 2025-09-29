@@ -30,6 +30,7 @@ import {
   useEnvioHasPlayerChosen,
   useEnvioIsPlayerEliminated,
   useEnvioRemainingPlayersForPool,
+  useEnvioJoinedPlayersForPool,
   useEnvioLatestGameRound,
 } from "@/hooks/use-envio-players";
 import { useToast } from "@/hooks/use-toast";
@@ -335,6 +336,9 @@ export default function GameArenaPage() {
     refetch: refetchPlayers
   } = useEnvioRemainingPlayersForPool(poolId);
 
+  // Also get all joined players to check if current user has joined
+  const { data: joinedPlayersData } = useEnvioJoinedPlayersForPool(poolId);
+
   const {
     data: hasPlayerChosen
   } = useEnvioHasPlayerChosen(poolId, address);
@@ -354,6 +358,9 @@ export default function GameArenaPage() {
 
   // Extract player addresses from Envio data to match existing format
   const remainingPlayers = remainingPlayersData?.map((player: any) => player.player_id) || [];
+
+  // Extract all joined players
+  const joinedPlayers = joinedPlayersData?.map((player: any) => player.player_id) || [];
 
   const {
     makeSelection,
@@ -502,7 +509,10 @@ export default function GameArenaPage() {
   }
 
   // Check if current user is actually part of the game
-  const isPlayerInGame = address && remainingPlayers?.includes(address);
+  // A player is in the game if they have joined and are not eliminated
+  const hasJoinedPool = address && joinedPlayers?.includes(address.toLowerCase());
+  const isPlayerInGame = hasJoinedPool && !isPlayerEliminated;
+
 
   const handleChoiceSelect = (choice: PlayerChoice) => {
     if (hasPlayerChosen || isPlayerEliminated || !isPlayerInGame) return;
