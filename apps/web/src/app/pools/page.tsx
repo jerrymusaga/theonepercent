@@ -472,12 +472,25 @@ const PoolCard = ({
           {status === PoolStatus.ACTIVE && (
             <Button
               variant="outline"
-              className="flex-1 border-green-500/50 text-green-300 hover:bg-green-500/20 hover:border-green-400 font-semibold uppercase tracking-wide text-xs md:text-sm py-2"
+              className={`flex-1 font-semibold uppercase tracking-wide text-xs md:text-sm py-2 ${
+                hasJoined
+                  ? "border-blue-500/50 text-blue-300 hover:bg-blue-500/20 hover:border-blue-400"
+                  : "border-green-500/50 text-green-300 hover:bg-green-500/20 hover:border-green-400"
+              }`}
               onClick={() => router.push(`/game/${poolId}`)}
             >
               <Zap className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">WATCH BATTLE</span>
-              <span className="sm:hidden">WATCH</span>
+              {hasJoined ? (
+                <>
+                  <span className="hidden sm:inline">PLAY GAME</span>
+                  <span className="sm:hidden">PLAY</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">WATCH BATTLE</span>
+                  <span className="sm:hidden">WATCH</span>
+                </>
+              )}
             </Button>
           )}
 
