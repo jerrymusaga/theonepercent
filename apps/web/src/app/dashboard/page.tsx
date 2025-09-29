@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useBalance } from "wagmi";
 import { formatEther } from "viem";
@@ -51,6 +51,7 @@ import {
   useEnvioJoinedPoolsDetailed,
   useEnvioCreatedPools,
 } from "@/hooks/use-envio-players";
+import { useEnvioCreatorPools } from "@/hooks/use-envio-creators";
 import { useToast } from "@/hooks/use-toast";
 import {
   VerificationStatus,
@@ -259,6 +260,7 @@ const CreatorStatsOverview = ({
       </div>
     );
   }
+
 
   const earnings = totalEarnings ? formatEther(totalEarnings) : "0";
   const poolsCreated = creatorInfo?.poolsCreated
@@ -904,8 +906,22 @@ export default function UniversalDashboard() {
     refetch: refetchCreator,
     error: creatorError,
   } = useCreatorInfo();
-  const { data: totalEarnings, isLoading: earningsLoading } =
-    useCreatorReward();
+  // Use Envio creator pools to calculate earnings from completed pools
+  const { data: creatorPools, isLoading: earningsLoading } = useEnvioCreatorPools(address);
+
+  // Calculate total earnings from completed pools (prizePool - prizeAmount = creator reward)
+  const totalEarnings = useMemo(() => {
+    if (!creatorPools) return BigInt(0);
+
+    return creatorPools
+      .filter(pool => pool.status === 'COMPLETED' && pool.prizePool && pool.prizeAmount)
+      .reduce((total, pool) => {
+        const prizePool = BigInt(pool.prizePool);
+        const prizeAmount = BigInt(pool.prizeAmount);
+        const creatorReward = prizePool - prizeAmount;
+        return total + creatorReward;
+      }, BigInt(0));
+  }, [creatorPools]);
   const {
     data: createdPoolIds = [],
     isLoading: poolsLoading,
