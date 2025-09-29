@@ -596,11 +596,11 @@ const PlayerPoolCard = ({
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+            className="flex-1 border-blue-600 text-blue-300 hover:bg-blue-800"
             onClick={() => onViewPool?.(pool.id, pool.poolInfo.status)}
           >
             <Play className="w-4 h-4 mr-2" />
-            Join Game
+            Play Game
           </Button>
         )}
 
@@ -854,11 +854,11 @@ const PoolCard = ({
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+            className="flex-1 border-blue-600 text-blue-300 hover:bg-blue-800"
             onClick={() => onViewPool?.(poolId, Number(pool.status))}
           >
             <Play className="w-4 h-4 mr-2" />
-            Watch Game
+            Play Game
           </Button>
         )}
 
