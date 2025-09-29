@@ -40,57 +40,70 @@ const LoadingSpinner = ({ className = "" }: { className?: string }) => (
   <div className={`animate-spin rounded-full border-b-2 border-current ${className}`}></div>
 );
 
-// Error component
+// Error component with gaming style
 const ErrorBanner = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-  <Card className="p-4 bg-red-50 border-red-200">
+  <div className="border-l-4 border-l-red-500 bg-gray-900/80 border border-red-500/30 p-4 backdrop-blur-sm">
     <div className="flex items-center gap-3">
-      <AlertCircle className="w-5 h-5 text-red-600" />
+      <AlertCircle className="w-5 h-5 text-red-400" />
       <div className="flex-1">
-        <p className="font-medium text-red-800">Error</p>
-        <p className="text-sm text-red-700">{message}</p>
+        <p className="font-semibold text-red-300 text-sm uppercase tracking-wide">
+          SYSTEM ERROR
+        </p>
+        <p className="text-red-100 text-sm">{message}</p>
       </div>
       {onRetry && (
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Retry
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRetry}
+          className="border-red-500/50 text-red-300 hover:bg-red-500/20 hover:border-red-400"
+        >
+          RETRY
         </Button>
       )}
     </div>
-  </Card>
+  </div>
 );
 
-// Tie notification component
+// Tie notification component with gaming style
 const TieNotification = ({ roundNumber, playerCount }: { roundNumber: number; playerCount: number }) => (
-  <Card className="p-4 bg-amber-50 border-amber-200 animate-pulse">
+  <div className="border-l-4 border-l-yellow-500 bg-gray-900/80 border border-yellow-500/30 p-4 backdrop-blur-sm animate-pulse">
     <div className="flex items-center gap-3">
-      <div className="flex items-center justify-center w-8 h-8 bg-amber-100 rounded-full">
-        <CircleDot className="w-4 h-4 text-amber-600" />
+      <div className="flex items-center justify-center w-8 h-8 bg-yellow-500/20 rounded-full">
+        <CircleDot className="w-4 h-4 text-yellow-400" />
       </div>
       <div className="flex-1">
-        <p className="font-medium text-amber-800">Round Tied!</p>
-        <p className="text-sm text-amber-700">
+        <p className="font-semibold text-yellow-300 text-sm uppercase tracking-wide">Round Tied!</p>
+        <p className="text-yellow-100 text-sm">
           All {playerCount} players chose the same option in Round {roundNumber}. The round will be replayed.
         </p>
       </div>
-      <div className="flex items-center gap-2 text-amber-600">
+      <div className="flex items-center gap-2 text-yellow-400">
         <Zap className="w-4 h-4" />
         <span className="text-xs font-medium">REPLAY</span>
       </div>
     </div>
-  </Card>
+  </div>
 );
 
-// Access control components
+// Access control components with gaming style
 const WalletConnectionRequired = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-    <Card className="p-8 text-center max-w-md mx-4">
-      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Wallet className="w-8 h-8 text-blue-600" />
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+    {/* Background Effects */}
+    <div className="absolute inset-0 opacity-20">
+      <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
+      <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+      <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
+    </div>
+    <Card className="relative z-10 p-8 text-center max-w-md mx-4 bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+      <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Wallet className="w-8 h-8 text-white" />
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Wallet</h2>
-      <p className="text-gray-600 mb-6">
+      <h2 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h2>
+      <p className="text-gray-300 mb-6">
         You need to connect your wallet to participate in the game.
       </p>
-      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
+      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
         Connect Wallet
       </Button>
     </Card>
@@ -98,17 +111,23 @@ const WalletConnectionRequired = () => (
 );
 
 const GameNotFound = ({ poolId, onBrowsePools }: { poolId: string, onBrowsePools: () => void }) => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-    <Card className="p-8 text-center max-w-md mx-4">
-      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <AlertCircle className="w-8 h-8 text-red-600" />
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+    {/* Background Effects */}
+    <div className="absolute inset-0 opacity-20">
+      <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
+      <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+      <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
+    </div>
+    <Card className="relative z-10 p-8 text-center max-w-md mx-4 bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+      <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <AlertCircle className="w-8 h-8 text-white" />
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Game Not Found</h2>
-      <p className="text-gray-600 mb-6">
+      <h2 className="text-2xl font-bold text-white mb-2">Game Not Found</h2>
+      <p className="text-gray-300 mb-6">
         Pool #{poolId} doesn't exist or hasn't been activated yet.
       </p>
       <Button
-        className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
+        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
         onClick={onBrowsePools}
       >
         Browse Pools
@@ -413,10 +432,16 @@ export default function GameArenaPage() {
   // Loading state
   if (isConnecting || isLoadingPool || isLoadingProgress) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <LoadingSpinner className="w-12 h-12 mx-auto mb-4" />
-          <p className="text-gray-600">Loading game data...</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+        {/* Background Effects */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
+          <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
+        </div>
+        <Card className="relative z-10 p-8 text-center bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+          <LoadingSpinner className="w-12 h-12 mx-auto mb-4 text-white" />
+          <p className="text-gray-300">Loading game data...</p>
         </Card>
       </div>
     );
@@ -425,8 +450,14 @@ export default function GameArenaPage() {
   // Error state
   if (poolError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-        <div className="max-w-md mx-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+        {/* Background Effects */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
+          <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
+        </div>
+        <div className="relative z-10 max-w-md mx-4">
           <ErrorBanner
             message={poolError.message || "Failed to load game data"}
             onRetry={refetchPool}
@@ -495,8 +526,14 @@ export default function GameArenaPage() {
   const isGameComplete = gameProgress?.isGameComplete || false;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      {/* Background Effects */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
+        <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
+      </div>
+      <div className="relative z-10 container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -509,16 +546,16 @@ export default function GameArenaPage() {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Game Arena #{poolId}</h1>
-              <p className="text-gray-600">
+              <h1 className="text-2xl font-bold text-white">Game Arena #{poolId}</h1>
+              <p className="text-gray-300">
                 Round {currentRound.toString()} • {remainingPlayersCount.toString()} players remaining
               </p>
             </div>
           </div>
 
           <div className="text-right">
-            <p className="text-sm text-gray-600">Prize Pool</p>
-            <p className="text-xl font-bold text-yellow-600">{parseFloat(prizePoolFormatted).toFixed(2)} CELO</p>
+            <p className="text-sm text-gray-400">Prize Pool</p>
+            <p className="text-xl font-bold text-yellow-400">{parseFloat(prizePoolFormatted).toFixed(2)} CELO</p>
           </div>
         </div>
 
@@ -566,12 +603,12 @@ export default function GameArenaPage() {
           <div className="lg:col-span-2">
             {/* Status-based content */}
             {poolStatus === PoolStatus.ACTIVE && (
-              <Card className="p-8 mb-6 text-center">
+              <Card className="p-8 mb-6 text-center bg-gray-900/50 border-gray-800 backdrop-blur-sm">
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-white mb-2">
                     {isPlayerInGame ? "Make Your Choice" : "Watch the Game"}
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-gray-300">
                     {isPlayerInGame
                       ? "Choose HEADS or TAILS. Remember: minority wins!"
                       : "Watch as players make their choices. You can only participate if you joined this pool."
@@ -600,8 +637,8 @@ export default function GameArenaPage() {
                   <div className="space-y-3">
                     {/* Selection Error */}
                     {selectionError && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-800">
+                      <div className="p-3 bg-red-900/30 border border-red-500/50 rounded-lg">
+                        <p className="text-sm text-red-300">
                           {selectionError.message || "Failed to submit choice. Please try again."}
                         </p>
                       </div>
@@ -638,12 +675,12 @@ export default function GameArenaPage() {
 
                     {/* Transaction hash display */}
                     {hash && isConfirming && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-xs text-blue-800 mb-1">Transaction submitted:</p>
-                        <p className="text-xs font-mono text-blue-700 break-all">
+                      <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
+                        <p className="text-xs text-blue-300 mb-1">Transaction submitted:</p>
+                        <p className="text-xs font-mono text-blue-200 break-all">
                           {hash.slice(0, 10)}...{hash.slice(-8)}
                         </p>
-                        <p className="text-xs text-blue-600 mt-1">Waiting for confirmation...</p>
+                        <p className="text-xs text-blue-300 mt-1">Waiting for confirmation...</p>
                       </div>
                     )}
                   </div>
@@ -651,7 +688,7 @@ export default function GameArenaPage() {
 
                 {/* Already chosen message */}
                 {hasPlayerChosen && !isPlayerEliminated && isPlayerInGame && (
-                  <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-green-400 bg-green-900/30 border border-green-500/50 p-4 rounded-lg">
                     <CheckCircle2 className="w-4 h-4" />
                     <span className="font-medium">
                       Choice submitted! Your selection: <strong>{getChoiceLabel(playerChoice || PlayerChoice.NONE)}</strong>
@@ -661,7 +698,7 @@ export default function GameArenaPage() {
 
                 {/* Eliminated Message */}
                 {isPlayerEliminated && (
-                  <div className="flex items-center justify-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-red-400 bg-red-900/30 border border-red-500/50 p-4 rounded-lg">
                     <AlertCircle className="w-5 h-5" />
                     <span className="font-medium">You have been eliminated from this game</span>
                   </div>
@@ -670,7 +707,7 @@ export default function GameArenaPage() {
                 {/* Not in game message - for users who haven't joined this pool */}
                 {!isPlayerInGame && !isPlayerEliminated && address && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-center gap-2 text-gray-600 bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-center gap-2 text-gray-400 bg-gray-900/30 border border-gray-600/50 p-4 rounded-lg">
                       <AlertCircle className="w-5 h-5" />
                       <span className="font-medium">You are not part of this game - you can only watch</span>
                     </div>
@@ -678,7 +715,7 @@ export default function GameArenaPage() {
                       <Button
                         onClick={() => router.push('/pools')}
                         variant="outline"
-                        className="bg-white hover:bg-gray-50"
+                        className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-gray-500"
                       >
                         <Users className="w-4 h-4 mr-2" />
                         Join Other Pools
@@ -691,25 +728,25 @@ export default function GameArenaPage() {
 
             {/* Completed Pool */}
             {poolStatus === PoolStatus.COMPLETED && (
-              <Card className="p-8 mb-6 text-center">
+              <Card className="p-8 mb-6 text-center bg-gray-900/50 border-gray-800 backdrop-blur-sm">
                 <div className="mb-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="w-8 h-8 text-green-600" />
+                  <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trophy className="w-8 h-8 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Game Completed! 🎉</h2>
-                  <p className="text-gray-600">
+                  <h2 className="text-2xl font-bold text-white mb-2">Game Completed! 🎉</h2>
+                  <p className="text-gray-300">
                     This game has finished. Check the results below.
                   </p>
                 </div>
 
                 {remainingPlayers && remainingPlayers.length === 1 && (
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-green-800 font-medium mb-2">🏆 Winner:</p>
-                    <p className="text-green-700 font-mono">
+                  <div className="p-4 bg-green-900/30 border border-green-500/50 rounded-lg">
+                    <p className="text-green-400 font-medium mb-2">🏆 Winner:</p>
+                    <p className="text-green-300 font-mono">
                       {formatAddress(remainingPlayers[0])}
                     </p>
                     {address === remainingPlayers[0] && (
-                      <p className="text-green-800 font-bold mt-2">That's you! Congratulations! 🎉</p>
+                      <p className="text-green-400 font-bold mt-2">That's you! Congratulations! 🎉</p>
                     )}
                   </div>
                 )}
@@ -726,24 +763,24 @@ export default function GameArenaPage() {
 
             {/* Opened Pool */}
             {poolStatus === PoolStatus.OPENED && (
-              <Card className="p-8 mb-6 text-center">
+              <Card className="p-8 mb-6 text-center bg-gray-900/50 border-gray-800 backdrop-blur-sm">
                 <div className="mb-6">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-8 h-8 text-blue-600" />
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Waiting for Players</h2>
-                  <p className="text-gray-600">
+                  <h2 className="text-2xl font-bold text-white mb-2">Waiting for Players</h2>
+                  <p className="text-gray-300">
                     This pool is open and waiting for more players to join before the game can start.
                   </p>
                 </div>
 
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
-                  <p className="text-blue-800 mb-2">
+                <div className="p-4 bg-blue-900/30 border border-blue-500/50 rounded-lg mb-6">
+                  <p className="text-blue-300 mb-2">
                     <strong>{Number(poolInfo.currentPlayers)}/{Number(poolInfo.maxPlayers)}</strong> players joined
                   </p>
-                  <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div className="w-full bg-blue-900/50 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${(Number(poolInfo.currentPlayers) / Number(poolInfo.maxPlayers)) * 100}%` }}
                     ></div>
                   </div>
@@ -761,19 +798,19 @@ export default function GameArenaPage() {
 
             {/* Abandoned Pool */}
             {poolStatus === PoolStatus.ABANDONED && (
-              <Card className="p-8 mb-6 text-center">
+              <Card className="p-8 mb-6 text-center bg-gray-900/50 border-gray-800 backdrop-blur-sm">
                 <div className="mb-6">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle className="w-8 h-8 text-red-600" />
+                  <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-8 h-8 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Pool Abandoned</h2>
-                  <p className="text-gray-600">
+                  <h2 className="text-2xl font-bold text-white mb-2">Pool Abandoned</h2>
+                  <p className="text-gray-300">
                     This pool was abandoned and all players have been automatically refunded.
                   </p>
                 </div>
 
-                <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                  <p className="text-red-800">
+                <div className="p-4 bg-red-900/30 border border-red-500/50 rounded-lg">
+                  <p className="text-red-300">
                     The pool creator unstaked before the game could complete.
                     All entry fees have been returned to players.
                   </p>
@@ -791,15 +828,15 @@ export default function GameArenaPage() {
             )}
 
             {/* Strategy Tip */}
-            <Card className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+            <Card className="p-6 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 backdrop-blur-sm">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                   <CircleDot className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-purple-900 mb-2">Strategy Tip</h3>
-                  <p className="text-sm text-purple-800">
-                    Think about what others might choose. If most players pick the same option, 
+                  <h3 className="font-bold text-purple-300 mb-2">Strategy Tip</h3>
+                  <p className="text-sm text-purple-200">
+                    Think about what others might choose. If most players pick the same option,
                     you want to be in the <strong>minority</strong> to survive. Psychology is key!
                   </p>
                 </div>
@@ -811,9 +848,9 @@ export default function GameArenaPage() {
           <div className="space-y-6">
             {/* Active Players */}
             {!isLoadingPlayers && remainingPlayers && remainingPlayers.length > 0 && (
-              <Card className="p-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-green-600" />
+              <Card className="p-6 bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">
+                  <Users className="w-5 h-5 text-green-400" />
                   Remaining Players ({remainingPlayers.length})
                 </h3>
                 <div className="space-y-3">
@@ -832,20 +869,20 @@ export default function GameArenaPage() {
 
             {/* Loading Players */}
             {isLoadingPlayers && (
-              <Card className="p-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-green-600" />
+              <Card className="p-6 bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">
+                  <Users className="w-5 h-5 text-green-400" />
                   Loading Players...
                 </h3>
                 <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="animate-pulse">
-                      <div className="p-4 bg-gray-100 rounded-xl">
+                      <div className="p-4 bg-gray-800/50 rounded-xl">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                          <div className="w-12 h-12 bg-gray-700 rounded-full"></div>
                           <div className="flex-1">
-                            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                            <div className="h-4 bg-gray-700 rounded mb-2"></div>
+                            <div className="h-3 bg-gray-700 rounded w-1/2"></div>
                           </div>
                         </div>
                       </div>
