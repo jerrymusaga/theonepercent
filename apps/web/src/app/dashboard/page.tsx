@@ -42,6 +42,7 @@ import {
   useVerificationInfo,
   useClaimPrize,
   useClaimAbandonedPoolRefund,
+  usePlayerPrizes,
   useCreatedPools,
   usePoolInfo,
 } from "@/hooks";
@@ -976,26 +977,12 @@ export default function UniversalDashboard() {
     activePools: joinedPools.filter((pool: any) => pool.status === 'ACTIVE').length,
   };
 
-  // Calculate claimable prizes from joined pools data
-  const claimablePrizes = useMemo(() => {
-    if (!joinedPools) return [];
-
-    return joinedPools
-      .filter((pool: any) => pool.status === 'COMPLETED' && pool.winner_id === address?.toLowerCase())
-      .map((pool: any) => ({
-        poolId: pool.id,
-        amount: pool.prizeAmount ? BigInt(pool.prizeAmount) : BigInt(0),
-        formattedAmount: pool.prizeAmount ? formatEther(pool.prizeAmount) : '0',
-        poolInfo: pool,
-      }));
-  }, [joinedPools, address]);
-
-  const totalClaimable = claimablePrizes.reduce(
-    (sum: bigint, prize: any) => sum + prize.amount,
-    BigInt(0)
-  );
-  const totalClaimableFormatted = formatEther(totalClaimable);
-  const prizesLoading = playerDataLoading;
+  // Use existing hook that validates against contract state
+  const {
+    prizes: claimablePrizes,
+    totalClaimableFormatted,
+    isLoading: prizesLoading
+  } = usePlayerPrizes(address);
 
   // Use Divvi-integrated claim hook instead of usePlayerClaimPrize
   const {

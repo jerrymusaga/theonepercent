@@ -52,16 +52,16 @@ const PlayerResultCard = ({
       transform transition-all duration-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}
     `}>
       <Card className={`
-        p-4 relative overflow-hidden
-        ${isWinner ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-300' :
-          isEliminated ? 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300' :
-          'bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-300'
+        p-4 relative overflow-hidden bg-gray-900 border-gray-800
+        ${isWinner ? 'border-green-600 bg-green-900/20' :
+          isEliminated ? 'border-red-600 bg-red-900/20' :
+          'border-blue-600 bg-blue-900/20'
         }
       `}>
         {/* Background decoration */}
         <div className={`
-          absolute top-0 right-0 opacity-10
-          ${isWinner ? 'text-green-500' : isEliminated ? 'text-red-500' : 'text-blue-500'}
+          absolute top-0 right-0 opacity-20
+          ${isWinner ? 'text-green-400' : isEliminated ? 'text-red-400' : 'text-blue-400'}
         `}>
           {isWinner ? <Crown className="w-16 h-16" /> : isEliminated ? <Skull className="w-16 h-16" /> : <Star className="w-16 h-16" />}
         </div>
@@ -81,7 +81,7 @@ const PlayerResultCard = ({
 
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-lg">
+              <h3 className="font-bold text-lg text-white">
                 {player.address ? `${player.address.slice(0, 6)}...${player.address.slice(-4)}` : 'Unknown'}
               </h3>
             </div>
@@ -90,8 +90,8 @@ const PlayerResultCard = ({
               <div className={`
                 px-2 py-1 rounded-full text-xs font-medium
                 ${player.choice === "HEADS"
-                  ? 'bg-yellow-200 text-yellow-800'
-                  : 'bg-gray-200 text-gray-800'
+                  ? 'bg-yellow-900/30 border border-yellow-600 text-yellow-300'
+                  : 'bg-gray-800 border border-gray-600 text-gray-300'
                 }
               `}>
                 Chose: {player.choice}
@@ -100,7 +100,7 @@ const PlayerResultCard = ({
 
             <p className={`
               text-sm font-medium
-              ${isWinner ? 'text-green-700' : isEliminated ? 'text-red-700' : 'text-blue-700'}
+              ${isWinner ? 'text-green-300' : isEliminated ? 'text-red-300' : 'text-blue-300'}
             `}>
               {isWinner ? "🎉 WINNER!" : isEliminated ? "💀 Eliminated" : "🎯 Survived"}
               {isWinner && player.prizeAmount && ` • Won ${formatEther(player.prizeAmount)} CELO`}
@@ -163,9 +163,9 @@ const ChoiceDistributionChart = ({ choices, winningChoice }: { choices: any; win
   const tailsPercentage = (choices.TAILS.count / total) * 100;
 
   return (
-    <Card className="p-6">
-      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-blue-600" />
+    <Card className="p-6 bg-gray-900 border-gray-800">
+      <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">
+        <BarChart3 className="w-5 h-5 text-blue-400" />
         Choice Distribution
       </h3>
       
@@ -173,49 +173,49 @@ const ChoiceDistributionChart = ({ choices, winningChoice }: { choices: any; win
         {/* HEADS */}
         <div>
           <div className="flex justify-between items-center mb-2">
-            <span className={`font-medium ${winningChoice === "HEADS" ? 'text-green-600' : 'text-gray-600'}`}>
+            <span className={`font-medium ${winningChoice === "HEADS" ? 'text-green-400' : 'text-gray-300'}`}>
               HEADS {winningChoice === "HEADS" ? "👑" : ""}
             </span>
-            <span className="font-bold">{choices.HEADS.count} player{choices.HEADS.count !== 1 ? 's' : ''}</span>
+            <span className="font-bold text-white">{choices.HEADS.count} player{choices.HEADS.count !== 1 ? 's' : ''}</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-4">
-            <div 
+          <div className="w-full bg-gray-700 rounded-full h-4">
+            <div
               className={`h-4 rounded-full transition-all duration-1000 ${
-                winningChoice === "HEADS" 
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                winningChoice === "HEADS"
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600'
                   : 'bg-gradient-to-r from-yellow-400 to-orange-500'
               }`}
               style={{ width: `${headsPercentage}%` }}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-1">{headsPercentage.toFixed(1)}%</p>
+          <p className="text-sm text-gray-400 mt-1">{headsPercentage.toFixed(1)}%</p>
         </div>
 
         {/* TAILS */}
         <div>
           <div className="flex justify-between items-center mb-2">
-            <span className={`font-medium ${winningChoice === "TAILS" ? 'text-green-600' : 'text-gray-600'}`}>
+            <span className={`font-medium ${winningChoice === "TAILS" ? 'text-green-400' : 'text-gray-300'}`}>
               TAILS {winningChoice === "TAILS" ? "👑" : ""}
             </span>
-            <span className="font-bold">{choices.TAILS.count} player{choices.TAILS.count !== 1 ? 's' : ''}</span>
+            <span className="font-bold text-white">{choices.TAILS.count} player{choices.TAILS.count !== 1 ? 's' : ''}</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-4">
-            <div 
+          <div className="w-full bg-gray-700 rounded-full h-4">
+            <div
               className={`h-4 rounded-full transition-all duration-1000 ${
-                winningChoice === "TAILS" 
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                winningChoice === "TAILS"
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600'
                   : 'bg-gradient-to-r from-gray-400 to-gray-600'
               }`}
               style={{ width: `${tailsPercentage}%` }}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-1">{tailsPercentage.toFixed(1)}%</p>
+          <p className="text-sm text-gray-400 mt-1">{tailsPercentage.toFixed(1)}%</p>
         </div>
 
         {/* Winner explanation */}
-        <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-          <p className="text-sm text-green-800">
-            <strong>{winningChoice}</strong> was the minority choice and wins! 
+        <div className="mt-4 p-3 bg-green-900/20 rounded-lg border border-green-800">
+          <p className="text-sm text-green-300">
+            <strong>{winningChoice}</strong> was the minority choice and wins!
             {choices[winningChoice].count} player{choices[winningChoice].count !== 1 ? 's' : ''} survive{choices[winningChoice].count === 1 ? 's' : ''}.
           </p>
         </div>
@@ -246,10 +246,10 @@ export default function RoundResultsPage() {
   // Early return if no pool data
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading game results...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading game results...</p>
         </div>
       </div>
     );
@@ -257,11 +257,11 @@ export default function RoundResultsPage() {
 
   if (!poolInfo || !gameProgress) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Game Not Found</h1>
-          <p className="text-gray-600 mb-4">The game results could not be loaded.</p>
-          <Button onClick={() => router.push('/pools')} variant="outline">
+          <h1 className="text-2xl font-bold text-white mb-4">Game Not Found</h1>
+          <p className="text-gray-400 mb-4">The game results could not be loaded.</p>
+          <Button onClick={() => router.push('/pools')} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Pools
           </Button>
@@ -314,14 +314,14 @@ export default function RoundResultsPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-black text-white">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             {results.gameStats.isGameComplete ? "Final Results" : `Round ${results.round} Results`}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-400">
             {results.gameStats.isGameComplete ? "Game Complete!" : `${results.gameStats.remainingPlayers} player${results.gameStats.remainingPlayers !== 1 ? 's' : ''} remaining`}
           </p>
         </div>
@@ -346,63 +346,63 @@ export default function RoundResultsPage() {
 
           {/* Game Stats */}
           <div className={results.gameStats.isGameComplete ? "lg:col-span-3" : "lg:col-span-2"}>
-            <Card className="p-6 h-full">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-600" />
+            <Card className="p-6 h-full bg-gray-900 border-gray-800">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">
+                <Trophy className="w-5 h-5 text-yellow-400" />
                 Game Status
               </h3>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">{results.gameStats.prizePool} CELO</p>
-                  <p className="text-sm text-yellow-800">Prize Pool</p>
+                <div className="text-center p-4 bg-yellow-900/20 rounded-lg border border-yellow-800">
+                  <p className="text-2xl font-bold text-yellow-400">{results.gameStats.prizePool} CELO</p>
+                  <p className="text-sm text-yellow-300">Prize Pool</p>
                 </div>
 
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{results.gameStats.totalPlayers}</p>
-                  <p className="text-sm text-blue-800">Total Players</p>
+                <div className="text-center p-4 bg-blue-900/20 rounded-lg border border-blue-800">
+                  <p className="text-2xl font-bold text-blue-400">{results.gameStats.totalPlayers}</p>
+                  <p className="text-sm text-blue-300">Total Players</p>
                 </div>
 
                 {!results.gameStats.isGameComplete && (
                   <>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">{results.gameStats.remainingPlayers}</p>
-                      <p className="text-sm text-green-800">Players Left</p>
+                    <div className="text-center p-4 bg-green-900/20 rounded-lg border border-green-800">
+                      <p className="text-2xl font-bold text-green-400">{results.gameStats.remainingPlayers}</p>
+                      <p className="text-sm text-green-300">Players Left</p>
                     </div>
 
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <p className="text-2xl font-bold text-purple-600">{results.round}</p>
-                      <p className="text-sm text-purple-800">Current Round</p>
+                    <div className="text-center p-4 bg-purple-900/20 rounded-lg border border-purple-800">
+                      <p className="text-2xl font-bold text-purple-400">{results.round}</p>
+                      <p className="text-sm text-purple-300">Current Round</p>
                     </div>
                   </>
                 )}
 
                 {results.gameStats.isGameComplete && (
                   <>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">1</p>
-                      <p className="text-sm text-green-800">Winner</p>
+                    <div className="text-center p-4 bg-green-900/20 rounded-lg border border-green-800">
+                      <p className="text-2xl font-bold text-green-400">1</p>
+                      <p className="text-sm text-green-300">Winner</p>
                     </div>
 
-                    <div className="text-center p-4 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">{Math.max(0, results.gameStats.totalPlayers - 1)}</p>
-                      <p className="text-sm text-red-800">Eliminated</p>
+                    <div className="text-center p-4 bg-red-900/20 rounded-lg border border-red-800">
+                      <p className="text-2xl font-bold text-red-400">{Math.max(0, results.gameStats.totalPlayers - 1)}</p>
+                      <p className="text-sm text-red-300">Eliminated</p>
                     </div>
                   </>
                 )}
               </div>
 
               {results.gameStats.isGameComplete && (
-                <div className="mt-6 p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300">
+                <div className="mt-6 p-4 bg-green-900/20 rounded-lg border border-green-800">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center">
                       <Crown className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="font-bold text-green-900 text-lg">
+                      <p className="font-bold text-green-300 text-lg">
                         🏆 Winner!
                       </p>
-                      <p className="text-green-700">
+                      <p className="text-green-400">
                         Won {results.gameStats.prizePool} CELO
                       </p>
                     </div>
@@ -416,30 +416,30 @@ export default function RoundResultsPage() {
         {/* Game Summary for Completed Games */}
         {results.gameStats.isGameComplete && (
           <div className="mb-8">
-            <Card className="p-6 text-center">
-              <h2 className="text-2xl font-bold text-green-600 mb-4 flex items-center justify-center gap-2">
+            <Card className="p-6 text-center bg-gray-900 border-gray-800">
+              <h2 className="text-2xl font-bold text-green-400 mb-4 flex items-center justify-center gap-2">
                 <Crown className="w-6 h-6" />
                 Game Complete!
               </h2>
-              <p className="text-lg text-gray-700 mb-4">
-                The elimination game has ended. The prize pool of <span className="font-bold text-yellow-600">{results.gameStats.prizePool} CELO</span> has been awarded to the winner.
+              <p className="text-lg text-gray-300 mb-4">
+                The elimination game has ended. The prize pool of <span className="font-bold text-yellow-400">{results.gameStats.prizePool} CELO</span> has been awarded to the winner.
               </p>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-400">
                 <p>Final Round: {results.round}</p>
                 <p>Total Players: {results.gameStats.totalPlayers}</p>
               </div>
 
               {results.gameStats.winner && (
-                <div className="mt-4 p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300">
+                <div className="mt-4 p-4 bg-green-900/20 rounded-lg border border-green-800">
                   <div className="flex items-center justify-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center">
                       <Crown className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="font-bold text-green-900 text-lg">
+                      <p className="font-bold text-green-300 text-lg">
                         🏆 Winner: {results.gameStats.winner.address.slice(0, 6)}...{results.gameStats.winner.address.slice(-4)}
                       </p>
-                      <p className="text-green-700">
+                      <p className="text-green-400">
                         Won {formatEther(results.gameStats.winner.prizeAmount)} CELO
                       </p>
                     </div>
@@ -453,12 +453,12 @@ export default function RoundResultsPage() {
         {/* Round Summary for Active Games */}
         {!results.gameStats.isGameComplete && results.hasRoundData && (
           <div className="mb-8">
-            <Card className="p-6 text-center">
-              <h2 className="text-xl font-bold text-purple-600 mb-4">
+            <Card className="p-6 text-center bg-gray-900 border-gray-800">
+              <h2 className="text-xl font-bold text-purple-400 mb-4">
                 Round {results.round} Summary
               </h2>
-              <p className="text-gray-700">
-                The minority choice <span className="font-bold text-green-600">{results.winningChoice}</span> wins!
+              <p className="text-gray-300">
+                The minority choice <span className="font-bold text-green-400">{results.winningChoice}</span> wins!
                 {results.gameStats.remainingPlayers} player{results.gameStats.remainingPlayers !== 1 ? 's' : ''} survive{results.gameStats.remainingPlayers === 1 ? 's' : ''} to the next round.
               </p>
             </Card>
@@ -471,7 +471,7 @@ export default function RoundResultsPage() {
             {/* Survivors */}
             {!results.gameStats.isGameComplete && (results.choices as any)[results.winningChoice]?.players.length > 0 && (
               <div>
-                <h2 className="text-xl font-bold text-green-600 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
                   <Zap className="w-5 h-5" />
                   Survivors ({(results.choices as any)[results.winningChoice].players.length})
                 </h2>
@@ -492,7 +492,7 @@ export default function RoundResultsPage() {
             {/* Winner (if game complete) */}
             {results.gameStats.isGameComplete && results.gameStats.winner && (
               <div>
-                <h2 className="text-xl font-bold text-yellow-600 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
                   <Crown className="w-5 h-5" />
                   Champion
                 </h2>
@@ -514,7 +514,7 @@ export default function RoundResultsPage() {
             {/* Eliminated Players */}
             {(results.choices as any)[results.winningChoice === 'HEADS' ? 'TAILS' : 'HEADS']?.players.length > 0 && (
               <div>
-                <h2 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2">
                   <TrendingDown className="w-5 h-5" />
                   Eliminated This Round ({(results.choices as any)[results.winningChoice === 'HEADS' ? 'TAILS' : 'HEADS'].players.length})
                 </h2>
@@ -539,7 +539,7 @@ export default function RoundResultsPage() {
           <Button
             onClick={() => router.push('/pools')}
             variant="outline"
-            className="px-6 py-3"
+            className="px-6 py-3 border-gray-600 text-gray-300 hover:bg-gray-800"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Pools
@@ -548,7 +548,7 @@ export default function RoundResultsPage() {
           {!results.gameStats.isGameComplete && (
             <Button
               onClick={() => router.push(`/game/${poolId}`)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-6 py-3"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-6 py-3 text-white"
             >
               <ArrowRight className="w-4 h-4 mr-2" />
               Continue Game
@@ -558,7 +558,7 @@ export default function RoundResultsPage() {
           {results.gameStats.isGameComplete && (
             <Button
               onClick={() => router.push('/dashboard')}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3"
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3 text-white"
             >
               <Trophy className="w-4 h-4 mr-2" />
               View Dashboard
