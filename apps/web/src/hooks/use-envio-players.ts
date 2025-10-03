@@ -316,6 +316,33 @@ export function useEnvioJoinedPoolsDetailed(playerAddress: string | undefined) {
           return null;
         }
 
+        const hasWon = pool.winner_id === playerPool.player_id;
+        const prizePoolBigInt = BigInt(pool.prizePool || 0);
+
+        // Calculate prize amount (95% of total pool, same as old hook logic)
+        const prizeAmount = hasWon ?
+          prizePoolBigInt - (prizePoolBigInt * BigInt(5) / BigInt(100)) :
+          BigInt(0);
+
+        // Check if prize has been claimed by checking if prizePool is 0
+        // This works because when a winner claims, the contract sets prizePool to 0
+        const hasClaimed = hasWon && prizePoolBigInt === BigInt(0);
+
+        // Debug logging for claim status
+        if (hasWon) {
+          console.log('🏆 Winner found for pool', playerPool.pool_id);
+          console.log('   - Player:', playerPool.player_id);
+          console.log('   - Prize Amount:', prizeAmount.toString());
+          console.log('   - Prize Pool (from Pool):', prizePoolBigInt.toString());
+          console.log('   - Pool Status (from Envio):', pool.status);
+          console.log('   - Pool Status (numeric):', pool.status === 'WAITING_FOR_PLAYERS' ? 0 :
+                     pool.status === 'ACTIVE' ? 1 :
+                     pool.status === 'COMPLETED' ? 2 :
+                     pool.status === 'ABANDONED' ? 3 : 'UNKNOWN');
+          console.log('   - hasClaimed (computed):', hasClaimed);
+          console.log('   - Can Claim:', !hasClaimed);
+        }
+
         const combined = {
           id: playerPool.pool_id,
           pool_id: playerPool.pool_id,
@@ -325,7 +352,9 @@ export function useEnvioJoinedPoolsDetailed(playerAddress: string | undefined) {
           eliminatedAt: playerPool.eliminatedAt,
           eliminatedInRound: playerPool.eliminatedInRound,
           chainId: playerPool.chainId,
-          hasWon: pool.winner_id === playerPool.player_id,
+          hasWon,
+          hasClaimed,
+          prizeAmount,
           isEliminated: playerPool.status === 'ELIMINATED',
           formattedData: {
             entryFee: (parseFloat(pool.entryFee) / 1e18).toFixed(4),
@@ -336,15 +365,19 @@ export function useEnvioJoinedPoolsDetailed(playerAddress: string | undefined) {
             prizePool: (parseFloat(pool.prizePool) / 1e18).toFixed(4),
             currentPlayers: pool.currentPlayers,
             maxPlayers: pool.maxPlayers,
+            isWinner: hasWon,
+            canClaim: hasWon && !hasClaimed,
           },
           poolInfo: {
             status: pool.status === 'WAITING_FOR_PLAYERS' ? 0 :
                    pool.status === 'ACTIVE' ? 1 :
                    pool.status === 'COMPLETED' ? 2 :
                    pool.status === 'ABANDONED' ? 3 : 0,
-            entryFee: pool.entryFee,
-            prizeAmount: pool.prizeAmount,
-            winner: pool.winner_id,
+            entryFee: BigInt(pool.entryFee || 0),
+            prizePool: prizePoolBigInt,
+            creator: pool.creator_id,
+            currentPlayers: BigInt(pool.currentPlayers || 0),
+            maxPlayers: BigInt(pool.maxPlayers || 0),
           }
         };
 

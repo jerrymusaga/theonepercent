@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useBalance } from "wagmi";
 import { formatEther } from "viem";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Crown,
   TrendingUp,
@@ -45,6 +46,7 @@ import {
   usePlayerPrizes,
   useCreatedPools,
   usePoolInfo,
+  useRemainingPlayers,
 } from "@/hooks";
 // Use Envio hooks for better performance
 import {
@@ -361,6 +363,9 @@ const PlayerPoolCard = ({
   onViewPool,
   isClaimingRefund,
   isClaimingPrize,
+  isClaimConfirming,
+  claimingPoolId,
+  claimedPoolIds,
 }: {
   pool: any; // JoinedPool type
   onClaimPrize?: (poolId: number) => void;
@@ -368,7 +373,37 @@ const PlayerPoolCard = ({
   onViewPool?: (poolId: number, status: number) => void;
   isClaimingRefund?: boolean;
   isClaimingPrize?: boolean;
+  isClaimConfirming?: boolean;
+  claimingPoolId?: number | null;
+  claimedPoolIds?: Set<number>;
 }) => {
+  // Fetch actual on-chain pool status to verify it's truly completed
+  const { data: contractPoolInfo } = usePoolInfo(pool.id);
+
+  // Also fetch remaining players array (more reliable than currentPlayers counter)
+  const { data: remainingPlayers } = useRemainingPlayers(pool.id);
+
+  // Debug logging for pool #4
+  if (pool.id === 4 || pool.id === "4") {
+    console.log('🎮 Pool #4 Contract Info:', {
+      contractPoolInfo,
+      status: contractPoolInfo?.status,
+      statusNumber: Number(contractPoolInfo?.status),
+      currentPlayers: contractPoolInfo?.currentPlayers,
+      currentPlayersNumber: Number(contractPoolInfo?.currentPlayers),
+      remainingPlayers,
+      remainingPlayersCount: remainingPlayers?.length,
+      isCompleted: Number(contractPoolInfo?.status) === PoolStatus.COMPLETED,
+      hasOnePlayer: Number(contractPoolInfo?.currentPlayers) === 1,
+      hasOnePlayerRemaining: remainingPlayers?.length === 1,
+    });
+  }
+
+  // Check if pool is truly completable using remainingPlayers array (more reliable)
+  const isPoolCompletable = contractPoolInfo &&
+    (Number(contractPoolInfo.status) === PoolStatus.COMPLETED ||
+     Number(contractPoolInfo.currentPlayers) === 1 ||
+     (remainingPlayers && remainingPlayers.length === 1));
   const getStatusColor = (status: number) => {
     switch (status) {
       case PoolStatus.OPENED:
@@ -491,7 +526,7 @@ const PlayerPoolCard = ({
       </div>
 
       {/* Status-specific info */}
-      {pool.hasWon && !pool.hasClaimed && (
+      {pool.hasWon && !pool.hasClaimed && !claimedPoolIds?.has(pool.id) && isPoolCompletable && (
         <div className="p-3 bg-green-900/20 rounded-lg mb-4 border border-green-800">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-green-300">
@@ -504,13 +539,22 @@ const PlayerPoolCard = ({
           <Button
             size="sm"
             onClick={() => onClaimPrize?.(pool.id)}
-            disabled={isClaimingPrize}
+            disabled={
+              (isClaimingPrize && claimingPoolId === pool.id) ||
+              (isClaimConfirming && claimingPoolId === pool.id) ||
+              claimedPoolIds?.has(pool.id)
+            }
             className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
-            {isClaimingPrize ? (
+            {isClaimingPrize && claimingPoolId === pool.id ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Claiming...
+                Submitting...
+              </>
+            ) : isClaimConfirming && claimingPoolId === pool.id ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Confirming...
               </>
             ) : (
               <>
@@ -519,6 +563,69 @@ const PlayerPoolCard = ({
               </>
             )}
           </Button>
+        </div>
+      )}
+
+      {/* Show error message for corrupted contract state */}
+      {pool.hasWon && !pool.hasClaimed && !claimedPoolIds?.has(pool.id) && !isPoolCompletable && (
+        <div className="p-3 bg-red-900/20 rounded-lg mb-4 border border-red-800">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <span className="text-sm font-medium text-red-300">
+              Contract State Corrupted
+            </span>
+          </div>
+          <div className="text-sm text-red-400 space-y-2">
+            <p>
+              The blockchain emitted a <code className="bg-red-950 px-1 rounded">GameCompleted</code> event showing you won{" "}
+              <span className="font-bold">{formatEther(pool.prizeAmount || BigInt(0))} CELO</span>, but the contract storage is corrupted:
+            </p>
+            <ul className="text-xs space-y-1 list-disc list-inside text-red-300">
+              <li>Pool status: <code className="bg-red-950 px-1">OPENED</code> (should be COMPLETED)</li>
+              <li>Remaining players: <code className="bg-red-950 px-1">{remainingPlayers?.length ?? '?'}</code> (should be 1)</li>
+              <li>Current players: <code className="bg-red-950 px-1">{contractPoolInfo ? Number(contractPoolInfo.currentPlayers) : '?'}</code> (inconsistent)</li>
+            </ul>
+            <p className="text-xs text-red-500 mb-2">
+              ⚠️ This is a critical smart contract bug. The prize cannot be claimed until the contract owner manually fixes this pool's state.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => window.open(`https://celoscan.io/address/${contractPoolInfo?.creator}#events`, '_blank')}
+                className="flex-1 bg-red-700 hover:bg-red-800 text-white text-xs"
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                View on Explorer
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigator.clipboard.writeText(`Pool #${pool.id} - State Corruption\nStatus: ${contractPoolInfo?.status}\nRemaining: ${remainingPlayers?.length}\nEvents show GameCompleted but storage not updated`)}
+                className="flex-1 bg-red-700 hover:bg-red-800 text-white text-xs"
+              >
+                Copy Debug Info
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pool.hasWon && (pool.hasClaimed || claimedPoolIds?.has(pool.id)) && (
+        <div className="p-3 bg-blue-900/20 rounded-lg mb-4 border border-blue-800">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 className="w-5 h-5 text-blue-400" />
+            <span className="text-sm font-medium text-blue-300">
+              Prize Claimed Successfully
+            </span>
+          </div>
+          <div className="text-sm text-blue-400">
+            <p>
+              You won and claimed{" "}
+              <span className="font-bold">
+                {formatEther(pool.prizeAmount || BigInt(0))} CELO
+              </span>{" "}
+              from this pool!
+            </p>
+          </div>
         </div>
       )}
 
@@ -884,8 +991,11 @@ const PoolCard = ({
 export default function UniversalDashboard() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [showUnstakeConfirm, setShowUnstakeConfirm] = useState(false);
+  const [claimingPoolId, setClaimingPoolId] = useState<number | null>(null);
+  const [claimedPoolIds, setClaimedPoolIds] = useState<Set<number>>(new Set());
 
   // Wallet connection check
   const { address, isConnected } = useAccount();
@@ -1042,7 +1152,11 @@ export default function UniversalDashboard() {
 
   // Handle prize claiming success
   useEffect(() => {
-    if (isClaimConfirmed) {
+    if (isClaimConfirmed && claimingPoolId) {
+      // Immediately add to claimed pool IDs to disable button
+      setClaimedPoolIds(prev => new Set(prev).add(claimingPoolId));
+      setClaimingPoolId(null); // Clear claiming state
+
       toast({
         title: "🎉 Prize Claimed!",
         description:
@@ -1050,12 +1164,22 @@ export default function UniversalDashboard() {
         type: "success",
       });
 
-      // Refresh player data
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Force refresh of Envio data after claim
+      if (address) {
+        // Aggressively refetch Envio data
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['envio-joined-pools-detailed', address] });
+          queryClient.invalidateQueries({ queryKey: ['envio-player-pools', address] });
+          queryClient.refetchQueries({ queryKey: ['envio-joined-pools-detailed', address] });
+        }, 1000); // Give blockchain time to update
+
+        // Fallback: reload page if Envio data doesn't update
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000); // Increased from 2s to 5s
+      }
     }
-  }, [isClaimConfirmed, toast]);
+  }, [isClaimConfirmed, toast, address, queryClient, claimingPoolId]);
 
   // Handle refund claiming success
   useEffect(() => {
@@ -1184,13 +1308,28 @@ export default function UniversalDashboard() {
     },
   });
 
+  // Fix isPlayer based on Envio data - override the old hook logic
+  const isPlayerWithPools = isPlayer || joinedPools.length > 0;
+
+  // Fix isCreator based on Envio data - override the old hook logic
+  const isCreatorWithPools = isCreator || envioCreatedPools.length > 0;
+
+  // Fix hasParticipation based on Envio data - override the old hook logic
+  const hasParticipationWithEnvio = isPlayerWithPools || isCreatorWithPools;
+
+  // Loading state
+  const isLoading =
+    participationLoading ||
+    (isCreatorWithPools && (creatorLoading || earningsLoading || poolsLoading)) ||
+    (isPlayerWithPools && (joinedPoolsLoading || prizesLoading));
+
   // Access control
   if (!isConnected) {
     return <WalletConnectionRequired />;
   }
 
-  // Check if user has any participation (creator or player)
-  if (!participationLoading && !hasParticipation) {
+  // Check if user has any participation (creator or player) - use Envio-based detection
+  if (!isLoading && !hasParticipationWithEnvio) {
     return <NoParticipationPrompt error={creatorError} />;
   }
 
@@ -1261,6 +1400,7 @@ export default function UniversalDashboard() {
 
   const handleClaimPrize = async (poolId: number) => {
     try {
+      setClaimingPoolId(poolId);
       await claimPrize(poolId);
       toast({
         title: "Prize Claiming",
@@ -1269,6 +1409,7 @@ export default function UniversalDashboard() {
       });
     } catch (error: any) {
       console.error("Prize claiming error:", error);
+      setClaimingPoolId(null); // Clear claiming state on error
       toast({
         title: "Claim Failed",
         description:
@@ -1349,19 +1490,6 @@ export default function UniversalDashboard() {
       });
     }
   };
-
-  // Fix isPlayer based on Envio data - override the old hook logic
-  const isPlayerWithPools = isPlayer || joinedPools.length > 0;
-
-  // Fix isCreator based on Envio data - override the old hook logic
-  const isCreatorWithPools = isCreator || envioCreatedPools.length > 0;
-
-  // Loading state
-  const isLoading =
-    participationLoading ||
-    (isCreatorWithPools && (creatorLoading || earningsLoading || poolsLoading)) ||
-    (isPlayerWithPools && (joinedPoolsLoading || prizesLoading));
-
 
   // Calculate basic stats from pool IDs (simplified for now)
   const stats = {
@@ -1944,6 +2072,9 @@ export default function UniversalDashboard() {
                       onViewPool={handleViewPool}
                       isClaimingRefund={isClaimingRefund}
                       isClaimingPrize={isClaimingPrize}
+                      isClaimConfirming={isClaimConfirming}
+                      claimingPoolId={claimingPoolId}
+                      claimedPoolIds={claimedPoolIds}
                     />
                   ))
                 ) : (
@@ -1970,66 +2101,140 @@ export default function UniversalDashboard() {
             </div>
           )}
 
-          {/* Claimable Prizes or Recent Activity */}
+          {/* Prize Management or Recent Activity */}
           <div>
-            {isPlayerWithPools && claimablePrizes.length > 0 ? (
-              // Show claimable prizes if user has any
+            {isPlayerWithPools && (claimablePrizes.length > 0 || joinedPools.some((pool: any) => pool.hasWon && pool.hasClaimed)) ? (
+              // Show prize management if user has any prizes (claimable or claimed)
               <>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-green-400" />
-                    Claimable Prizes ({claimablePrizes.length})
+                    Prize Management
                   </h2>
                 </div>
 
                 <div className="space-y-4">
-                  {claimablePrizes.map((prize) => (
-                    <Card
-                      key={prize.poolId}
-                      className="p-6 bg-green-900/20 border-green-800"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                            <Trophy className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-green-300">
-                              Pool #{prize.poolId} Winner!
-                            </p>
-                            <p className="text-sm text-green-400">
-                              Prize: {prize.formattedAmount} CELO
-                            </p>
-                          </div>
+                  {/* Claimable Prizes */}
+                  {claimablePrizes.length > 0 && (
+                    <>
+                      <div className="mb-4">
+                        <h3 className="text-md font-semibold text-green-400 mb-3 flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          Claimable Prizes ({claimablePrizes.length})
+                        </h3>
+                        <div className="space-y-3">
+                          {claimablePrizes.map((prize) => (
+                            <Card
+                              key={prize.poolId}
+                              className="p-6 bg-green-900/20 border-green-800"
+                            >
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
+                                    <Trophy className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-green-300">
+                                      Pool #{prize.poolId} Winner!
+                                    </p>
+                                    <p className="text-sm text-green-400">
+                                      Prize: {prize.formattedAmount} CELO
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  onClick={() => handleClaimPrize(prize.poolId)}
+                                  disabled={
+                                    (isClaimingPrize && claimingPoolId === prize.poolId) ||
+                                    (isClaimConfirming && claimingPoolId === prize.poolId)
+                                  }
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  {isClaimingPrize && claimingPoolId === prize.poolId ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                      Submitting...
+                                    </>
+                                  ) : isClaimConfirming && claimingPoolId === prize.poolId ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                      Confirming...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Trophy className="w-4 h-4 mr-2" />
+                                      Claim Prize
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
+                                <p className="text-sm text-green-300">
+                                  Total claimable:{" "}
+                                  <span className="font-bold">
+                                    {totalClaimableFormatted} CELO
+                                  </span>
+                                </p>
+                              </div>
+                            </Card>
+                          ))}
                         </div>
-                        <Button
-                          onClick={() => handleClaimPrize(prize.poolId)}
-                          disabled={isClaimingPrize}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          {isClaimingPrize ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                              Claiming...
-                            </>
-                          ) : (
-                            <>
-                              <Trophy className="w-4 h-4 mr-2" />
-                              Claim Prize
-                            </>
-                          )}
-                        </Button>
                       </div>
-                      <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
-                        <p className="text-sm text-green-300">
-                          Total claimable:{" "}
-                          <span className="font-bold">
-                            {totalClaimableFormatted} CELO
-                          </span>
-                        </p>
+                    </>
+                  )}
+
+                  {/* Claimed Prizes */}
+                  {joinedPools.filter((pool: any) => pool.hasWon && pool.hasClaimed).length > 0 && (
+                    <>
+                      <div>
+                        <h3 className="text-md font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Claimed Prizes ({joinedPools.filter((pool: any) => pool.hasWon && pool.hasClaimed).length})
+                        </h3>
+                        <div className="space-y-3">
+                          {joinedPools
+                            .filter((pool: any) => pool.hasWon && pool.hasClaimed)
+                            .slice(0, 3) // Show max 3 recent claimed prizes
+                            .map((pool: any) => (
+                              <Card
+                                key={pool.id}
+                                className="p-4 bg-blue-900/20 border-blue-800"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                                    <CheckCircle2 className="w-5 h-5" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-blue-300">
+                                      Pool #{pool.id} - Prize Claimed
+                                    </p>
+                                    <p className="text-sm text-blue-400">
+                                      Claimed: {formatEther(pool.prizeAmount || BigInt(0))} CELO
+                                    </p>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewPool(pool.id, pool.poolInfo.status)}
+                                    className="border-blue-600 text-blue-300 hover:bg-blue-800"
+                                  >
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    View
+                                  </Button>
+                                </div>
+                              </Card>
+                            ))}
+                        </div>
+                        {joinedPools.filter((pool: any) => pool.hasWon && pool.hasClaimed).length > 3 && (
+                          <div className="mt-3 text-center">
+                            <p className="text-sm text-gray-400">
+                              +{joinedPools.filter((pool: any) => pool.hasWon && pool.hasClaimed).length - 3} more claimed prizes
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    </Card>
-                  ))}
+                    </>
+                  )}
                 </div>
               </>
             ) : (

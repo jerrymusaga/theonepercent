@@ -491,11 +491,19 @@ export function usePlayerClaimPrize() {
       });
     },
     onSuccess: (_, poolId) => {
-      // Invalidate player data to refresh
+      // Invalidate player data to refresh (both old and new Envio queries)
       if (address) {
+        // Old hook queries
         queryClient.invalidateQueries({ queryKey: ['playerJoinedPools', address] });
         queryClient.invalidateQueries({ queryKey: ['playerPoolsDetails', address] });
         queryClient.invalidateQueries({ queryKey: ['hasClaimedPrize', poolId, address] });
+
+        // Envio queries used by dashboard
+        queryClient.invalidateQueries({ queryKey: ['envio-joined-pools-detailed', address] });
+        queryClient.invalidateQueries({ queryKey: ['envio-player-pools', address] });
+        queryClient.invalidateQueries({ queryKey: ['envio-pool-info', poolId] });
+        queryClient.invalidateQueries({ queryKey: ['envio-game-progress', poolId] });
+        queryClient.invalidateQueries({ queryKey: ['envio-player', address] });
       }
     },
   });

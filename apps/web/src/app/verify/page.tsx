@@ -113,18 +113,17 @@ export default function VerifyPage() {
       try {
         const app = new SelfAppBuilder({
           appName: "TheOnePercent Gaming",
-          scope: "theonepercent-gaming",
-          endpoint: process.env.NEXT_PUBLIC_COINTOSS_CONTRACT_ADDRESS || "0x...",
+          scope: "CoinToss",
+          endpoint: (process.env.NEXT_PUBLIC_COINTOSS_CONTRACT_ADDRESS || "0x...").toLowerCase(),
           endpointType: "celo", // Mainnet configuration
           userId: address,
           userIdType: "hex",
           version: 2,
           userDefinedData: "gaming_verification",
           disclosures: {
-            minimumAge: 18,           // Legal gaming age
-            nationality: true,        // Geographic compliance
-            ofac: true,              // Financial fraud prevention
-            name: true,              // Optional: for leaderboards
+            minimumAge: 18,
+            ofac: true,
+            excludedCountries: [],
           },
           devMode: false, // Production mode
         } as Partial<SelfApp>).build();
