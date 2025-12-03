@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Script, console} from "forge-std/Script.sol";
-import {CoinToss} from "../src/CoinToss.sol";
+import {TheOnePercent} from "../src/TheOnePercent.sol";
 
 /**
  * @title DeployTestnet
@@ -36,9 +36,9 @@ contract DeployTestnet is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy CoinToss contract
-        console.log("Deploying CoinToss contract...");
-        CoinToss coinToss = new CoinToss(
+        // Deploy TheOnePercent contract
+        console.log("Deploying TheOnePercent contract...");
+        TheOnePercent theOnePercent = new TheOnePercent(
             SELF_HUB_ADDRESS,
             scopeValue,
             VERIFICATION_CONFIG_ID
@@ -47,25 +47,25 @@ contract DeployTestnet is Script {
         vm.stopBroadcast();
 
         console.log("=== DEPLOYMENT SUCCESSFUL ===");
-        console.log("CoinToss deployed at:", address(coinToss));
-        console.log("Contract owner:", coinToss.owner());
-        console.log("Base stake amount:", coinToss.BASE_STAKE() / 1e18, "CELO");
-        console.log("Max stake allowed:", coinToss.MAX_STAKE_ALLOWED() / 1e18, "CELO");
-        console.log("Project pool balance:", coinToss.getProjectPoolBalance());
+        console.log("TheOnePercent deployed at:", address(theOnePercent));
+        console.log("Contract owner:", theOnePercent.owner());
+        console.log("Base stake amount:", theOnePercent.BASE_STAKE() / 1e18, "CELO");
+        console.log("Max stake allowed:", theOnePercent.MAX_STAKE_ALLOWED() / 1e18, "CELO");
+        console.log("Project pool balance:", theOnePercent.getProjectPoolBalance());
 
         console.log("=== DEPLOYMENT INFO ===");
         console.log("Network: Celo Alfajores Testnet");
-        console.log("Contract Address:", address(coinToss));
+        console.log("Contract Address:", address(theOnePercent));
         console.log("Deployer:", deployer);
         console.log("Transaction Hash: Check terminal output above");
-        console.log("Block Explorer: https://explorer.celo.org/alfajores/address/", address(coinToss));
+        console.log("Block Explorer: https://explorer.celo.org/alfajores/address/", address(theOnePercent));
 
         // Save deployment info to file
         string memory deploymentInfo = string(abi.encodePacked(
-            "CoinToss Testnet Deployment\n",
+            "TheOnePercent Testnet Deployment\n",
             "==========================\n",
             "Network: Celo Alfajores Testnet\n",
-            "Contract Address: ", vm.toString(address(coinToss)), "\n",
+            "Contract Address: ", vm.toString(address(theOnePercent)), "\n",
             "Deployer: ", vm.toString(deployer), "\n",
             "Self Hub: ", vm.toString(SELF_HUB_ADDRESS), "\n",
             "Scope: ", vm.toString(scopeValue), "\n",
