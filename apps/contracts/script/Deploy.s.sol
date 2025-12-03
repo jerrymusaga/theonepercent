@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Script, console} from "forge-std/Script.sol";
-import {CoinToss} from "../src/CoinToss.sol";
+import {TheOnePercent} from "../src/TheOnePercent.sol";
 
 contract DeployScript is Script {
     // Celo Mainnet addresses
@@ -24,13 +24,13 @@ contract DeployScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CoinToss coinToss;
+        TheOnePercent theOnePercent;
 
         // Deploy based on chain ID
         if (block.chainid == 42220) {
             // Celo Mainnet
             console.log("Deploying to Celo Mainnet...");
-            coinToss = new CoinToss(
+            theOnePercent = new TheOnePercent(
                 CELO_MAINNET_SELF_HUB,
                 scopeValue,
                 CELO_MAINNET_CONFIG_ID
@@ -38,7 +38,7 @@ contract DeployScript is Script {
         } else if (block.chainid == 44787) {
             // Celo Alfajores Testnet
             console.log("Deploying to Celo Alfajores Testnet...");
-            coinToss = new CoinToss(
+            theOnePercent = new TheOnePercent(
                 CELO_TESTNET_SELF_HUB,
                 scopeValue,
                 CELO_TESTNET_CONFIG_ID
@@ -46,7 +46,7 @@ contract DeployScript is Script {
         } else {
             // Local/Other networks - use mock addresses
             console.log("Deploying to local/other network...");
-            coinToss = new CoinToss(
+            theOnePercent = new TheOnePercent(
                 address(0x1234567890123456789012345678901234567890), // Mock hub
                 scopeValue,
                 CELO_TESTNET_CONFIG_ID
@@ -55,13 +55,13 @@ contract DeployScript is Script {
 
         vm.stopBroadcast();
 
-        console.log("CoinToss deployed at:", address(coinToss));
+        console.log("TheOnePercent deployed at:", address(theOnePercent));
         console.log("Deployment completed successfully!");
 
         // Verify deployment
         console.log("Verifying deployment...");
-        console.log("Owner:", coinToss.owner());
-        console.log("Base Stake:", coinToss.BASE_STAKE());
-        console.log("Max Stake Allowed:", coinToss.MAX_STAKE_ALLOWED());
+        console.log("Owner:", theOnePercent.owner());
+        console.log("Base Stake:", theOnePercent.BASE_STAKE());
+        console.log("Max Stake Allowed:", theOnePercent.MAX_STAKE_ALLOWED());
     }
 }

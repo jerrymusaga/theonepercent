@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Script, console} from "forge-std/Script.sol";
-import {CoinToss} from "../src/CoinToss.sol";
+import {TheOnePercent} from "../src/TheOnePercent.sol";
 
 /**
  * @title DeployMainnet
@@ -50,9 +50,9 @@ contract DeployMainnet is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy CoinToss contract
-        console.log("Deploying CoinToss contract to MAINNET...");
-        CoinToss coinToss = new CoinToss(
+        // Deploy TheOnePercent contract
+        console.log("Deploying TheOnePercent contract to MAINNET...");
+        TheOnePercent theOnePercent = new TheOnePercent(
             SELF_HUB_ADDRESS,
             scopeValue,
             VERIFICATION_CONFIG_ID
@@ -61,22 +61,22 @@ contract DeployMainnet is Script {
         vm.stopBroadcast();
 
         console.log("===  MAINNET DEPLOYMENT SUCCESSFUL  ===");
-        console.log("CoinToss deployed at:", address(coinToss));
-        console.log("Contract owner:", coinToss.owner());
-        console.log("Base stake amount:", coinToss.BASE_STAKE() / 1e18, "CELO");
-        console.log("Max stake allowed:", coinToss.MAX_STAKE_ALLOWED() / 1e18, "CELO");
-        console.log("Project pool balance:", coinToss.getProjectPoolBalance());
+        console.log("TheOnePercent deployed at:", address(theOnePercent));
+        console.log("Contract owner:", theOnePercent.owner());
+        console.log("Base stake amount:", theOnePercent.BASE_STAKE() / 1e18, "CELO");
+        console.log("Max stake allowed:", theOnePercent.MAX_STAKE_ALLOWED() / 1e18, "CELO");
+        console.log("Project pool balance:", theOnePercent.getProjectPoolBalance());
 
         console.log("=== MAINNET DEPLOYMENT INFO ===");
         console.log("Network: Celo Mainnet");
-        console.log("Contract Address:", address(coinToss));
+        console.log("Contract Address:", address(theOnePercent));
         console.log("Deployer:", deployer);
-        console.log("Block Explorer: https://explorer.celo.org/mainnet/address/", address(coinToss));
+        console.log("Block Explorer: https://explorer.celo.org/mainnet/address/", address(theOnePercent));
 
         // Verify contract is working
         console.log("=== POST-DEPLOYMENT VERIFICATION ===");
-        console.log("Contract size:", address(coinToss).code.length, "bytes");
-        console.log("Owner verification:", coinToss.owner() == deployer ? " PASS" : " FAIL");
+        console.log("Contract size:", address(theOnePercent).code.length, "bytes");
+        console.log("Owner verification:", theOnePercent.owner() == deployer ? " PASS" : " FAIL");
 
         
     }
